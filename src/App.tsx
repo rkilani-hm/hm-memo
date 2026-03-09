@@ -9,6 +9,7 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import MemoCreate from "@/pages/MemoCreate";
 import MemoList from "@/pages/MemoList";
+import MemoView from "@/pages/MemoView";
 import DepartmentManagement from "@/pages/admin/DepartmentManagement";
 import UserManagement from "@/pages/admin/UserManagement";
 import WorkflowManagement from "@/pages/admin/WorkflowManagement";
