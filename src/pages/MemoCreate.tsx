@@ -31,6 +31,7 @@ const MemoCreate = () => {
   const { toast } = useToast();
 
   // Form state
+  const [fromUserId, setFromUserId] = useState(user?.id || '');
   const [toUserId, setToUserId] = useState('');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
@@ -78,22 +79,30 @@ const MemoCreate = () => {
 
     setSubmitting(true);
     try {
+      const selectedFromProfile = profiles.find(p => p.user_id === fromUserId);
+      const deptId = selectedFromProfile?.department_id || profile?.department_id;
+      
+      if (!deptId) {
+        toast({ title: 'Error', description: 'Selected sender has no department assigned.', variant: 'destructive' });
+        return;
+      }
+
       // Get transmittal number
-      const transmittalNo = await getNextTransmittalNo(profile.department_id);
+      const transmittalNo = await getNextTransmittalNo(deptId);
 
       const copiesArray = copiesTo
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
 
-      // Insert memo — always as draft first, then submit via edge function if needed
+      // Insert memo
       const { data: memo, error: memoError } = await supabase
         .from('memos')
         .insert({
           transmittal_no: transmittalNo,
-          from_user_id: user.id,
+          from_user_id: fromUserId || user.id,
           to_user_id: toUserId || null,
-          department_id: profile.department_id,
+          department_id: deptId,
           subject: subject.trim() || 'Untitled Memo',
           description,
           status: status === 'draft' ? 'draft' : 'submitted',
@@ -210,15 +219,25 @@ const MemoCreate = () => {
                 <p className="text-sm font-medium">{currentDate}</p>
               </div>
 
-              {/* FROM */}
               <div className="p-3 space-y-1">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">From</Label>
-                <p className="text-sm font-medium">
-                  {profile?.full_name} — {profile?.job_title || 'No title'}
-                </p>
-                {userDept && (
-                  <p className="text-xs text-muted-foreground">{userDept.name}</p>
-                )}
+                <Select value={fromUserId} onValueChange={setFromUserId}>
+                  <SelectTrigger className="border-0 p-0 h-auto shadow-none text-sm font-medium">
+                    <SelectValue placeholder="Select sender..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {profiles.map((p) => (
+                      <SelectItem key={p.user_id} value={p.user_id}>
+                        {p.full_name} — {p.job_title || 'No title'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(() => {
+                  const selectedProfile = profiles.find(p => p.user_id === fromUserId);
+                  const dept = departments.find(d => d.id === selectedProfile?.department_id);
+                  return dept ? <p className="text-xs text-muted-foreground">{dept.name}</p> : null;
+                })()}
               </div>
             </div>
           </div>
@@ -263,7 +282,7 @@ const MemoCreate = () => {
           <div className="pt-4 border-t border-input">
             <div className="text-sm">
               <p className="border-b border-foreground inline-block w-60 pb-1 mb-1">&nbsp;</p>
-              <p className="font-medium">{profile?.full_name}, {profile?.job_title}</p>
+              <p className="font-medium">{(() => { const p = profiles.find(pr => pr.user_id === fromUserId); return p ? `${p.full_name}, ${p.job_title || ''}` : `${profile?.full_name}, ${profile?.job_title}`; })()}</p>
             </div>
           </div>
 
