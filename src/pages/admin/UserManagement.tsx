@@ -116,6 +116,22 @@ const UserManagement = () => {
     onError: (e: Error) => toast({ title: 'Error updating user', description: e.message, variant: 'destructive' }),
   });
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: !isActive })
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    onSuccess: (_, { isActive }) => {
+      queryClient.invalidateQueries({ queryKey: ['profiles-all'] });
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      toast({ title: isActive ? 'User deactivated' : 'User reactivated' });
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
   const resetForm = () => {
     setOpen(false);
     setEditUserId(null);
