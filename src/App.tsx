@@ -14,6 +14,7 @@ import PendingApprovals from "@/pages/PendingApprovals";
 import DepartmentManagement from "@/pages/admin/DepartmentManagement";
 import UserManagement from "@/pages/admin/UserManagement";
 import WorkflowManagement from "@/pages/admin/WorkflowManagement";
+import Settings from "@/pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
