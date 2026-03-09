@@ -1,0 +1,456 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { fetchProfiles, fetchDepartments } from '@/lib/memo-api';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  Eye,
+  Clock,
+  FileText,
+} from 'lucide-react';
+import { format } from 'date-fns';
+
+type ActionType = 'approved' | 'rejected' | 'rework';
+
+const PendingApprovals = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const [actionDialog, setActionDialog] = useState<{
+    stepId: string;
+    memoId: string;
+    action: ActionType;
+  } | null>(null);
+  const [comments, setComments] = useState('');
+
+  // Fetch approval steps assigned to current user
+  const { data: mySteps = [], isLoading } = useQuery({
+    queryKey: ['my-approval-steps', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('approval_steps')
+        .select('*')
+        .eq('approver_user_id', user!.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Fetch memos for these steps
+  const memoIds = [...new Set(mySteps.map((s) => s.memo_id))];
+  const { data: memos = [] } = useQuery({
+    queryKey: ['approval-memos', memoIds],
+    queryFn: async () => {
+      if (memoIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('memos')
+        .select('*')
+        .in('id', memoIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: memoIds.length > 0,
+  });
+
+  const { data: profiles = [] } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: fetchProfiles,
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments'],
+    queryFn: fetchDepartments,
+  });
+
+  const getMemo = (memoId: string) => memos.find((m) => m.id === memoId);
+  const getProfile = (userId: string) => profiles.find((p) => p.user_id === userId);
+  const getDept = (deptId: string) => departments.find((d) => d.id === deptId);
+
+  const actionMutation = useMutation({
+    mutationFn: async () => {
+      if (!actionDialog || !user) return;
+
+      const { stepId, memoId, action } = actionDialog;
+
+      // Update approval step
+      const { error: stepError } = await supabase
+        .from('approval_steps')
+        .update({
+          status: action,
+          comments: comments || null,
+          signed_at: new Date().toISOString(),
+          password_verified: true,
+        })
+        .eq('id', stepId);
+      if (stepError) throw stepError;
+
+      // Update memo status based on action
+      const newMemoStatus =
+        action === 'approved' ? 'approved' :
+        action === 'rejected' ? 'rejected' : 'rework';
+
+      // For approval: check if all steps are approved, otherwise move to next step
+      if (action === 'approved') {
+        const memo = getMemo(memoId);
+        const memoSteps = mySteps.filter((s) => s.memo_id === memoId);
+        // Get all steps for this memo
+        const { data: allSteps } = await supabase
+          .from('approval_steps')
+          .select('*')
+          .eq('memo_id', memoId)
+          .order('step_order');
+
+        const currentStep = allSteps?.find((s) => s.id === stepId);
+        const nextStep = allSteps?.find(
+          (s) => s.step_order > (currentStep?.step_order || 0) && s.status === 'pending'
+        );
+
+        if (nextStep) {
+          // Move to next step
+          await supabase
+            .from('memos')
+            .update({ current_step: nextStep.step_order, status: 'in_review' })
+            .eq('id', memoId);
+        } else {
+          // All steps done — mark as approved
+          await supabase
+            .from('memos')
+            .update({ status: 'approved' })
+            .eq('id', memoId);
+        }
+      } else {
+        await supabase
+          .from('memos')
+          .update({ status: newMemoStatus as any })
+          .eq('id', memoId);
+      }
+
+      // Audit log
+      await supabase.from('audit_log').insert({
+        memo_id: memoId,
+        user_id: user.id,
+        action: `memo_${action}`,
+        details: { comments: comments || null },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-approval-steps'] });
+      queryClient.invalidateQueries({ queryKey: ['approval-memos'] });
+      toast({
+        title: actionDialog?.action === 'approved' ? 'Memo Approved' :
+               actionDialog?.action === 'rejected' ? 'Memo Rejected' : 'Rework Requested',
+      });
+      setActionDialog(null);
+      setComments('');
+    },
+    onError: (e: Error) =>
+      toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const pendingSteps = mySteps.filter((s) => s.status === 'pending');
+  const completedSteps = mySteps.filter((s) => s.status !== 'pending');
+
+  const actionLabel: Record<ActionType, string> = {
+    approved: 'Approve',
+    rejected: 'Reject',
+    rework: 'Request Rework',
+  };
+
+  const actionColor: Record<ActionType, string> = {
+    approved: 'bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-[hsl(var(--success-foreground))]',
+    rejected: 'bg-destructive hover:bg-destructive/90 text-destructive-foreground',
+    rework: 'bg-[hsl(var(--warning))] hover:bg-[hsl(var(--warning))]/90 text-[hsl(var(--warning-foreground))]',
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Pending Approvals</h1>
+        <p className="text-sm text-muted-foreground">
+          Review and take action on memos assigned to you
+        </p>
+      </div>
+
+      {/* Pending Items */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-4 w-4 text-[hsl(var(--warning))]" />
+            Awaiting Your Action ({pendingSteps.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center text-muted-foreground">Loading...</div>
+          ) : pendingSteps.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">
+              No pending approvals. You're all caught up! 🎉
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Transmittal No.</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>From</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingSteps.map((step) => {
+                  const memo = getMemo(step.memo_id);
+                  if (!memo) return null;
+                  const from = getProfile(memo.from_user_id);
+                  const dept = getDept(memo.department_id);
+                  return (
+                    <TableRow key={step.id}>
+                      <TableCell className="font-mono text-sm font-medium">
+                        {memo.transmittal_no}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {memo.subject}
+                      </TableCell>
+                      <TableCell>{from?.full_name || '—'}</TableCell>
+                      <TableCell>{dept?.name || '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {format(new Date(memo.created_at), 'dd MMM yyyy')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="View memo"
+                            onClick={() => navigate(`/memos/${memo.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-[hsl(var(--success-foreground))] h-8"
+                            onClick={() =>
+                              setActionDialog({
+                                stepId: step.id,
+                                memoId: step.memo_id,
+                                action: 'approved',
+                              })
+                            }
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-8"
+                            onClick={() =>
+                              setActionDialog({
+                                stepId: step.id,
+                                memoId: step.memo_id,
+                                action: 'rejected',
+                              })
+                            }
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                            Reject
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            onClick={() =>
+                              setActionDialog({
+                                stepId: step.id,
+                                memoId: step.memo_id,
+                                action: 'rework',
+                              })
+                            }
+                          >
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                            Rework
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Completed History */}
+      {completedSteps.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              Your Previous Actions ({completedSteps.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Transmittal No.</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Your Action</TableHead>
+                  <TableHead>Date Signed</TableHead>
+                  <TableHead>Comments</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {completedSteps.map((step) => {
+                  const memo = getMemo(step.memo_id);
+                  return (
+                    <TableRow
+                      key={step.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => memo && navigate(`/memos/${memo.id}`)}
+                    >
+                      <TableCell className="font-mono text-sm">
+                        {memo?.transmittal_no || '—'}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {memo?.subject || '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={`capitalize ${
+                            step.status === 'approved'
+                              ? 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
+                              : step.status === 'rejected'
+                              ? 'bg-destructive/10 text-destructive'
+                              : 'bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]'
+                          }`}
+                        >
+                          {step.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {step.signed_at
+                          ? format(new Date(step.signed_at), 'dd MMM yyyy, HH:mm')
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
+                        {step.comments || '—'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Action Confirmation Dialog */}
+      <Dialog
+        open={!!actionDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActionDialog(null);
+            setComments('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {actionDialog && actionLabel[actionDialog.action]} Memo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {actionDialog && (
+              <p className="text-sm text-muted-foreground">
+                {actionDialog.action === 'approved'
+                  ? 'You are about to approve this memo. This action will be recorded.'
+                  : actionDialog.action === 'rejected'
+                  ? 'You are about to reject this memo. Please provide a reason below.'
+                  : 'You are requesting the sender to rework this memo. Please explain what needs to change.'}
+              </p>
+            )}
+            <div className="space-y-2">
+              <Label>
+                Comments{' '}
+                {actionDialog?.action !== 'approved' && (
+                  <span className="text-destructive">*</span>
+                )}
+              </Label>
+              <Textarea
+                value={comments}
+                onChange={(e) => setComments(e.target.value)}
+                placeholder={
+                  actionDialog?.action === 'approved'
+                    ? 'Optional comments...'
+                    : 'Provide reason or feedback...'
+                }
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setActionDialog(null);
+                setComments('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className={actionDialog ? actionColor[actionDialog.action] : ''}
+              disabled={
+                actionMutation.isPending ||
+                (actionDialog?.action !== 'approved' && !comments.trim())
+              }
+              onClick={() => actionMutation.mutate()}
+            >
+              {actionMutation.isPending
+                ? 'Processing...'
+                : actionDialog
+                ? actionLabel[actionDialog.action]
+                : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default PendingApprovals;
