@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
+import MemoCreate from "@/pages/MemoCreate";
+import MemoList from "@/pages/MemoList";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,8 +24,8 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/memos" element={<Dashboard />} />
-              <Route path="/memos/create" element={<Dashboard />} />
+              <Route path="/memos" element={<MemoList />} />
+              <Route path="/memos/create" element={<MemoCreate />} />
               <Route path="/approvals" element={<Dashboard />} />
               <Route path="/settings" element={<Dashboard />} />
               <Route path="/admin/users" element={<Dashboard />} />
