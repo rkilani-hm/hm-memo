@@ -31,6 +31,7 @@ const MemoCreate = () => {
   const { toast } = useToast();
 
   // Form state
+  const [fromUserId, setFromUserId] = useState(user?.id || '');
   const [toUserId, setToUserId] = useState('');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
