@@ -79,22 +79,30 @@ const MemoCreate = () => {
 
     setSubmitting(true);
     try {
+      const selectedFromProfile = profiles.find(p => p.user_id === fromUserId);
+      const deptId = selectedFromProfile?.department_id || profile?.department_id;
+      
+      if (!deptId) {
+        toast({ title: 'Error', description: 'Selected sender has no department assigned.', variant: 'destructive' });
+        return;
+      }
+
       // Get transmittal number
-      const transmittalNo = await getNextTransmittalNo(profile.department_id);
+      const transmittalNo = await getNextTransmittalNo(deptId);
 
       const copiesArray = copiesTo
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
 
-      // Insert memo — always as draft first, then submit via edge function if needed
+      // Insert memo
       const { data: memo, error: memoError } = await supabase
         .from('memos')
         .insert({
           transmittal_no: transmittalNo,
-          from_user_id: user.id,
+          from_user_id: fromUserId || user.id,
           to_user_id: toUserId || null,
-          department_id: profile.department_id,
+          department_id: deptId,
           subject: subject.trim() || 'Untitled Memo',
           description,
           status: status === 'draft' ? 'draft' : 'submitted',
