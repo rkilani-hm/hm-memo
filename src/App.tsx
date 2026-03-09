@@ -9,6 +9,9 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import MemoCreate from "@/pages/MemoCreate";
 import MemoList from "@/pages/MemoList";
+import DepartmentManagement from "@/pages/admin/DepartmentManagement";
+import UserManagement from "@/pages/admin/UserManagement";
+import WorkflowManagement from "@/pages/admin/WorkflowManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,9 +31,9 @@ const App = () => (
               <Route path="/memos/create" element={<MemoCreate />} />
               <Route path="/approvals" element={<Dashboard />} />
               <Route path="/settings" element={<Dashboard />} />
-              <Route path="/admin/users" element={<Dashboard />} />
-              <Route path="/admin/departments" element={<Dashboard />} />
-              <Route path="/admin/workflows" element={<Dashboard />} />
+              <Route path="/admin/users" element={<UserManagement />} />
+              <Route path="/admin/departments" element={<DepartmentManagement />} />
+              <Route path="/admin/workflows" element={<WorkflowManagement />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
