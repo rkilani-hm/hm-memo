@@ -86,7 +86,7 @@ const MemoCreate = () => {
         .map((s) => s.trim())
         .filter(Boolean);
 
-      // Insert memo
+      // Insert memo — always as draft first, then submit via edge function if needed
       const { data: memo, error: memoError } = await supabase
         .from('memos')
         .insert({
@@ -96,7 +96,7 @@ const MemoCreate = () => {
           department_id: profile.department_id,
           subject: subject.trim() || 'Untitled Memo',
           description,
-          status,
+          status: status === 'draft' ? 'draft' : 'submitted',
           memo_types: memoTypes,
           continuation_pages: continuationPages,
           initials: initials.trim() || null,
@@ -119,6 +119,19 @@ const MemoCreate = () => {
         action: status === 'draft' ? 'memo_drafted' : 'memo_submitted',
         details: { transmittal_no: transmittalNo },
       });
+
+      // If submitting, trigger workflow creation via edge function
+      if (status === 'submitted') {
+        const { data: submitResult, error: submitError } = await supabase.functions.invoke('submit-memo', {
+          body: { memo_id: memo.id },
+        });
+        if (submitError) {
+          console.warn('Workflow creation warning:', submitError);
+          // Non-blocking — memo is already saved as submitted
+        } else {
+          console.log('Workflow result:', submitResult);
+        }
+      }
 
       toast({
         title: status === 'draft' ? 'Draft Saved' : 'Memo Submitted',
