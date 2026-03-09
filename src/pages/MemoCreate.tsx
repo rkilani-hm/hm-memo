@@ -211,15 +211,25 @@ const MemoCreate = () => {
                 <p className="text-sm font-medium">{currentDate}</p>
               </div>
 
-              {/* FROM */}
               <div className="p-3 space-y-1">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">From</Label>
-                <p className="text-sm font-medium">
-                  {profile?.full_name} — {profile?.job_title || 'No title'}
-                </p>
-                {userDept && (
-                  <p className="text-xs text-muted-foreground">{userDept.name}</p>
-                )}
+                <Select value={fromUserId} onValueChange={setFromUserId}>
+                  <SelectTrigger className="border-0 p-0 h-auto shadow-none text-sm font-medium">
+                    <SelectValue placeholder="Select sender..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {profiles.map((p) => (
+                      <SelectItem key={p.user_id} value={p.user_id}>
+                        {p.full_name} — {p.job_title || 'No title'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(() => {
+                  const selectedProfile = profiles.find(p => p.user_id === fromUserId);
+                  const dept = departments.find(d => d.id === selectedProfile?.department_id);
+                  return dept ? <p className="text-xs text-muted-foreground">{dept.name}</p> : null;
+                })()}
               </div>
             </div>
           </div>
