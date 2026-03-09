@@ -273,8 +273,11 @@ const UserManagement = () => {
               ) : profiles.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No users yet</TableCell></TableRow>
               ) : profiles.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.full_name}</TableCell>
+                <TableRow key={p.id} className={!p.is_active ? 'opacity-50' : ''}>
+                  <TableCell className="font-medium">
+                    {p.full_name}
+                    {!p.is_active && <Badge variant="outline" className="ml-2 text-xs">Inactive</Badge>}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{p.email}</TableCell>
                   <TableCell>{departments.find(d => d.id === p.department_id)?.name || '—'}</TableCell>
                   <TableCell>{p.job_title || '—'}</TableCell>
