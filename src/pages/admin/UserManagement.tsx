@@ -31,8 +31,15 @@ const UserManagement = () => {
   const [selectedRoles, setSelectedRoles] = useState<AppRole[]>(['staff']);
 
   const { data: profiles = [], isLoading } = useQuery({
-    queryKey: ['profiles'],
-    queryFn: fetchProfiles,
+    queryKey: ['profiles-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('full_name');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const { data: departments = [] } = useQuery({
