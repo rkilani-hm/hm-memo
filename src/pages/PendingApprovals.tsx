@@ -115,16 +115,11 @@ const PendingApprovals = () => {
         .eq('id', stepId);
       if (stepError) throw stepError;
 
-      // Update memo status based on action
-      const newMemoStatus =
-        action === 'approved' ? 'approved' :
-        action === 'rejected' ? 'rejected' : 'rework';
+      const memo = getMemo(memoId);
+      let nextApproverStep: any = null;
 
-      // For approval: check if all steps are approved, otherwise move to next step
+      // Update memo status based on action
       if (action === 'approved') {
-        const memo = getMemo(memoId);
-        const memoSteps = mySteps.filter((s) => s.memo_id === memoId);
-        // Get all steps for this memo
         const { data: allSteps } = await supabase
           .from('approval_steps')
           .select('*')
@@ -137,19 +132,19 @@ const PendingApprovals = () => {
         );
 
         if (nextStep) {
-          // Move to next step
           await supabase
             .from('memos')
             .update({ current_step: nextStep.step_order, status: 'in_review' })
             .eq('id', memoId);
+          nextApproverStep = nextStep;
         } else {
-          // All steps done — mark as approved
           await supabase
             .from('memos')
             .update({ status: 'approved' })
             .eq('id', memoId);
         }
       } else {
+        const newMemoStatus = action === 'rejected' ? 'rejected' : 'rework';
         await supabase
           .from('memos')
           .update({ status: newMemoStatus as any })
@@ -163,6 +158,48 @@ const PendingApprovals = () => {
         action: `memo_${action}`,
         details: { comments: comments || null },
       });
+
+      // Send email notifications (non-blocking)
+      if (memo) {
+        const approverProfile = getProfile(user.id);
+        const creatorProfile = getProfile(memo.from_user_id);
+
+        // Notify memo creator of approval/rejection/rework
+        if (creatorProfile) {
+          notifyMemoStatus({
+            creatorEmail: creatorProfile.email,
+            creatorName: creatorProfile.full_name,
+            memoSubject: memo.subject,
+            transmittalNo: memo.transmittal_no,
+            status: action,
+            approverName: approverProfile?.full_name || 'An approver',
+            memoId,
+          }).catch((err) => console.warn('Email to creator failed:', err));
+        }
+
+        // If approved and there's a next approver, notify them
+        if (action === 'approved' && nextApproverStep) {
+          const nextProfile = getProfile(nextApproverStep.approver_user_id);
+          if (nextProfile) {
+            notifyApprover({
+              approverEmail: nextProfile.email,
+              approverName: nextProfile.full_name,
+              memoSubject: memo.subject,
+              transmittalNo: memo.transmittal_no,
+              fromName: creatorProfile?.full_name || 'Unknown',
+              memoId,
+            }).catch((err) => console.warn('Email to next approver failed:', err));
+
+            // Also create in-app notification for next approver
+            supabase.from('notifications').insert({
+              user_id: nextApproverStep.approver_user_id,
+              memo_id: memoId,
+              type: 'approval_request',
+              message: `Memo ${memo.transmittal_no} — "${memo.subject}" requires your approval.`,
+            }).then(({ error }) => { if (error) console.warn('Notification insert failed:', error); });
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-approval-steps'] });
