@@ -30,6 +30,7 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/memos" element={<MemoList />} />
               <Route path="/memos/create" element={<MemoCreate />} />
+              <Route path="/memos/:id" element={<MemoView />} />
               <Route path="/approvals" element={<Dashboard />} />
               <Route path="/settings" element={<Dashboard />} />
               <Route path="/admin/users" element={<UserManagement />} />
