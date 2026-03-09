@@ -9,7 +9,8 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { User, Pen, Save, Upload, Trash2 } from 'lucide-react';
+import { User, Pen, Save, Upload, Trash2, Lock } from 'lucide-react';
+import { ChangePasswordCard } from '@/components/settings/ChangePasswordCard';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Profile = Tables<'profiles'>;
@@ -322,6 +323,9 @@ const Settings = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Change Password */}
+      <ChangePasswordCard />
 
       {/* Actions */}
       <div className="flex justify-between">
