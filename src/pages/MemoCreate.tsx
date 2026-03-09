@@ -282,7 +282,7 @@ const MemoCreate = () => {
           <div className="pt-4 border-t border-input">
             <div className="text-sm">
               <p className="border-b border-foreground inline-block w-60 pb-1 mb-1">&nbsp;</p>
-              <p className="font-medium">{profile?.full_name}, {profile?.job_title}</p>
+              <p className="font-medium">{(() => { const p = profiles.find(pr => pr.user_id === fromUserId); return p ? `${p.full_name}, ${p.job_title || ''}` : `${profile?.full_name}, ${profile?.job_title}`; })()}</p>
             </div>
           </div>
 
