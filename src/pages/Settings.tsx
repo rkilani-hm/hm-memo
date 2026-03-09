@@ -323,6 +323,9 @@ const Settings = () => {
         </CardContent>
       </Card>
 
+      {/* Change Password */}
+      <ChangePasswordCard />
+
       {/* Actions */}
       <div className="flex justify-between">
         <Button variant="outline" onClick={signOut} className="text-destructive border-destructive hover:bg-destructive/10">
