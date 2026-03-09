@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, Pencil } from 'lucide-react';
+import { UserPlus, Pencil, UserX, UserCheck } from 'lucide-react';
 import { Constants } from '@/integrations/supabase/types';
 
 type AppRole = 'admin' | 'department_head' | 'staff' | 'approver';
