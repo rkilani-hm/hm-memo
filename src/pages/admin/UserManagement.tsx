@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, Pencil } from 'lucide-react';
+import { UserPlus, Pencil, UserX, UserCheck } from 'lucide-react';
 import { Constants } from '@/integrations/supabase/types';
 
 type AppRole = 'admin' | 'department_head' | 'staff' | 'approver';
@@ -31,8 +31,15 @@ const UserManagement = () => {
   const [selectedRoles, setSelectedRoles] = useState<AppRole[]>(['staff']);
 
   const { data: profiles = [], isLoading } = useQuery({
-    queryKey: ['profiles'],
-    queryFn: fetchProfiles,
+    queryKey: ['profiles-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('full_name');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const { data: departments = [] } = useQuery({
@@ -107,6 +114,22 @@ const UserManagement = () => {
       resetForm();
     },
     onError: (e: Error) => toast({ title: 'Error updating user', description: e.message, variant: 'destructive' }),
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: !isActive })
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    onSuccess: (_, { isActive }) => {
+      queryClient.invalidateQueries({ queryKey: ['profiles-all'] });
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      toast({ title: isActive ? 'User deactivated' : 'User reactivated' });
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const resetForm = () => {
@@ -250,8 +273,11 @@ const UserManagement = () => {
               ) : profiles.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No users yet</TableCell></TableRow>
               ) : profiles.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.full_name}</TableCell>
+                <TableRow key={p.id} className={!p.is_active ? 'opacity-50' : ''}>
+                  <TableCell className="font-medium">
+                    {p.full_name}
+                    {!p.is_active && <Badge variant="outline" className="ml-2 text-xs">Inactive</Badge>}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{p.email}</TableCell>
                   <TableCell>{departments.find(d => d.id === p.department_id)?.name || '—'}</TableCell>
                   <TableCell>{p.job_title || '—'}</TableCell>
@@ -265,9 +291,19 @@ const UserManagement = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleActiveMutation.mutate({ userId: p.user_id, isActive: p.is_active })}
+                        title={p.is_active ? 'Deactivate user' : 'Reactivate user'}
+                      >
+                        {p.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-[hsl(var(--success))]" />}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
