@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, UserPlus } from 'lucide-react';
+import { UserPlus, Pencil } from 'lucide-react';
 import { Constants } from '@/integrations/supabase/types';
 
 type AppRole = 'admin' | 'department_head' | 'staff' | 'approver';
@@ -22,6 +22,7 @@ const UserManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editUserId, setEditUserId] = useState<string | null>(null);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -63,7 +64,6 @@ const UserManagement = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Assign additional roles beyond the first
       if (selectedRoles.length > 1) {
         for (const role of selectedRoles.slice(1)) {
           await supabase.functions.invoke('create-user', {
@@ -82,14 +82,54 @@ const UserManagement = () => {
     onError: (e: Error) => toast({ title: 'Error creating user', description: e.message, variant: 'destructive' }),
   });
 
+  const updateUserMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          action: 'update_user',
+          user_id: editUserId,
+          full_name: fullName,
+          email,
+          password: password || undefined,
+          department_id: departmentId || null,
+          job_title: jobTitle || null,
+          roles: selectedRoles,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['all-user-roles'] });
+      toast({ title: 'User updated successfully' });
+      resetForm();
+    },
+    onError: (e: Error) => toast({ title: 'Error updating user', description: e.message, variant: 'destructive' }),
+  });
+
   const resetForm = () => {
     setOpen(false);
+    setEditUserId(null);
     setFullName('');
     setEmail('');
     setPassword('');
     setDepartmentId('');
     setJobTitle('');
     setSelectedRoles(['staff']);
+  };
+
+  const openEdit = (profile: typeof profiles[0]) => {
+    setEditUserId(profile.user_id);
+    setFullName(profile.full_name);
+    setEmail(profile.email);
+    setPassword('');
+    setDepartmentId(profile.department_id || '');
+    setJobTitle(profile.job_title || '');
+    const userRoles = getUserRoles(profile.user_id) as AppRole[];
+    setSelectedRoles(userRoles.length > 0 ? userRoles : ['staff']);
+    setOpen(true);
   };
 
   const toggleRole = (role: AppRole) => {
@@ -110,6 +150,21 @@ const UserManagement = () => {
     }
   };
 
+  const isEditing = !!editUserId;
+  const isSaving = createUserMutation.isPending || updateUserMutation.isPending;
+
+  const handleSave = () => {
+    if (isEditing) {
+      updateUserMutation.mutate();
+    } else {
+      createUserMutation.mutate();
+    }
+  };
+
+  const canSave = isEditing
+    ? !!fullName && !!email && (!password || password.length >= 6)
+    : !!fullName && !!email && !!password && password.length >= 6;
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -123,7 +178,7 @@ const UserManagement = () => {
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Create New User</DialogTitle>
+              <DialogTitle>{isEditing ? 'Edit User' : 'Create New User'}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-2">
@@ -135,8 +190,8 @@ const UserManagement = () => {
                 <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@alhamra.com.kw" />
               </div>
               <div className="space-y-2">
-                <Label>Password</Label>
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimum 6 characters" />
+                <Label>{isEditing ? 'New Password (leave blank to keep current)' : 'Password'}</Label>
+                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={isEditing ? 'Leave blank to keep current' : 'Minimum 6 characters'} />
               </div>
               <div className="space-y-2">
                 <Label>Department</Label>
@@ -166,10 +221,10 @@ const UserManagement = () => {
               </div>
               <Button
                 className="w-full"
-                onClick={() => createUserMutation.mutate()}
-                disabled={!fullName || !email || !password || password.length < 6 || createUserMutation.isPending}
+                onClick={handleSave}
+                disabled={!canSave || isSaving}
               >
-                {createUserMutation.isPending ? 'Creating...' : 'Create User'}
+                {isSaving ? 'Saving...' : isEditing ? 'Update User' : 'Create User'}
               </Button>
             </div>
           </DialogContent>
@@ -186,13 +241,14 @@ const UserManagement = () => {
                 <TableHead>Department</TableHead>
                 <TableHead>Job Title</TableHead>
                 <TableHead>Roles</TableHead>
+                <TableHead className="w-20">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
               ) : profiles.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No users yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No users yet</TableCell></TableRow>
               ) : profiles.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.full_name}</TableCell>
@@ -207,6 +263,11 @@ const UserManagement = () => {
                         </Badge>
                       ))}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
