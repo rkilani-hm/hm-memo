@@ -288,9 +288,19 @@ const UserManagement = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleActiveMutation.mutate({ userId: p.user_id, isActive: p.is_active })}
+                        title={p.is_active ? 'Deactivate user' : 'Reactivate user'}
+                      >
+                        {p.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-[hsl(var(--success))]" />}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
