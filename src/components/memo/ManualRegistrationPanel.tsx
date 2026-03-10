@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, FileText, Upload } from 'lucide-react';
 import { format } from 'date-fns';
-import { collectDeviceInfo } from '@/lib/device-info';
+import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 
 interface ManualRegistrationPanelProps {
   step: {
