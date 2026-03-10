@@ -42,6 +42,7 @@ const MemoCreate = () => {
   const [copiesTo, setCopiesTo] = useState('');
   const [files, setFiles] = useState<FileAttachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
 
   // Fetch users and departments
   const { data: profiles = [] } = useQuery({
