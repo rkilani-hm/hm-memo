@@ -460,13 +460,55 @@ const PendingApprovals = () => {
               </p>
             )}
 
-            {/* Signature Pad - shown for approve action */}
-            {actionDialog?.action === 'approved' && (
-              <div className="space-y-2">
-                <Label>Your Signature <span className="text-destructive">*</span></Label>
-                <SignaturePad onSignatureChange={setSignatureDataUrl} />
-              </div>
-            )}
+            {/* Signature - shown for approve action */}
+            {actionDialog?.action === 'approved' && (() => {
+              const myProfile = user ? getProfile(user.id) : null;
+              const hasSavedSig = !!myProfile?.signature_image_url;
+              return (
+                <div className="space-y-3">
+                  <Label>Your Signature <span className="text-destructive">*</span></Label>
+                  
+                  {hasSavedSig && (
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={signatureMode === 'saved' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          setSignatureMode('saved');
+                          setSignatureDataUrl(myProfile!.signature_image_url);
+                        }}
+                      >
+                        Use Saved Signature
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={signatureMode === 'draw' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          setSignatureMode('draw');
+                          setSignatureDataUrl(null);
+                        }}
+                      >
+                        Draw Signature
+                      </Button>
+                    </div>
+                  )}
+
+                  {signatureMode === 'saved' && hasSavedSig ? (
+                    <div className="border border-input rounded-md p-4 bg-white flex items-center justify-center">
+                      <img
+                        src={myProfile!.signature_image_url!}
+                        alt="Your saved signature"
+                        className="max-h-24 object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <SignaturePad onSignatureChange={setSignatureDataUrl} />
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="space-y-2">
               <Label>
