@@ -341,6 +341,17 @@ const MemoCreate = () => {
             </Label>
             <FileUpload files={files} onChange={setFiles} />
           </div>
+
+          <Separator />
+
+          {/* Workflow Preview */}
+          <WorkflowPreview
+            departmentId={(() => {
+              const selectedProfile = profiles.find(p => p.user_id === fromUserId);
+              return selectedProfile?.department_id || profile?.department_id || null;
+            })()}
+            memoTypes={memoTypes}
+          />
         </CardContent>
       </Card>
 
