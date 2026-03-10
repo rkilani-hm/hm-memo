@@ -22,6 +22,8 @@ import {
   Users,
   LogOut,
   Building2,
+  Shield,
+  ScrollText,
 } from 'lucide-react';
 
 const AppSidebar = () => {
