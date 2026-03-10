@@ -100,7 +100,7 @@ const MemoCreate = () => {
         .from('memos')
         .insert({
           transmittal_no: transmittalNo,
-          from_user_id: fromUserId || user.id,
+          from_user_id: user.id,
           to_user_id: toUserId || null,
           department_id: deptId,
           subject: subject.trim() || 'Untitled Memo',
