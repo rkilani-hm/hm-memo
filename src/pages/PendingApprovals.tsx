@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import SignaturePad from '@/components/memo/SignaturePad';
 import {
   Dialog,
   DialogContent,
@@ -51,7 +52,7 @@ const PendingApprovals = () => {
     action: ActionType;
   } | null>(null);
   const [comments, setComments] = useState('');
-
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   // Fetch approval steps assigned to current user
   const { data: mySteps = [], isLoading } = useQuery({
     queryKey: ['my-approval-steps', user?.id],
@@ -103,6 +104,19 @@ const PendingApprovals = () => {
 
       const { stepId, memoId, action } = actionDialog;
 
+      // Upload signature image if provided
+      let signatureUrl: string | null = null;
+      if (signatureDataUrl) {
+        const blob = await (await fetch(signatureDataUrl)).blob();
+        const path = `${user.id}/${stepId}-approval.png`;
+        const { error: uploadError } = await supabase.storage
+          .from('signatures')
+          .upload(path, blob, { upsert: true, contentType: 'image/png' });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(path);
+        signatureUrl = urlData.publicUrl;
+      }
+
       // Update approval step
       const { error: stepError } = await supabase
         .from('approval_steps')
@@ -111,6 +125,7 @@ const PendingApprovals = () => {
           comments: comments || null,
           signed_at: new Date().toISOString(),
           password_verified: true,
+          signature_image_url: signatureUrl,
         })
         .eq('id', stepId);
       if (stepError) throw stepError;
@@ -210,6 +225,7 @@ const PendingApprovals = () => {
       });
       setActionDialog(null);
       setComments('');
+      setSignatureDataUrl(null);
     },
     onError: (e: Error) =>
       toast({ title: 'Error', description: e.message, variant: 'destructive' }),
@@ -422,10 +438,11 @@ const PendingApprovals = () => {
           if (!open) {
             setActionDialog(null);
             setComments('');
+            setSignatureDataUrl(null);
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {actionDialog && actionLabel[actionDialog.action]} Memo
@@ -435,12 +452,21 @@ const PendingApprovals = () => {
             {actionDialog && (
               <p className="text-sm text-muted-foreground">
                 {actionDialog.action === 'approved'
-                  ? 'You are about to approve this memo. This action will be recorded.'
+                  ? 'You are about to approve this memo. Please sign below.'
                   : actionDialog.action === 'rejected'
                   ? 'You are about to reject this memo. Please provide a reason below.'
                   : 'You are requesting the sender to rework this memo. Please explain what needs to change.'}
               </p>
             )}
+
+            {/* Signature Pad - shown for approve action */}
+            {actionDialog?.action === 'approved' && (
+              <div className="space-y-2">
+                <Label>Your Signature <span className="text-destructive">*</span></Label>
+                <SignaturePad onSignatureChange={setSignatureDataUrl} />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>
                 Comments{' '}
@@ -456,7 +482,7 @@ const PendingApprovals = () => {
                     ? 'Optional comments...'
                     : 'Provide reason or feedback...'
                 }
-                rows={4}
+                rows={3}
               />
             </div>
           </div>
@@ -466,6 +492,7 @@ const PendingApprovals = () => {
               onClick={() => {
                 setActionDialog(null);
                 setComments('');
+                setSignatureDataUrl(null);
               }}
             >
               Cancel
@@ -474,6 +501,7 @@ const PendingApprovals = () => {
               className={actionDialog ? actionColor[actionDialog.action] : ''}
               disabled={
                 actionMutation.isPending ||
+                (actionDialog?.action === 'approved' && !signatureDataUrl) ||
                 (actionDialog?.action !== 'approved' && !comments.trim())
               }
               onClick={() => actionMutation.mutate()}
