@@ -16,11 +16,15 @@ export type Database = {
     Tables: {
       approval_steps: {
         Row: {
+          action_type: Database["public"]["Enums"]["step_action_type"]
           approver_user_id: string
           comments: string | null
           created_at: string
+          deadline: string | null
           id: string
+          is_required: boolean
           memo_id: string
+          parallel_group: number | null
           password_verified: boolean | null
           signature_image_url: string | null
           signed_at: string | null
@@ -29,11 +33,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          action_type?: Database["public"]["Enums"]["step_action_type"]
           approver_user_id: string
           comments?: string | null
           created_at?: string
+          deadline?: string | null
           id?: string
+          is_required?: boolean
           memo_id: string
+          parallel_group?: number | null
           password_verified?: boolean | null
           signature_image_url?: string | null
           signed_at?: string | null
@@ -42,11 +50,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          action_type?: Database["public"]["Enums"]["step_action_type"]
           approver_user_id?: string
           comments?: string | null
           created_at?: string
+          deadline?: string | null
           id?: string
+          is_required?: boolean
           memo_id?: string
+          parallel_group?: number | null
           password_verified?: boolean | null
           signature_image_url?: string | null
           signed_at?: string | null
@@ -307,6 +319,7 @@ export type Database = {
           full_name: string
           id: string
           initials: string | null
+          initials_image_url: string | null
           is_active: boolean
           job_title: string | null
           signature_image_url: string | null
@@ -321,6 +334,7 @@ export type Database = {
           full_name: string
           id?: string
           initials?: string | null
+          initials_image_url?: string | null
           is_active?: boolean
           job_title?: string | null
           signature_image_url?: string | null
@@ -335,6 +349,7 @@ export type Database = {
           full_name?: string
           id?: string
           initials?: string | null
+          initials_image_url?: string | null
           is_active?: boolean
           job_title?: string | null
           signature_image_url?: string | null
@@ -458,6 +473,7 @@ export type Database = {
         | "use_return"
         | "request"
         | "other"
+      step_action_type: "signature" | "initial" | "review" | "acknowledge"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -606,6 +622,7 @@ export const Constants = {
         "request",
         "other",
       ],
+      step_action_type: ["signature", "initial", "review", "acknowledge"],
     },
   },
 } as const

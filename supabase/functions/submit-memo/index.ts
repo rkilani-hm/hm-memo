@@ -4,12 +4,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface WorkflowStep {
   approver_user_id: string;
   label: string;
+  action_type?: string;
+  is_required?: boolean;
+  parallel_group?: number | null;
+  deadline?: string | null;
 }
 
 serve(async (req) => {
@@ -18,7 +22,6 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate the caller
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -30,7 +33,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // User client to verify auth
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -42,10 +44,9 @@ serve(async (req) => {
       });
     }
 
-    // Service role client for privileged operations
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    const { memo_id, workflow_template_id } = await req.json();
+    const { memo_id, workflow_template_id, custom_steps } = await req.json();
     if (!memo_id) {
       return new Response(JSON.stringify({ error: "memo_id is required" }), {
         status: 400,
@@ -66,7 +67,6 @@ serve(async (req) => {
       });
     }
 
-    // Verify the caller owns this memo
     if (memo.from_user_id !== user.id) {
       return new Response(JSON.stringify({ error: "Not authorized for this memo" }), {
         status: 403,
@@ -74,78 +74,86 @@ serve(async (req) => {
       });
     }
 
-    // Find matching workflow template
-    // If workflow_template_id is provided, use that directly; otherwise auto-match
-    let workflow = null;
+    let steps: WorkflowStep[] = [];
+    let workflowSource = "none";
+    let workflow: any = null;
 
-    if (workflow_template_id) {
-      const { data } = await adminClient
-        .from("workflow_templates")
-        .select("*")
-        .eq("id", workflow_template_id)
-        .maybeSingle();
-      workflow = data;
-    }
-
-    if (!workflow) {
-      // Auto-match: department + memo_type, then department default, then global default
-      const memoTypes: string[] = memo.memo_types || [];
-
-      if (memoTypes.length > 0) {
+    // Priority 1: Custom dynamic steps from the client
+    if (custom_steps && Array.isArray(custom_steps) && custom_steps.length > 0) {
+      steps = custom_steps;
+      workflowSource = "dynamic";
+    } else {
+      // Priority 2: Specified template
+      if (workflow_template_id) {
         const { data } = await adminClient
           .from("workflow_templates")
           .select("*")
-          .eq("department_id", memo.department_id)
-          .eq("memo_type", memoTypes[0])
-          .limit(1)
+          .eq("id", workflow_template_id)
           .maybeSingle();
         workflow = data;
       }
 
+      // Priority 3: Auto-match
       if (!workflow) {
-        const { data } = await adminClient
-          .from("workflow_templates")
-          .select("*")
-          .eq("department_id", memo.department_id)
-          .eq("is_default", true)
-          .limit(1)
-          .maybeSingle();
-        workflow = data;
+        const memoTypes: string[] = memo.memo_types || [];
+        if (memoTypes.length > 0) {
+          const { data } = await adminClient
+            .from("workflow_templates")
+            .select("*")
+            .eq("department_id", memo.department_id)
+            .eq("memo_type", memoTypes[0])
+            .limit(1)
+            .maybeSingle();
+          workflow = data;
+        }
+        if (!workflow) {
+          const { data } = await adminClient
+            .from("workflow_templates")
+            .select("*")
+            .eq("department_id", memo.department_id)
+            .eq("is_default", true)
+            .limit(1)
+            .maybeSingle();
+          workflow = data;
+        }
+        if (!workflow) {
+          const { data } = await adminClient
+            .from("workflow_templates")
+            .select("*")
+            .eq("is_default", true)
+            .is("department_id", null)
+            .limit(1)
+            .maybeSingle();
+          workflow = data;
+        }
       }
 
-      if (!workflow) {
-        const { data } = await adminClient
-          .from("workflow_templates")
-          .select("*")
-          .eq("is_default", true)
-          .is("department_id", null)
-          .limit(1)
-          .maybeSingle();
-        workflow = data;
-      }
+      steps = (workflow?.steps as WorkflowStep[]) || [];
+      workflowSource = workflow ? "template" : "none";
     }
-
-    const steps: WorkflowStep[] = (workflow?.steps as WorkflowStep[]) || [];
 
     if (steps.length === 0) {
-      // No workflow — just update memo to submitted, no approval steps needed
       await adminClient
         .from("memos")
         .update({ status: "submitted", current_step: 0 })
         .eq("id", memo_id);
 
       return new Response(
-        JSON.stringify({ success: true, approval_steps_created: 0, message: "No workflow template found. Memo submitted without approval steps." }),
+        JSON.stringify({ success: true, approval_steps_created: 0, message: "No workflow. Memo submitted without approval steps." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Create approval steps
+    // Create approval steps with action_type, parallel_group, is_required, deadline
     const approvalSteps = steps.map((step, index) => ({
       memo_id,
       approver_user_id: step.approver_user_id,
       step_order: index + 1,
       status: "pending" as const,
+      action_type: step.action_type || "signature",
+      parallel_group: step.parallel_group ?? null,
+      is_required: step.is_required !== false,
+      deadline: step.deadline || null,
     }));
 
     const { error: stepsErr } = await adminClient
@@ -153,80 +161,88 @@ serve(async (req) => {
       .insert(approvalSteps);
     if (stepsErr) throw stepsErr;
 
-    // Update memo status to in_review with current_step = 1
+    // Update memo status
     await adminClient
       .from("memos")
       .update({ status: "in_review", current_step: 1 })
       .eq("id", memo_id);
 
-    // Get the sender profile
+    // Notify first approver(s) — could be parallel group
+    const firstGroup = approvalSteps[0].parallel_group;
+    const firstSteps = firstGroup !== null
+      ? approvalSteps.filter((s) => s.parallel_group === firstGroup)
+      : [approvalSteps[0]];
+
     const { data: senderProfile } = await adminClient
       .from("profiles")
       .select("full_name")
       .eq("user_id", user.id)
       .single();
 
-    // Notify first approver (the one with step_order = 1)
-    const firstStep = steps[0];
-    const { data: approverProfile } = await adminClient
-      .from("profiles")
-      .select("full_name, email")
-      .eq("user_id", firstStep.approver_user_id)
-      .single();
+    const actionTypeLabels: Record<string, string> = {
+      signature: "approval (signature required)",
+      initial: "endorsement (initials required)",
+      review: "review (comments requested)",
+      acknowledge: "acknowledgement",
+    };
 
-    if (approverProfile) {
-      // Create in-app notification
-      await adminClient.from("notifications").insert({
-        user_id: firstStep.approver_user_id,
-        memo_id,
-        type: "approval_request",
-        message: `Memo ${memo.transmittal_no} — "${memo.subject}" requires your approval.`,
-      });
+    for (const firstStep of firstSteps) {
+      const { data: approverProfile } = await adminClient
+        .from("profiles")
+        .select("full_name, email")
+        .eq("user_id", firstStep.approver_user_id)
+        .single();
 
-      // Send email notification via send-email function
-      try {
-        const appUrl = Deno.env.get("APP_URL") || "https://hm-memo.lovable.app";
-        const emailBody = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: #1B3A5C; padding: 20px; text-align: center;">
-              <h2 style="color: #C8952E; margin: 0;">Al Hamra Real Estate</h2>
-              <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System</p>
-            </div>
-            <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
-              <p>Dear <strong>${approverProfile.full_name}</strong>,</p>
-              <p>A memo requires your approval:</p>
-              <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-                <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; width: 140px;">Transmittal No</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memo.transmittal_no}</td></tr>
-                <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memo.subject}</td></tr>
-                <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">From</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${senderProfile?.full_name || "Unknown"}</td></tr>
-              </table>
-              <a href="${appUrl}/memos/${memo_id}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Memo</a>
-            </div>
-            <div style="padding: 12px; text-align: center; font-size: 11px; color: #6b7280;">
-              This is an automated notification from the Al Hamra Memo System.
-            </div>
-          </div>
-        `;
+      if (approverProfile) {
+        const actionLabel = actionTypeLabels[firstStep.action_type] || "approval";
 
-        // Call send-email function
-        const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-          method: "POST",
-          headers: {
-            Authorization: authHeader,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            to: [approverProfile.email],
-            subject: `[Action Required] Memo Approval: ${memo.transmittal_no} — ${memo.subject}`,
-            body: emailBody,
-            isHtml: true,
-          }),
+        await adminClient.from("notifications").insert({
+          user_id: firstStep.approver_user_id,
+          memo_id,
+          type: "approval_request",
+          message: `Memo ${memo.transmittal_no} — "${memo.subject}" requires your ${actionLabel}.`,
         });
-        if (!emailRes.ok) {
-          console.warn("Email send failed:", await emailRes.text());
+
+        // Send email
+        try {
+          const appUrl = Deno.env.get("APP_URL") || "https://hm-memo.lovable.app";
+          const emailBody = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: #1B3A5C; padding: 20px; text-align: center;">
+                <h2 style="color: #C8952E; margin: 0;">Al Hamra Real Estate</h2>
+                <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System</p>
+              </div>
+              <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
+                <p>Dear <strong>${approverProfile.full_name}</strong>,</p>
+                <p>A memo requires your <strong>${actionLabel}</strong>:</p>
+                <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                  <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; width: 140px;">Transmittal No</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memo.transmittal_no}</td></tr>
+                  <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memo.subject}</td></tr>
+                  <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">From</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${senderProfile?.full_name || "Unknown"}</td></tr>
+                  <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Action</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${actionLabel}</td></tr>
+                </table>
+                <a href="${appUrl}/memos/${memo_id}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Memo</a>
+              </div>
+              <div style="padding: 12px; text-align: center; font-size: 11px; color: #6b7280;">
+                This is an automated notification from the Al Hamra Memo System.
+              </div>
+            </div>
+          `;
+
+          const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+            method: "POST",
+            headers: { Authorization: authHeader, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: [approverProfile.email],
+              subject: `[Action Required] Memo ${actionLabel}: ${memo.transmittal_no} — ${memo.subject}`,
+              body: emailBody,
+              isHtml: true,
+            }),
+          });
+          if (!emailRes.ok) console.warn("Email send failed:", await emailRes.text());
+        } catch (emailErr) {
+          console.warn("Email notification failed (non-blocking):", emailErr);
         }
-      } catch (emailErr) {
-        console.warn("Email notification failed (non-blocking):", emailErr);
       }
     }
 
@@ -236,8 +252,9 @@ serve(async (req) => {
       user_id: user.id,
       action: "workflow_started",
       details: {
-        workflow_template_id: workflow?.id,
-        workflow_name: workflow?.name,
+        workflow_template_id: workflow?.id || null,
+        workflow_source: workflowSource,
+        workflow_name: workflow?.name || "Dynamic workflow",
         total_steps: steps.length,
       },
     });
@@ -246,7 +263,8 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         approval_steps_created: steps.length,
-        workflow_name: workflow?.name,
+        workflow_source: workflowSource,
+        workflow_name: workflow?.name || "Dynamic workflow",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

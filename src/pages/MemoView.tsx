@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, Eye, Bell } from 'lucide-react';
 import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import SignaturePad from '@/components/memo/SignaturePad';
@@ -25,6 +25,7 @@ import SignedImage from '@/components/memo/SignedImage';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 
 type ActionType = 'approved' | 'rejected' | 'rework';
+type StepActionType = 'signature' | 'initial' | 'review' | 'acknowledge';
 
 const statusIcons: Record<string, React.ReactNode> = {
   approved: <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))]" />,
@@ -45,6 +46,20 @@ const actionColor: Record<ActionType, string> = {
   rework: 'bg-[hsl(var(--warning))] hover:bg-[hsl(var(--warning))]/90 text-[hsl(var(--warning-foreground))]',
 };
 
+const stepActionIcons: Record<StepActionType, React.ReactNode> = {
+  signature: <Pen className="h-3 w-3" />,
+  initial: <Type className="h-3 w-3" />,
+  review: <Eye className="h-3 w-3" />,
+  acknowledge: <Bell className="h-3 w-3" />,
+};
+
+const stepActionLabels: Record<StepActionType, string> = {
+  signature: 'Signature',
+  initial: 'Initial',
+  review: 'Review',
+  acknowledge: 'Acknowledge',
+};
+
 const MemoView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -52,10 +67,10 @@ const MemoView = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Action dialog state
   const [actionDialog, setActionDialog] = useState<{
     stepId: string;
     action: ActionType;
+    stepActionType: StepActionType;
   } | null>(null);
   const [comments, setComments] = useState('');
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
@@ -66,11 +81,7 @@ const MemoView = () => {
   const { data: memo, isLoading: memoLoading } = useQuery({
     queryKey: ['memo', id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('memos')
-        .select('*')
-        .eq('id', id!)
-        .single();
+      const { data, error } = await supabase.from('memos').select('*').eq('id', id!).single();
       if (error) throw error;
       return data;
     },
@@ -94,10 +105,7 @@ const MemoView = () => {
   const { data: attachments = [] } = useQuery({
     queryKey: ['memo-attachments', id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('memo_attachments')
-        .select('*')
-        .eq('memo_id', id!);
+      const { data, error } = await supabase.from('memo_attachments').select('*').eq('memo_id', id!);
       if (error) throw error;
       return data;
     },
@@ -117,15 +125,18 @@ const MemoView = () => {
   const getProfile = (userId: string) => profiles.find((p) => p.user_id === userId);
   const getDept = (deptId: string) => departments.find((d) => d.id === deptId);
 
-  // Find current user's pending step
   const myPendingStep = user
     ? approvalSteps.find((s) => s.approver_user_id === user.id && s.status === 'pending')
     : null;
 
+  const getStepActionType = (step: any): StepActionType => {
+    return (step as any).action_type || 'signature';
+  };
+
   const actionMutation = useMutation({
     mutationFn: async () => {
       if (!actionDialog || !user || !id) return;
-      const { stepId, action } = actionDialog;
+      const { stepId, action, stepActionType } = actionDialog;
 
       // Verify password
       const myProfile = getProfile(user.id);
@@ -139,9 +150,9 @@ const MemoView = () => {
       }
       setPasswordError('');
 
-      // Handle signature
+      // Handle signature/initials based on step action type
       let signatureUrl: string | null = null;
-      if (signatureDataUrl) {
+      if (stepActionType === 'signature' && signatureDataUrl) {
         if (signatureDataUrl.startsWith('data:')) {
           const blob = await (await fetch(signatureDataUrl)).blob();
           const path = `${user.id}/${stepId}-approval.png`;
@@ -149,12 +160,24 @@ const MemoView = () => {
             .from('signatures')
             .upload(path, blob, { upsert: true, contentType: 'image/png' });
           if (uploadError) throw uploadError;
-          const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(path);
-          signatureUrl = urlData.publicUrl;
+          signatureUrl = path;
+        } else {
+          signatureUrl = signatureDataUrl;
+        }
+      } else if (stepActionType === 'initial' && signatureDataUrl) {
+        if (signatureDataUrl.startsWith('data:')) {
+          const blob = await (await fetch(signatureDataUrl)).blob();
+          const path = `${user.id}/${stepId}-initials.png`;
+          const { error: uploadError } = await supabase.storage
+            .from('signatures')
+            .upload(path, blob, { upsert: true, contentType: 'image/png' });
+          if (uploadError) throw uploadError;
+          signatureUrl = path;
         } else {
           signatureUrl = signatureDataUrl;
         }
       }
+      // review and acknowledge don't need signatures
 
       // Update approval step
       const { error: stepError } = await supabase
@@ -178,38 +201,58 @@ const MemoView = () => {
           .order('step_order');
 
         const currentStep = allSteps?.find((s) => s.id === stepId);
-        const nextStep = allSteps?.find(
-          (s) => s.step_order > (currentStep?.step_order || 0) && s.status === 'pending'
-        );
+        const currentGroup = (currentStep as any)?.parallel_group;
 
-        if (nextStep) {
-          await supabase
-            .from('memos')
-            .update({ current_step: nextStep.step_order, status: 'in_review' })
-            .eq('id', id);
+        // Check if all parallel group members are done
+        let groupComplete = true;
+        if (currentGroup !== null && currentGroup !== undefined) {
+          const groupSteps = allSteps?.filter((s) => (s as any).parallel_group === currentGroup) || [];
+          groupComplete = groupSteps.every((s) => s.id === stepId || s.status !== 'pending');
+        }
 
-          // Notify next approver
-          const nextProfile = getProfile(nextStep.approver_user_id);
-          const creatorProfile = memo ? getProfile(memo.from_user_id) : null;
-          if (nextProfile && memo) {
-            notifyApprover({
-              approverEmail: nextProfile.email,
-              approverName: nextProfile.full_name,
-              memoSubject: memo.subject,
-              transmittalNo: memo.transmittal_no,
-              fromName: creatorProfile?.full_name || 'Unknown',
-              memoId: id,
-            }).catch(console.warn);
+        if (groupComplete) {
+          const nextStep = allSteps?.find(
+            (s) => s.step_order > (currentStep?.step_order || 0) && s.status === 'pending'
+            && ((s as any).parallel_group === null || (s as any).parallel_group !== currentGroup)
+          );
 
-            supabase.from('notifications').insert({
-              user_id: nextStep.approver_user_id,
-              memo_id: id,
-              type: 'approval_request',
-              message: `Memo ${memo.transmittal_no} — "${memo.subject}" requires your approval.`,
-            }).then(({ error }) => { if (error) console.warn(error); });
+          if (nextStep) {
+            // Find all steps in next group
+            const nextGroup = (nextStep as any).parallel_group;
+            const nextSteps = nextGroup !== null && nextGroup !== undefined
+              ? allSteps?.filter((s) => (s as any).parallel_group === nextGroup && s.status === 'pending') || [nextStep]
+              : [nextStep];
+
+            await supabase
+              .from('memos')
+              .update({ current_step: nextStep.step_order, status: 'in_review' })
+              .eq('id', id);
+
+            // Notify all next step approvers
+            for (const ns of nextSteps) {
+              const nextProfile = getProfile(ns.approver_user_id);
+              const creatorProfile = memo ? getProfile(memo.from_user_id) : null;
+              if (nextProfile && memo) {
+                notifyApprover({
+                  approverEmail: nextProfile.email,
+                  approverName: nextProfile.full_name,
+                  memoSubject: memo.subject,
+                  transmittalNo: memo.transmittal_no,
+                  fromName: creatorProfile?.full_name || 'Unknown',
+                  memoId: id,
+                }).catch(console.warn);
+
+                supabase.from('notifications').insert({
+                  user_id: ns.approver_user_id,
+                  memo_id: id,
+                  type: 'approval_request',
+                  message: `Memo ${memo.transmittal_no} — "${memo.subject}" requires your ${stepActionLabels[getStepActionType(ns)].toLowerCase()}.`,
+                }).then(({ error }) => { if (error) console.warn(error); });
+              }
+            }
+          } else {
+            await supabase.from('memos').update({ status: 'approved' }).eq('id', id);
           }
-        } else {
-          await supabase.from('memos').update({ status: 'approved' }).eq('id', id);
         }
       } else {
         const newStatus = action === 'rejected' ? 'rejected' : 'rework';
@@ -233,12 +276,11 @@ const MemoView = () => {
         }
       }
 
-      // Audit log
       await supabase.from('audit_log').insert({
         memo_id: id,
         user_id: user.id,
         action: `memo_${action}`,
-        details: { comments: comments || null },
+        details: { comments: comments || null, step_action_type: stepActionType },
       });
     },
     onSuccess: () => {
@@ -268,15 +310,31 @@ const MemoView = () => {
   };
 
   const openApproveDialog = (stepId: string) => {
+    const step = approvalSteps.find((s) => s.id === stepId);
+    const sat = getStepActionType(step);
     const myProfile = user ? getProfile(user.id) : null;
-    if (myProfile?.signature_image_url) {
-      setSignatureMode('saved');
-      setSignatureDataUrl(myProfile.signature_image_url);
-    } else {
-      setSignatureMode('draw');
-      setSignatureDataUrl(null);
+
+    if (sat === 'signature') {
+      if (myProfile?.signature_image_url) {
+        setSignatureMode('saved');
+        setSignatureDataUrl(myProfile.signature_image_url);
+      } else {
+        setSignatureMode('draw');
+        setSignatureDataUrl(null);
+      }
+    } else if (sat === 'initial') {
+      const initialsImg = (myProfile as any)?.initials_image_url;
+      if (initialsImg) {
+        setSignatureMode('saved');
+        setSignatureDataUrl(initialsImg);
+      } else {
+        setSignatureMode('draw');
+        setSignatureDataUrl(null);
+      }
     }
-    setActionDialog({ stepId, action: 'approved' });
+    // review & acknowledge don't need signing assets
+
+    setActionDialog({ stepId, action: 'approved', stepActionType: sat });
   };
 
   const handlePrint = () => window.print();
@@ -292,6 +350,10 @@ const MemoView = () => {
   const fromProfile = getProfile(memo.from_user_id);
   const toProfile = memo.to_user_id ? getProfile(memo.to_user_id) : null;
   const dept = getDept(memo.department_id);
+
+  // Determine if signature/initials are needed for approval dialog
+  const needsSigningAsset = actionDialog?.action === 'approved' && 
+    (actionDialog.stepActionType === 'signature' || actionDialog.stepActionType === 'initial');
 
   return (
     <>
@@ -318,7 +380,6 @@ const MemoView = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Approval Action Buttons */}
           {myPendingStep && (
             <>
               <Button
@@ -327,12 +388,12 @@ const MemoView = () => {
                 onClick={() => openApproveDialog(myPendingStep.id)}
               >
                 <CheckCircle2 className="h-4 w-4 mr-1" />
-                Approve
+                {stepActionLabels[getStepActionType(myPendingStep)]}
               </Button>
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => setActionDialog({ stepId: myPendingStep.id, action: 'rejected' })}
+                onClick={() => setActionDialog({ stepId: myPendingStep.id, action: 'rejected', stepActionType: getStepActionType(myPendingStep) })}
               >
                 <XCircle className="h-4 w-4 mr-1" />
                 Reject
@@ -340,7 +401,7 @@ const MemoView = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setActionDialog({ stepId: myPendingStep.id, action: 'rework' })}
+                onClick={() => setActionDialog({ stepId: myPendingStep.id, action: 'rework', stepActionType: getStepActionType(myPendingStep) })}
               >
                 <RotateCcw className="h-4 w-4 mr-1" />
                 Rework
@@ -356,7 +417,6 @@ const MemoView = () => {
 
       {/* Printable Area */}
       <div className="print-area max-w-4xl mx-auto">
-        {/* Status badge - only on screen */}
         <div className="no-print flex justify-end mb-2">
           <Badge
             className={`capitalize ${
@@ -372,7 +432,7 @@ const MemoView = () => {
         </div>
 
         <div className="border border-foreground/30 bg-card print-border">
-          {/* ── HEADER: Logo + Title ── */}
+          {/* HEADER */}
           <div className="flex items-end justify-between px-6 pt-6 pb-4">
             <img src={alHamraLogo} alt="Al Hamra Logo" className="h-20 w-auto object-contain" />
             <div className="text-right">
@@ -381,32 +441,23 @@ const MemoView = () => {
             </div>
           </div>
 
-          {/* ── TO / TRANSMITTAL NO / DATE / FROM + TRANSMITTED FOR ── */}
+          {/* TO / TRANSMITTAL / DATE / FROM + TRANSMITTED FOR */}
           <div className="border-t border-foreground/30">
-            {/* Row 1: TO | TRANSMITTAL NO */}
             <div className="grid grid-cols-2">
               <div className="border-r border-b border-foreground/30 p-3">
                 <p className="text-xs text-muted-foreground">TO:</p>
-                <p className="text-sm font-bold mt-1">
-                  {toProfile?.full_name || '—'}
-                </p>
-                {toProfile?.job_title && (
-                  <p className="text-sm">{toProfile.job_title}</p>
-                )}
+                <p className="text-sm font-bold mt-1">{toProfile?.full_name || '—'}</p>
+                {toProfile?.job_title && <p className="text-sm">{toProfile.job_title}</p>}
               </div>
               <div className="border-b border-foreground/30">
                 <div className="grid grid-cols-[auto_1fr]">
-                  <div className="bg-destructive text-destructive-foreground px-3 py-3 text-xs font-bold flex items-center">
-                    TRANSMITTAL NO:
-                  </div>
+                  <div className="bg-destructive text-destructive-foreground px-3 py-3 text-xs font-bold flex items-center">TRANSMITTAL NO:</div>
                   <div className="px-3 py-3 flex items-center">
                     <p className="text-sm font-bold font-mono">{memo.transmittal_no}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-[auto_1fr] border-t border-foreground/30">
-                  <div className="bg-destructive text-destructive-foreground px-3 py-3 text-xs font-bold flex items-center">
-                    DATE:
-                  </div>
+                  <div className="bg-destructive text-destructive-foreground px-3 py-3 text-xs font-bold flex items-center">DATE:</div>
                   <div className="px-3 py-3 flex items-center">
                     <p className="text-sm font-medium">{format(new Date(memo.date), "do MMMM yyyy")}</p>
                   </div>
@@ -414,16 +465,11 @@ const MemoView = () => {
               </div>
             </div>
 
-            {/* Row 2: FROM | TRANSMITTED FOR */}
             <div className="grid grid-cols-2">
               <div className="border-r border-b border-foreground/30 p-3">
                 <p className="text-xs text-muted-foreground">FROM:</p>
-                <p className="text-sm font-bold mt-2">
-                  {fromProfile?.full_name || '—'}
-                </p>
-                {fromProfile?.job_title && (
-                  <p className="text-sm">{fromProfile.job_title}</p>
-                )}
+                <p className="text-sm font-bold mt-2">{fromProfile?.full_name || '—'}</p>
+                {fromProfile?.job_title && <p className="text-sm">{fromProfile.job_title}</p>}
                 {dept && <p className="text-xs text-muted-foreground">{dept.name}</p>}
               </div>
               <div className="border-b border-foreground/30 p-3">
@@ -432,9 +478,7 @@ const MemoView = () => {
                   {MEMO_TYPE_OPTIONS.map((opt) => (
                     <div key={opt.value} className="flex items-center gap-1.5 text-xs">
                       <span className={`w-3.5 h-3.5 border flex items-center justify-center text-[10px] shrink-0 ${
-                        memo.memo_types.includes(opt.value)
-                          ? 'border-foreground'
-                          : 'border-foreground/40'
+                        memo.memo_types.includes(opt.value) ? 'border-foreground' : 'border-foreground/40'
                       }`}>
                         {memo.memo_types.includes(opt.value) ? '✕' : ''}
                       </span>
@@ -446,7 +490,7 @@ const MemoView = () => {
             </div>
           </div>
 
-          {/* ── SUBJECT ── */}
+          {/* SUBJECT */}
           <div className="border-b border-foreground/30 px-4 py-2.5">
             <p className="text-sm">
               <span className="font-bold">Subject: </span>
@@ -454,7 +498,7 @@ const MemoView = () => {
             </p>
           </div>
 
-          {/* ── DESCRIPTION ── */}
+          {/* DESCRIPTION */}
           <div className="border-b border-foreground/30 px-4 py-3">
             <p className="text-xs font-bold uppercase mb-2">Description:</p>
             <div
@@ -462,7 +506,7 @@ const MemoView = () => {
               dangerouslySetInnerHTML={{ __html: memo.description || '<p>No description.</p>' }}
             />
 
-            {/* Sender Signature - right aligned */}
+            {/* Sender Signature */}
             <div className="flex justify-end mt-8 mb-4">
               <div className="text-center">
                 {fromProfile?.signature_image_url ? (
@@ -481,7 +525,7 @@ const MemoView = () => {
               </div>
             </div>
 
-            {/* Continuation pages / Attachments / Initials row */}
+            {/* Footer row */}
             <div className="flex items-center justify-center gap-8 text-xs mt-4 pt-2 border-t border-foreground/20">
               <span>No. of Continuation Pages: <strong>{String(memo.continuation_pages || 0).padStart(2, '0')}</strong></span>
               <span>No. of Attachments: <strong>{String(attachments.length).padStart(2, '0')}</strong></span>
@@ -489,13 +533,13 @@ const MemoView = () => {
             </div>
           </div>
 
-          {/* ── COPIES TO ── */}
+          {/* COPIES TO */}
           <div className="grid grid-cols-[140px_1fr] border-b border-foreground/30">
             <div className="px-3 py-2 text-xs font-bold border-r border-foreground/30">COPIES TO:</div>
             <div className="px-3 py-2 text-sm">{memo.copies_to?.join(', ') || ''}</div>
           </div>
 
-          {/* ── ACTION REQUIRED / COMMENTS ── */}
+          {/* ACTION REQUIRED / COMMENTS */}
           <div className="grid grid-cols-[140px_1fr] border-b border-foreground/30">
             <div className="px-3 py-2 text-xs font-bold border-r border-foreground/30">
               <p>ACTION REQUIRED:</p>
@@ -515,24 +559,25 @@ const MemoView = () => {
             </div>
           </div>
 
-          {/* ── APPROVALS ── */}
+          {/* APPROVALS */}
           {approvalSteps.length > 0 && (
             <div className="mt-4 mx-4 mb-4">
-              {/* Red header bar */}
               <div className="bg-destructive text-destructive-foreground text-center py-2 font-bold text-lg tracking-widest uppercase">
                 Approvals
               </div>
-              {/* Signature columns */}
               <div className="grid grid-cols-3 border border-t-0 border-foreground/30">
                 {approvalSteps.map((step) => {
                   const approver = getProfile(step.approver_user_id);
+                  const sat = getStepActionType(step);
+                  const isParallel = (step as any).parallel_group !== null && (step as any).parallel_group !== undefined;
+
                   return (
                     <div
                       key={step.id}
                       className="border-r last:border-r-0 border-foreground/30 p-3 flex flex-col justify-between min-h-[120px]"
                     >
-                      {/* Status indicator - screen only */}
-                      <div className="no-print flex items-center gap-1 text-[10px] capitalize mb-1">
+                      {/* Status + action type indicator */}
+                      <div className="no-print flex items-center gap-1 text-[10px] capitalize mb-1 flex-wrap">
                         {statusIcons[step.status]}
                         <span className={
                           step.status === 'approved' ? 'text-[hsl(var(--success))]' :
@@ -542,11 +587,18 @@ const MemoView = () => {
                         }>
                           {step.status}
                         </span>
+                        <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 ml-1 gap-0.5">
+                          {stepActionIcons[sat]}
+                          {stepActionLabels[sat]}
+                        </Badge>
+                        {isParallel && (
+                          <Badge variant="secondary" className="text-[8px] px-1 py-0 h-4 ml-1">∥</Badge>
+                        )}
                       </div>
 
-                      {/* Signature area */}
+                      {/* Signature/Initials area */}
                       <div className="flex-1 flex items-center justify-center">
-                        {step.signature_image_url ? (
+                        {sat === 'signature' && step.signature_image_url ? (
                           <SignedImage
                             storagePath={step.signature_image_url}
                             alt={`${approver?.full_name || 'Approver'} signature`}
@@ -557,7 +609,30 @@ const MemoView = () => {
                                 : null
                             }
                           />
-                        ) : step.status === 'approved' ? (
+                        ) : sat === 'initial' && step.signature_image_url ? (
+                          <SignedImage
+                            storagePath={step.signature_image_url}
+                            alt={`${approver?.full_name || 'Approver'} initials`}
+                            className="h-10 object-contain"
+                            fallback={
+                              step.status === 'approved'
+                                ? <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
+                                : null
+                            }
+                          />
+                        ) : sat === 'initial' && step.status === 'approved' ? (
+                          <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
+                        ) : sat === 'review' && step.status === 'approved' ? (
+                          <div className="text-center">
+                            <Eye className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
+                            <p className="text-[10px] italic text-muted-foreground">Reviewed</p>
+                          </div>
+                        ) : sat === 'acknowledge' && step.status === 'approved' ? (
+                          <div className="text-center">
+                            <Bell className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
+                            <p className="text-[10px] italic text-muted-foreground">Acknowledged</p>
+                          </div>
+                        ) : sat === 'signature' && step.status === 'approved' ? (
                           <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
                         ) : null}
                       </div>
@@ -567,7 +642,9 @@ const MemoView = () => {
                         <p className="text-xs font-bold break-words leading-tight">
                           {approver?.full_name || 'Unknown'}{approver?.job_title ? ` – ${approver.job_title}` : ''}
                         </p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">– SIGNATURE</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                          – {sat === 'signature' ? 'SIGNATURE' : sat === 'initial' ? 'INITIALS' : sat === 'review' ? 'REVIEW' : 'ACKNOWLEDGED'}
+                        </p>
                         <p className="text-xs mt-0.5">
                           <span className="font-bold">Date: </span>
                           {step.signed_at ? format(new Date(step.signed_at), 'dd/MM/yyyy') : ''}
@@ -580,13 +657,10 @@ const MemoView = () => {
             </div>
           )}
 
-
-          {/* ── Attachments (screen only) ── */}
+          {/* Attachments (screen only) */}
           {attachments.length > 0 && (
             <div className="no-print px-4 pb-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                Attachments
-              </p>
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Attachments</p>
               <ul className="space-y-1 text-sm">
                 {attachments.map((att) => (
                   <li key={att.id} className="flex items-center gap-2">
@@ -610,7 +684,7 @@ const MemoView = () => {
             </div>
           )}
 
-          {/* ── Document Footer ── */}
+          {/* Footer */}
           <div className="px-4 py-2 text-[10px] text-muted-foreground border-t border-foreground/10">
             <p>HRA 09/00/T/I/01</p>
             <p>Version 1.3</p>
@@ -619,33 +693,52 @@ const MemoView = () => {
         </div>
       </div>
 
-      {/* Action Confirmation Dialog */}
+      {/* Action Dialog */}
       <Dialog open={!!actionDialog} onOpenChange={(open) => { if (!open) resetDialog(); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {actionDialog && actionLabel[actionDialog.action]} Memo
+              {actionDialog?.action === 'approved' && actionDialog.stepActionType !== 'signature' && (
+                <Badge variant="outline" className="ml-2 text-xs gap-1">
+                  {stepActionIcons[actionDialog.stepActionType]}
+                  {stepActionLabels[actionDialog.stepActionType]}
+                </Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {actionDialog && (
               <p className="text-sm text-muted-foreground">
                 {actionDialog.action === 'approved'
-                  ? 'You are about to approve this memo. Please sign below.'
+                  ? actionDialog.stepActionType === 'signature'
+                    ? 'You are about to approve this memo. Please sign below.'
+                    : actionDialog.stepActionType === 'initial'
+                    ? 'You are about to initial this memo as an endorsement.'
+                    : actionDialog.stepActionType === 'review'
+                    ? 'You are marking this memo as reviewed. Add any comments below.'
+                    : 'You are acknowledging receipt of this memo.'
                   : actionDialog.action === 'rejected'
                   ? 'You are about to reject this memo. Please provide a reason below.'
                   : 'You are requesting the sender to rework this memo. Please explain what needs to change.'}
               </p>
             )}
 
-            {/* Signature section for approve */}
-            {actionDialog?.action === 'approved' && (() => {
+            {/* Signature section for signature/initial action types */}
+            {needsSigningAsset && (() => {
               const myProfile = user ? getProfile(user.id) : null;
-              const hasSavedSig = !!myProfile?.signature_image_url;
+              const isInitial = actionDialog?.stepActionType === 'initial';
+              const savedAsset = isInitial
+                ? (myProfile as any)?.initials_image_url
+                : myProfile?.signature_image_url;
+              const hasSaved = !!savedAsset;
+
               return (
                 <div className="space-y-3">
-                  <Label>Your Signature <span className="text-destructive">*</span></Label>
-                  {hasSavedSig && (
+                  <Label>
+                    {isInitial ? 'Your Initials' : 'Your Signature'} <span className="text-destructive">*</span>
+                  </Label>
+                  {hasSaved && (
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -653,10 +746,10 @@ const MemoView = () => {
                         size="sm"
                         onClick={() => {
                           setSignatureMode('saved');
-                          setSignatureDataUrl(myProfile!.signature_image_url);
+                          setSignatureDataUrl(savedAsset);
                         }}
                       >
-                        Use Saved Signature
+                        Use Saved {isInitial ? 'Initials' : 'Signature'}
                       </Button>
                       <Button
                         type="button"
@@ -667,20 +760,24 @@ const MemoView = () => {
                           setSignatureDataUrl(null);
                         }}
                       >
-                        Draw Signature
+                        Draw {isInitial ? 'Initials' : 'Signature'}
                       </Button>
                     </div>
                   )}
-                  {signatureMode === 'saved' && hasSavedSig ? (
+                  {signatureMode === 'saved' && hasSaved ? (
                     <div className="border border-input rounded-md p-4 bg-white flex items-center justify-center">
                       <SignedImage
-                        storagePath={myProfile!.signature_image_url!}
-                        alt="Your saved signature"
-                        className="max-h-24 object-contain"
+                        storagePath={savedAsset!}
+                        alt={isInitial ? 'Your saved initials' : 'Your saved signature'}
+                        className={isInitial ? 'max-h-16 object-contain' : 'max-h-24 object-contain'}
                       />
                     </div>
                   ) : (
-                    <SignaturePad onSignatureChange={setSignatureDataUrl} />
+                    <SignaturePad
+                      onSignatureChange={setSignatureDataUrl}
+                      width={isInitial ? 300 : 400}
+                      height={isInitial ? 100 : 150}
+                    />
                   )}
                 </div>
               );
@@ -703,14 +800,18 @@ const MemoView = () => {
             <div className="space-y-2">
               <Label>
                 Comments{' '}
-                {actionDialog?.action !== 'approved' && <span className="text-destructive">*</span>}
+                {(actionDialog?.action !== 'approved' || actionDialog?.stepActionType === 'review') && (
+                  <span className="text-destructive">*</span>
+                )}
               </Label>
               <Textarea
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
                 placeholder={
                   actionDialog?.action === 'approved'
-                    ? 'Optional comments...'
+                    ? actionDialog?.stepActionType === 'review'
+                      ? 'Provide your review comments...'
+                      : 'Optional comments...'
                     : 'Provide reason or feedback...'
                 }
                 rows={3}
@@ -724,8 +825,9 @@ const MemoView = () => {
               disabled={
                 actionMutation.isPending ||
                 !password.trim() ||
-                (actionDialog?.action === 'approved' && !signatureDataUrl) ||
-                (actionDialog?.action !== 'approved' && !comments.trim())
+                (needsSigningAsset && !signatureDataUrl) ||
+                (actionDialog?.action !== 'approved' && !comments.trim()) ||
+                (actionDialog?.action === 'approved' && actionDialog?.stepActionType === 'review' && !comments.trim())
               }
               onClick={() => actionMutation.mutate()}
             >
