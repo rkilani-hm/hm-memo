@@ -54,6 +54,8 @@ const PendingApprovals = () => {
   const [comments, setComments] = useState('');
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [signatureMode, setSignatureMode] = useState<'saved' | 'draw'>('saved');
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   // Fetch approval steps assigned to current user
   const { data: mySteps = [], isLoading } = useQuery({
     queryKey: ['my-approval-steps', user?.id],
@@ -104,6 +106,18 @@ const PendingApprovals = () => {
       if (!actionDialog || !user) return;
 
       const { stepId, memoId, action } = actionDialog;
+
+      // Verify password by re-authenticating
+      const myProfile = getProfile(user.id);
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: myProfile?.email || user.email || '',
+        password,
+      });
+      if (authError) {
+        setPasswordError('Incorrect password. Please try again.');
+        throw new Error('Password verification failed');
+      }
+      setPasswordError('');
 
       // Handle signature: use saved URL directly or upload drawn signature
       let signatureUrl: string | null = null;
@@ -233,6 +247,8 @@ const PendingApprovals = () => {
       setActionDialog(null);
       setComments('');
       setSignatureDataUrl(null);
+      setPassword('');
+      setPasswordError('');
     },
     onError: (e: Error) =>
       toast({ title: 'Error', description: e.message, variant: 'destructive' }),
@@ -454,6 +470,8 @@ const PendingApprovals = () => {
             setActionDialog(null);
             setComments('');
             setSignatureDataUrl(null);
+            setPassword('');
+            setPasswordError('');
           }
         }}
       >
@@ -524,6 +542,26 @@ const PendingApprovals = () => {
               );
             })()}
 
+            {/* Password Verification */}
+            <div className="space-y-2">
+              <Label>
+                Login Password <span className="text-destructive">*</span>
+              </Label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError('');
+                }}
+                placeholder="Enter your login password to confirm"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+              {passwordError && (
+                <p className="text-xs text-destructive">{passwordError}</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>
                 Comments{' '}
@@ -550,6 +588,8 @@ const PendingApprovals = () => {
                 setActionDialog(null);
                 setComments('');
                 setSignatureDataUrl(null);
+                setPassword('');
+                setPasswordError('');
               }}
             >
               Cancel
@@ -558,6 +598,7 @@ const PendingApprovals = () => {
               className={actionDialog ? actionColor[actionDialog.action] : ''}
               disabled={
                 actionMutation.isPending ||
+                !password.trim() ||
                 (actionDialog?.action === 'approved' && !signatureDataUrl) ||
                 (actionDialog?.action !== 'approved' && !comments.trim())
               }
