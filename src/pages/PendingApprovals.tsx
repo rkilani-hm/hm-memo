@@ -53,6 +53,7 @@ const PendingApprovals = () => {
   } | null>(null);
   const [comments, setComments] = useState('');
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [signatureMode, setSignatureMode] = useState<'saved' | 'draw'>('saved');
   // Fetch approval steps assigned to current user
   const { data: mySteps = [], isLoading } = useQuery({
     queryKey: ['my-approval-steps', user?.id],
@@ -104,17 +105,23 @@ const PendingApprovals = () => {
 
       const { stepId, memoId, action } = actionDialog;
 
-      // Upload signature image if provided
+      // Handle signature: use saved URL directly or upload drawn signature
       let signatureUrl: string | null = null;
       if (signatureDataUrl) {
-        const blob = await (await fetch(signatureDataUrl)).blob();
-        const path = `${user.id}/${stepId}-approval.png`;
-        const { error: uploadError } = await supabase.storage
-          .from('signatures')
-          .upload(path, blob, { upsert: true, contentType: 'image/png' });
-        if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(path);
-        signatureUrl = urlData.publicUrl;
+        if (signatureDataUrl.startsWith('data:')) {
+          // Drawn signature - upload to storage
+          const blob = await (await fetch(signatureDataUrl)).blob();
+          const path = `${user.id}/${stepId}-approval.png`;
+          const { error: uploadError } = await supabase.storage
+            .from('signatures')
+            .upload(path, blob, { upsert: true, contentType: 'image/png' });
+          if (uploadError) throw uploadError;
+          const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(path);
+          signatureUrl = urlData.publicUrl;
+        } else {
+          // Saved profile signature URL
+          signatureUrl = signatureDataUrl;
+        }
       }
 
       // Update approval step
@@ -314,13 +321,21 @@ const PendingApprovals = () => {
                           <Button
                             size="sm"
                             className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-[hsl(var(--success-foreground))] h-8"
-                            onClick={() =>
+                            onClick={() => {
+                              const myProfile = user ? getProfile(user.id) : null;
+                              if (myProfile?.signature_image_url) {
+                                setSignatureMode('saved');
+                                setSignatureDataUrl(myProfile.signature_image_url);
+                              } else {
+                                setSignatureMode('draw');
+                                setSignatureDataUrl(null);
+                              }
                               setActionDialog({
                                 stepId: step.id,
                                 memoId: step.memo_id,
                                 action: 'approved',
-                              })
-                            }
+                              });
+                            }}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                             Approve
@@ -459,13 +474,55 @@ const PendingApprovals = () => {
               </p>
             )}
 
-            {/* Signature Pad - shown for approve action */}
-            {actionDialog?.action === 'approved' && (
-              <div className="space-y-2">
-                <Label>Your Signature <span className="text-destructive">*</span></Label>
-                <SignaturePad onSignatureChange={setSignatureDataUrl} />
-              </div>
-            )}
+            {/* Signature - shown for approve action */}
+            {actionDialog?.action === 'approved' && (() => {
+              const myProfile = user ? getProfile(user.id) : null;
+              const hasSavedSig = !!myProfile?.signature_image_url;
+              return (
+                <div className="space-y-3">
+                  <Label>Your Signature <span className="text-destructive">*</span></Label>
+                  
+                  {hasSavedSig && (
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={signatureMode === 'saved' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          setSignatureMode('saved');
+                          setSignatureDataUrl(myProfile!.signature_image_url);
+                        }}
+                      >
+                        Use Saved Signature
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={signatureMode === 'draw' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          setSignatureMode('draw');
+                          setSignatureDataUrl(null);
+                        }}
+                      >
+                        Draw Signature
+                      </Button>
+                    </div>
+                  )}
+
+                  {signatureMode === 'saved' && hasSavedSig ? (
+                    <div className="border border-input rounded-md p-4 bg-white flex items-center justify-center">
+                      <img
+                        src={myProfile!.signature_image_url!}
+                        alt="Your saved signature"
+                        className="max-h-24 object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <SignaturePad onSignatureChange={setSignatureDataUrl} />
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="space-y-2">
               <Label>
