@@ -472,6 +472,10 @@ const MemoView = () => {
               </Button>
             </>
           )}
+          <Button variant="outline" onClick={handleExportPdf} disabled={pdfGenerating}>
+            <FileDown className="h-4 w-4 mr-2" />
+            {pdfGenerating ? 'Generating...' : 'Export PDF'}
+          </Button>
           <Button onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Print
