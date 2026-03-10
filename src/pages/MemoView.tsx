@@ -584,14 +584,19 @@ const MemoView = () => {
                     {attachments.map((att) => (
                       <li key={att.id} className="flex items-center gap-2">
                         <span>📎</span>
-                        <a
-                          href={att.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary underline no-print"
+                        <button
+                          onClick={async () => {
+                            try {
+                              const url = await getAttachmentSignedUrl(att.file_url);
+                              window.open(url, '_blank');
+                            } catch (e) {
+                              toast({ title: 'Error opening attachment', variant: 'destructive' });
+                            }
+                          }}
+                          className="text-primary underline no-print text-left hover:text-primary/80"
                         >
                           {att.file_name}
-                        </a>
+                        </button>
                         <span className="print-only hidden">{att.file_name}</span>
                       </li>
                     ))}
