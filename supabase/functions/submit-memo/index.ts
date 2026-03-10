@@ -45,7 +45,7 @@ serve(async (req) => {
     // Service role client for privileged operations
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    const { memo_id } = await req.json();
+    const { memo_id, workflow_template_id } = await req.json();
     if (!memo_id) {
       return new Response(JSON.stringify({ error: "memo_id is required" }), {
         status: 400,
@@ -75,41 +75,54 @@ serve(async (req) => {
     }
 
     // Find matching workflow template
-    // Priority: match by department + first memo_type, then department default, then any default
-    const memoTypes: string[] = memo.memo_types || [];
+    // If workflow_template_id is provided, use that directly; otherwise auto-match
     let workflow = null;
 
-    if (memoTypes.length > 0) {
+    if (workflow_template_id) {
       const { data } = await adminClient
         .from("workflow_templates")
         .select("*")
-        .eq("department_id", memo.department_id)
-        .eq("memo_type", memoTypes[0])
-        .limit(1)
+        .eq("id", workflow_template_id)
         .maybeSingle();
       workflow = data;
     }
 
     if (!workflow) {
-      const { data } = await adminClient
-        .from("workflow_templates")
-        .select("*")
-        .eq("department_id", memo.department_id)
-        .eq("is_default", true)
-        .limit(1)
-        .maybeSingle();
-      workflow = data;
-    }
+      // Auto-match: department + memo_type, then department default, then global default
+      const memoTypes: string[] = memo.memo_types || [];
 
-    if (!workflow) {
-      const { data } = await adminClient
-        .from("workflow_templates")
-        .select("*")
-        .eq("is_default", true)
-        .is("department_id", null)
-        .limit(1)
-        .maybeSingle();
-      workflow = data;
+      if (memoTypes.length > 0) {
+        const { data } = await adminClient
+          .from("workflow_templates")
+          .select("*")
+          .eq("department_id", memo.department_id)
+          .eq("memo_type", memoTypes[0])
+          .limit(1)
+          .maybeSingle();
+        workflow = data;
+      }
+
+      if (!workflow) {
+        const { data } = await adminClient
+          .from("workflow_templates")
+          .select("*")
+          .eq("department_id", memo.department_id)
+          .eq("is_default", true)
+          .limit(1)
+          .maybeSingle();
+        workflow = data;
+      }
+
+      if (!workflow) {
+        const { data } = await adminClient
+          .from("workflow_templates")
+          .select("*")
+          .eq("is_default", true)
+          .is("department_id", null)
+          .limit(1)
+          .maybeSingle();
+        workflow = data;
+      }
     }
 
     const steps: WorkflowStep[] = (workflow?.steps as WorkflowStep[]) || [];

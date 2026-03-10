@@ -42,6 +42,7 @@ const MemoCreate = () => {
   const [copiesTo, setCopiesTo] = useState('');
   const [files, setFiles] = useState<FileAttachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
 
   // Fetch users and departments
   const { data: profiles = [] } = useQuery({
@@ -133,7 +134,7 @@ const MemoCreate = () => {
       // If submitting, trigger workflow creation via edge function
       if (status === 'submitted') {
         const { data: submitResult, error: submitError } = await supabase.functions.invoke('submit-memo', {
-          body: { memo_id: memo.id },
+          body: { memo_id: memo.id, workflow_template_id: selectedWorkflowId || undefined },
         });
         if (submitError) {
           console.warn('Workflow creation warning:', submitError);
@@ -351,6 +352,8 @@ const MemoCreate = () => {
               return selectedProfile?.department_id || profile?.department_id || null;
             })()}
             memoTypes={memoTypes}
+            selectedTemplateId={selectedWorkflowId}
+            onTemplateChange={setSelectedWorkflowId}
           />
         </CardContent>
       </Card>
