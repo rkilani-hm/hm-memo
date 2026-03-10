@@ -470,6 +470,8 @@ const PendingApprovals = () => {
             setActionDialog(null);
             setComments('');
             setSignatureDataUrl(null);
+            setPassword('');
+            setPasswordError('');
           }
         }}
       >
