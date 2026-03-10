@@ -580,17 +580,6 @@ const MemoView = () => {
             </div>
           )}
 
-          {/* ── RECEIVING PARTY STAMP ── */}
-          <div className="mx-4 mb-4">
-            <div className="grid grid-cols-[120px_1fr] border border-foreground/30 bg-secondary/30">
-              <div className="px-3 py-6 text-xs font-bold text-center border-r border-foreground/30">
-                <p>RECEIVING</p>
-                <p>PARTY</p>
-                <p>STAMP</p>
-              </div>
-              <div className="min-h-[80px]" />
-            </div>
-          </div>
 
           {/* ── Attachments (screen only) ── */}
           {attachments.length > 0 && (
