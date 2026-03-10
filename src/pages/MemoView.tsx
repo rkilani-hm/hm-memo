@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
+import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 
 const statusIcons: Record<string, React.ReactNode> = {
   approved: <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))]" />,
