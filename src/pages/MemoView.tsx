@@ -500,16 +500,16 @@ const MemoView = () => {
               <>
                 <Separator />
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                     Approval Signatures
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-3">
                     {approvalSteps.map((step) => {
                       const approver = getProfile(step.approver_user_id);
                       return (
                         <div
                           key={step.id}
-                          className="border border-input rounded-md p-4 print-border"
+                          className="border border-input rounded-md p-3 print-border"
                         >
                           <div className="flex items-center justify-between mb-3">
                             <p className="text-xs font-bold uppercase text-muted-foreground">
