@@ -41,22 +41,36 @@ export const uploadAttachment = async (
     .upload(filePath, file);
   if (uploadError) throw uploadError;
 
-  const { data: urlData } = supabase.storage
-    .from('attachments')
-    .getPublicUrl(filePath);
-
-  // Save attachment record
+  // Store the storage path, not a public/signed URL
   const { error: insertError } = await supabase
     .from('memo_attachments')
     .insert({
       memo_id: memoId,
       file_name: file.name,
-      file_url: urlData.publicUrl,
+      file_url: filePath,
       file_size: file.size,
       file_type: file.type,
       uploaded_by: userId,
     });
   if (insertError) throw insertError;
 
-  return { fileUrl: urlData.publicUrl, fileName: file.name };
+  return { fileUrl: filePath, fileName: file.name };
+};
+
+/** Generate a signed URL for an attachment stored in the private bucket */
+export const getAttachmentSignedUrl = async (fileUrl: string): Promise<string> => {
+  // Extract path if it's a full URL, otherwise use as-is
+  let path = fileUrl;
+  const bucketPrefix = '/storage/v1/object/public/attachments/';
+  const idx = path.indexOf(bucketPrefix);
+  if (idx !== -1) {
+    path = path.substring(idx + bucketPrefix.length);
+  }
+
+  const { data, error } = await supabase.storage
+    .from('attachments')
+    .createSignedUrl(path, 3600);
+
+  if (error) throw error;
+  return data.signedUrl;
 };
