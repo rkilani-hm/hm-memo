@@ -127,9 +127,7 @@ const MemoView = () => {
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold text-lg">AH</span>
-                </div>
+                <img src={alHamraLogo} alt="Al Hamra Logo" className="h-14 w-auto object-contain" />
                 <div>
                   <CardTitle className="text-lg">Al Hamra Real Estate Co.</CardTitle>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">
