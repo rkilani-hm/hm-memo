@@ -296,12 +296,22 @@ const MemoView = () => {
         }
       }
 
+      const deviceInfo = collectDeviceInfo();
       await supabase.from('audit_log').insert({
         memo_id: id,
         user_id: user.id,
-        action: `memo_${action}`,
+        action: action === 'approved'
+          ? (stepActionType === 'signature' ? 'digital_signature_applied' : stepActionType === 'initial' ? 'digital_initial_applied' : `digital_${stepActionType}_completed`)
+          : `memo_${action}`,
+        action_detail: action,
+        signing_method: 'digital',
+        transmittal_no: memo?.transmittal_no,
+        password_verified: true,
+        previous_status: 'pending',
+        new_status: action,
         details: { comments: comments || null, step_action_type: stepActionType },
-      });
+        ...deviceInfo,
+      } as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['memo', id] });
