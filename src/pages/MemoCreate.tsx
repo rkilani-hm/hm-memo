@@ -20,6 +20,7 @@ import {
 import TransmittedForGrid from '@/components/memo/TransmittedForGrid';
 import RichTextEditor from '@/components/memo/RichTextEditor';
 import FileUpload from '@/components/memo/FileUpload';
+import WorkflowPreview from '@/components/memo/WorkflowPreview';
 import type { FileAttachment } from '@/components/memo/FileUpload';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
 import { format } from 'date-fns';
@@ -340,6 +341,17 @@ const MemoCreate = () => {
             </Label>
             <FileUpload files={files} onChange={setFiles} />
           </div>
+
+          <Separator />
+
+          {/* Workflow Preview */}
+          <WorkflowPreview
+            departmentId={(() => {
+              const selectedProfile = profiles.find(p => p.user_id === fromUserId);
+              return selectedProfile?.department_id || profile?.department_id || null;
+            })()}
+            memoTypes={memoTypes}
+          />
         </CardContent>
       </Card>
 
