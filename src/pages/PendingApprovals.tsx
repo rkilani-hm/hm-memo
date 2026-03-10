@@ -104,6 +104,19 @@ const PendingApprovals = () => {
 
       const { stepId, memoId, action } = actionDialog;
 
+      // Upload signature image if provided
+      let signatureUrl: string | null = null;
+      if (signatureDataUrl) {
+        const blob = await (await fetch(signatureDataUrl)).blob();
+        const path = `${user.id}/${stepId}-approval.png`;
+        const { error: uploadError } = await supabase.storage
+          .from('signatures')
+          .upload(path, blob, { upsert: true, contentType: 'image/png' });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(path);
+        signatureUrl = urlData.publicUrl;
+      }
+
       // Update approval step
       const { error: stepError } = await supabase
         .from('approval_steps')
@@ -112,6 +125,7 @@ const PendingApprovals = () => {
           comments: comments || null,
           signed_at: new Date().toISOString(),
           password_verified: true,
+          signature_image_url: signatureUrl,
         })
         .eq('id', stepId);
       if (stepError) throw stepError;
