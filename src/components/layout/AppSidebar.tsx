@@ -45,9 +45,7 @@ const AppSidebar = () => {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-sidebar-primary flex items-center justify-center shrink-0">
-            <span className="text-sidebar-primary-foreground text-sm font-bold">AH</span>
-          </div>
+          <img src={alHamraLogo} alt="Al Hamra Logo" className="w-10 h-10 object-contain shrink-0" />
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-sidebar-foreground truncate">Al Hamra</h2>
             <p className="text-xs text-sidebar-foreground/60 truncate">Memo Platform</p>
