@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 import { useNavigate } from 'react-router-dom';
 import {
   Sidebar,
