@@ -165,7 +165,7 @@ const MemoView = () => {
                 </div>
                 <div className="p-3">
                   <p className="text-xs font-bold uppercase text-muted-foreground">Date</p>
-                  <p className="text-sm font-medium">{format(new Date(memo.date), "do MMMM yyyy")}</p>
+                  <p className="text-sm font-medium">{format(new Date(memo.date), "dd/MM/yyyy")}</p>
                 </div>
                 <div className="p-3">
                   <p className="text-xs font-bold uppercase text-muted-foreground">From</p>
@@ -315,7 +315,7 @@ const MemoView = () => {
                           </p>
                           {step.signed_at && (
                             <p className="text-xs text-muted-foreground mt-1">
-                              Signed: {format(new Date(step.signed_at), 'dd MMM yyyy, HH:mm')}
+                              Signed: {format(new Date(step.signed_at), 'dd/MM/yyyy, HH:mm')}
                             </p>
                           )}
                           {step.comments && (

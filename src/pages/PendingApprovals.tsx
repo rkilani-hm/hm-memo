@@ -322,7 +322,7 @@ const PendingApprovals = () => {
                       <TableCell>{from?.full_name || '—'}</TableCell>
                       <TableCell>{dept?.name || '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(memo.created_at), 'dd MMM yyyy')}
+                        {format(new Date(memo.created_at), 'dd/MM/yyyy')}
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
@@ -447,7 +447,7 @@ const PendingApprovals = () => {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {step.signed_at
-                          ? format(new Date(step.signed_at), 'dd MMM yyyy, HH:mm')
+                          ? format(new Date(step.signed_at), 'dd/MM/yyyy, HH:mm')
                           : '—'}
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
