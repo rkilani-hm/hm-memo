@@ -90,11 +90,18 @@ const DelegateManagement = () => {
         .eq('id', assignmentId);
       if (error) throw error;
 
+      const deviceInfo = collectDeviceInfo();
+      const clientIp = await getClientIp();
+      const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
       await supabase.from('audit_log').insert({
         user_id: user.id,
         action: 'delegate_removed',
         details: { assignment_id: assignmentId },
-      });
+        ip_address: clientIp,
+        ip_geolocation_city: geo.city,
+        ip_geolocation_country: geo.country,
+        ...deviceInfo,
+      } as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['delegate-assignments'] });
