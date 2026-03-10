@@ -500,22 +500,22 @@ const MemoView = () => {
               <>
                 <Separator />
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                     Approval Signatures
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-3">
                     {approvalSteps.map((step) => {
                       const approver = getProfile(step.approver_user_id);
                       return (
                         <div
                           key={step.id}
-                          className="border border-input rounded-md p-4 print-border"
+                          className="border border-input rounded-md p-3 print-border"
                         >
-                          <div className="flex items-center justify-between mb-3">
-                            <p className="text-xs font-bold uppercase text-muted-foreground">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-[10px] font-bold uppercase text-muted-foreground">
                               Step {step.step_order}
                             </p>
-                            <div className="flex items-center gap-1 text-xs capitalize">
+                            <div className="flex items-center gap-1 text-[10px] capitalize">
                               {statusIcons[step.status]}
                               <span className={
                                 step.status === 'approved' ? 'text-[hsl(var(--success))]' :
@@ -529,29 +529,29 @@ const MemoView = () => {
                           </div>
 
                           {/* Signature Image */}
-                          <div className="min-h-[64px] mb-2 flex items-end">
+                          <div className="min-h-[48px] mb-1 flex items-end">
                             {step.signature_image_url ? (
                               <SignedImage
                                 storagePath={step.signature_image_url}
                                 alt={`${approver?.full_name || 'Approver'} signature`}
-                                className="h-16 object-contain"
+                                className="h-12 object-contain"
                                 fallback={
                                   step.status === 'approved'
-                                    ? <p className="text-xs italic text-muted-foreground">[Digitally Approved]</p>
+                                    ? <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
                                     : <p className="border-b border-foreground inline-block w-full pb-1">&nbsp;</p>
                                 }
                               />
                             ) : step.status === 'approved' ? (
-                              <p className="text-xs italic text-muted-foreground">[Digitally Approved]</p>
+                              <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
                             ) : (
                               <p className="border-b border-foreground inline-block w-full pb-1">&nbsp;</p>
                             )}
                           </div>
 
-                          <p className="text-sm font-medium">
+                          <p className="text-xs font-medium">
                             {approver?.full_name || 'Unknown'}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-[10px] text-muted-foreground">
                             {approver?.job_title || ''}
                           </p>
                           {step.signed_at && (
