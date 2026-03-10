@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import SignaturePad from '@/components/memo/SignaturePad';
+import SignedImage from '@/components/memo/SignedImage';
 import {
   Dialog,
   DialogContent,
