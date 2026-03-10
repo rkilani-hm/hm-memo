@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles, fetchDepartments, getAttachmentSignedUrl } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { collectDeviceInfo } from '@/lib/device-info';
+import { generateMemoPdf } from '@/lib/memo-pdf';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +20,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, Eye, Bell } from 'lucide-react';
+import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, Eye, Bell, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import SignaturePad from '@/components/memo/SignaturePad';
@@ -368,7 +369,39 @@ const MemoView = () => {
     setActionDialog({ stepId, action: 'approved', stepActionType: sat });
   };
 
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+
   const handlePrint = () => window.print();
+
+  const handleExportPdf = async () => {
+    if (!memo) return;
+    setPdfGenerating(true);
+    try {
+      // Convert logo to data URL
+      const logoResponse = await fetch(alHamraLogo);
+      const logoBlob = await logoResponse.blob();
+      const logoDataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(logoBlob);
+      });
+
+      await generateMemoPdf({
+        memo,
+        fromProfile: fromProfile,
+        toProfile: toProfile,
+        department: dept,
+        approvalSteps,
+        attachments,
+        profiles,
+        logoDataUrl,
+      });
+    } catch (error: any) {
+      toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
 
   if (memoLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading memo...</div>;
@@ -439,6 +472,10 @@ const MemoView = () => {
               </Button>
             </>
           )}
+          <Button variant="outline" onClick={handleExportPdf} disabled={pdfGenerating}>
+            <FileDown className="h-4 w-4 mr-2" />
+            {pdfGenerating ? 'Generating...' : 'Export PDF'}
+          </Button>
           <Button onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Print
