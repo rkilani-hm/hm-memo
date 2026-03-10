@@ -24,6 +24,7 @@ import {
   Building2,
   Shield,
   ScrollText,
+  BarChart3,
 } from 'lucide-react';
 
 const AppSidebar = () => {
