@@ -576,6 +576,7 @@ const PendingApprovals = () => {
                 rows={3}
               />
             </div>
+          </div>
           <DialogFooter>
             <Button
               variant="outline"
@@ -583,6 +584,8 @@ const PendingApprovals = () => {
                 setActionDialog(null);
                 setComments('');
                 setSignatureDataUrl(null);
+                setPassword('');
+                setPasswordError('');
               }}
             >
               Cancel
@@ -591,6 +594,7 @@ const PendingApprovals = () => {
               className={actionDialog ? actionColor[actionDialog.action] : ''}
               disabled={
                 actionMutation.isPending ||
+                !password.trim() ||
                 (actionDialog?.action === 'approved' && !signatureDataUrl) ||
                 (actionDialog?.action !== 'approved' && !comments.trim())
               }
