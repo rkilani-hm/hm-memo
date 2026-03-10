@@ -45,7 +45,7 @@ serve(async (req) => {
     // Service role client for privileged operations
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    const { memo_id } = await req.json();
+    const { memo_id, workflow_template_id } = await req.json();
     if (!memo_id) {
       return new Response(JSON.stringify({ error: "memo_id is required" }), {
         status: 400,
