@@ -424,6 +424,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_approver_for_memo: {
+        Args: { _memo_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_memo_owner: {
+        Args: { _memo_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "department_head" | "staff" | "approver"
