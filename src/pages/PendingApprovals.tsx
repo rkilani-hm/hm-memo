@@ -538,6 +538,26 @@ const PendingApprovals = () => {
               );
             })()}
 
+            {/* Password Verification */}
+            <div className="space-y-2">
+              <Label>
+                Login Password <span className="text-destructive">*</span>
+              </Label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError('');
+                }}
+                placeholder="Enter your login password to confirm"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+              {passwordError && (
+                <p className="text-xs text-destructive">{passwordError}</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>
                 Comments{' '}
@@ -556,7 +576,6 @@ const PendingApprovals = () => {
                 rows={3}
               />
             </div>
-          </div>
           <DialogFooter>
             <Button
               variant="outline"
