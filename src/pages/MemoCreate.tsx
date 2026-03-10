@@ -352,6 +352,8 @@ const MemoCreate = () => {
               return selectedProfile?.department_id || profile?.department_id || null;
             })()}
             memoTypes={memoTypes}
+            selectedTemplateId={selectedWorkflowId}
+            onTemplateChange={setSelectedWorkflowId}
           />
         </CardContent>
       </Card>

@@ -2,11 +2,22 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle2, Users } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
 
 interface WorkflowPreviewProps {
   departmentId: string | null;
   memoTypes: MemoType[];
+  selectedTemplateId: string | null;
+  onTemplateChange: (templateId: string | null) => void;
 }
 
 interface WorkflowStep {
@@ -14,8 +25,7 @@ interface WorkflowStep {
   label: string;
 }
 
-const WorkflowPreview = ({ departmentId, memoTypes }: WorkflowPreviewProps) => {
-  // Fetch all workflow templates
+const WorkflowPreview = ({ departmentId, memoTypes, selectedTemplateId, onTemplateChange }: WorkflowPreviewProps) => {
   const { data: templates = [] } = useQuery({
     queryKey: ['workflow_templates'],
     queryFn: async () => {
@@ -27,7 +37,6 @@ const WorkflowPreview = ({ departmentId, memoTypes }: WorkflowPreviewProps) => {
     },
   });
 
-  // Fetch profiles for approver names
   const { data: profiles = [] } = useQuery({
     queryKey: ['profiles'],
     queryFn: async () => {
@@ -39,45 +48,91 @@ const WorkflowPreview = ({ departmentId, memoTypes }: WorkflowPreviewProps) => {
     },
   });
 
-  // Replicate the same matching logic as submit-memo edge function
-  let matchedTemplate = null;
+  // Auto-match logic (same as submit-memo edge function)
+  let autoMatchedTemplate = null;
   let matchType = '';
 
   if (departmentId && memoTypes.length > 0) {
-    matchedTemplate = templates.find(
+    autoMatchedTemplate = templates.find(
       (t) => t.department_id === departmentId && t.memo_type === memoTypes[0]
     );
-    if (matchedTemplate) matchType = 'Department + Memo Type match';
+    if (autoMatchedTemplate) matchType = 'Auto: Department + Memo Type';
   }
 
-  if (!matchedTemplate && departmentId) {
-    matchedTemplate = templates.find(
+  if (!autoMatchedTemplate && departmentId) {
+    autoMatchedTemplate = templates.find(
       (t) => t.department_id === departmentId && t.is_default
     );
-    if (matchedTemplate) matchType = 'Department default workflow';
+    if (autoMatchedTemplate) matchType = 'Auto: Department default';
   }
 
-  if (!matchedTemplate) {
-    matchedTemplate = templates.find(
+  if (!autoMatchedTemplate) {
+    autoMatchedTemplate = templates.find(
       (t) => !t.department_id && t.is_default
     );
-    if (matchedTemplate) matchType = 'Global default workflow';
+    if (autoMatchedTemplate) matchType = 'Auto: Global default';
   }
 
-  const steps: WorkflowStep[] = (matchedTemplate?.steps as WorkflowStep[]) || [];
+  // Determine active template: manual override or auto-matched
+  const isManual = selectedTemplateId !== null;
+  const activeTemplate = isManual
+    ? templates.find((t) => t.id === selectedTemplateId) || null
+    : autoMatchedTemplate;
+
+  const steps: WorkflowStep[] = (activeTemplate?.steps as WorkflowStep[]) || [];
 
   if (!departmentId) return null;
 
   return (
     <div className="rounded-md border border-input p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <Users className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Approval Workflow
-        </span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Approval Workflow
+          </span>
+        </div>
+        {isManual && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs h-7"
+            onClick={() => onTemplateChange(null)}
+          >
+            Reset to auto
+          </Button>
+        )}
       </div>
 
-      {!matchedTemplate ? (
+      {/* Manual selector */}
+      <div className="space-y-1">
+        <Label className="text-xs text-muted-foreground">
+          {isManual ? 'Manually selected' : 'Auto-matched'} — or choose manually:
+        </Label>
+        <Select
+          value={selectedTemplateId || 'auto'}
+          onValueChange={(val) => onTemplateChange(val === 'auto' ? null : val)}
+        >
+          <SelectTrigger className="h-9 text-sm">
+            <SelectValue placeholder="Auto-detect workflow..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">
+              Auto-detect{autoMatchedTemplate ? ` (${autoMatchedTemplate.name})` : ''}
+            </SelectItem>
+            {templates.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name}
+                {t.memo_type ? ` — ${t.memo_type}` : ''}
+                {t.is_default ? ' ★' : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Preview */}
+      {!activeTemplate ? (
         <div className="flex items-center gap-2 text-amber-600">
           <AlertCircle className="h-4 w-4" />
           <span className="text-sm">
@@ -88,9 +143,11 @@ const WorkflowPreview = ({ departmentId, memoTypes }: WorkflowPreviewProps) => {
         <>
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="text-xs">
-              {matchedTemplate.name}
+              {activeTemplate.name}
             </Badge>
-            <span className="text-xs text-muted-foreground">({matchType})</span>
+            {!isManual && matchType && (
+              <span className="text-xs text-muted-foreground">({matchType})</span>
+            )}
           </div>
 
           {steps.length === 0 ? (
