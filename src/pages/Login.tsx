@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,10 +37,7 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-secondary/30">
       <Card className="w-full max-w-md mx-4 shadow-xl border-0">
         <CardHeader className="text-center pb-2">
-          {/* Logo placeholder */}
-          <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground text-2xl font-bold">AH</span>
-          </div>
+          <img src={alHamraLogo} alt="Al Hamra Logo" className="mx-auto mb-4 h-24 w-auto object-contain" />
           <h1 className="text-2xl font-bold text-foreground">Al Hamra Real Estate</h1>
           <p className="text-muted-foreground text-sm mt-1">Internal Memo & Approval Platform</p>
         </CardHeader>
