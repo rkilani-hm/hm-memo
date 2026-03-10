@@ -143,13 +143,20 @@ const MemoCreate = () => {
         await uploadAttachment(memo.id, attachment.file, user.id);
       }
 
-      // Audit log
+      // Audit log with device info + IP
+      const deviceInfo = collectDeviceInfo();
+      const clientIp = await getClientIp();
+      const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
       await supabase.from('audit_log').insert({
         memo_id: memo.id,
         user_id: user.id,
         action: status === 'draft' ? 'memo_drafted' : 'memo_submitted',
         details: { transmittal_no: transmittalNo },
-      });
+        ip_address: clientIp,
+        ip_geolocation_city: geo.city,
+        ip_geolocation_country: geo.country,
+        ...deviceInfo,
+      } as any);
 
       // If submitting, trigger workflow creation via edge function
       if (status === 'submitted') {

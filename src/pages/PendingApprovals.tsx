@@ -189,13 +189,21 @@ const PendingApprovals = () => {
           .eq('id', memoId);
       }
 
-      // Audit log
+      // Audit log with device info + IP
+      const deviceInfo = collectDeviceInfo();
+      const clientIp = await getClientIp();
+      const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
       await supabase.from('audit_log').insert({
         memo_id: memoId,
         user_id: user.id,
         action: `memo_${action}`,
         details: { comments: comments || null },
-      });
+        signing_method: 'digital',
+        ip_address: clientIp,
+        ip_geolocation_city: geo.city,
+        ip_geolocation_country: geo.country,
+        ...deviceInfo,
+      } as any);
 
       // Send email notifications (non-blocking)
       if (memo) {
