@@ -107,6 +107,18 @@ const PendingApprovals = () => {
 
       const { stepId, memoId, action } = actionDialog;
 
+      // Verify password by re-authenticating
+      const myProfile = getProfile(user.id);
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: myProfile?.email || user.email || '',
+        password,
+      });
+      if (authError) {
+        setPasswordError('Incorrect password. Please try again.');
+        throw new Error('Password verification failed');
+      }
+      setPasswordError('');
+
       // Handle signature: use saved URL directly or upload drawn signature
       let signatureUrl: string | null = null;
       if (signatureDataUrl) {
