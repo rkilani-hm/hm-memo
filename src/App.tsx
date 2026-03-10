@@ -14,6 +14,8 @@ import PendingApprovals from "@/pages/PendingApprovals";
 import DepartmentManagement from "@/pages/admin/DepartmentManagement";
 import UserManagement from "@/pages/admin/UserManagement";
 import WorkflowManagement from "@/pages/admin/WorkflowManagement";
+import DelegateManagement from "@/pages/admin/DelegateManagement";
+import AuditLog from "@/pages/admin/AuditLog";
 import Settings from "@/pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -38,6 +40,8 @@ const App = () => (
               <Route path="/admin/users" element={<UserManagement />} />
               <Route path="/admin/departments" element={<DepartmentManagement />} />
               <Route path="/admin/workflows" element={<WorkflowManagement />} />
+              <Route path="/admin/delegates" element={<DelegateManagement />} />
+              <Route path="/admin/audit-log" element={<AuditLog />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

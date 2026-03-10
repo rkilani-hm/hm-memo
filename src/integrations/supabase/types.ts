@@ -20,14 +20,19 @@ export type Database = {
           approver_user_id: string
           comments: string | null
           created_at: string
+          date_of_physical_signing: string | null
           deadline: string | null
           id: string
           is_required: boolean
           memo_id: string
           parallel_group: number | null
           password_verified: boolean | null
+          registered_by_user_id: string | null
+          registration_notes: string | null
+          scan_attachment_url: string | null
           signature_image_url: string | null
           signed_at: string | null
+          signing_method: string | null
           status: Database["public"]["Enums"]["approval_status"]
           step_order: number
           updated_at: string
@@ -37,14 +42,19 @@ export type Database = {
           approver_user_id: string
           comments?: string | null
           created_at?: string
+          date_of_physical_signing?: string | null
           deadline?: string | null
           id?: string
           is_required?: boolean
           memo_id: string
           parallel_group?: number | null
           password_verified?: boolean | null
+          registered_by_user_id?: string | null
+          registration_notes?: string | null
+          scan_attachment_url?: string | null
           signature_image_url?: string | null
           signed_at?: string | null
+          signing_method?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           step_order: number
           updated_at?: string
@@ -54,14 +64,19 @@ export type Database = {
           approver_user_id?: string
           comments?: string | null
           created_at?: string
+          date_of_physical_signing?: string | null
           deadline?: string | null
           id?: string
           is_required?: boolean
           memo_id?: string
           parallel_group?: number | null
           password_verified?: boolean | null
+          registered_by_user_id?: string | null
+          registration_notes?: string | null
+          scan_attachment_url?: string | null
           signature_image_url?: string | null
           signed_at?: string | null
+          signing_method?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           step_order?: number
           updated_at?: string
@@ -79,26 +94,80 @@ export type Database = {
       audit_log: {
         Row: {
           action: string
+          action_detail: string | null
+          browser: string | null
           created_at: string
           details: Json | null
+          device_type: string | null
           id: string
+          ip_address: string | null
+          ip_geolocation_city: string | null
+          ip_geolocation_country: string | null
           memo_id: string | null
+          new_status: string | null
+          notes: string | null
+          on_behalf_of_name: string | null
+          on_behalf_of_user_id: string | null
+          os: string | null
+          password_verified: boolean | null
+          previous_status: string | null
+          scan_attachment_url: string | null
+          session_id: string | null
+          signing_method: string | null
+          transmittal_no: string | null
+          user_agent_raw: string | null
           user_id: string
         }
         Insert: {
           action: string
+          action_detail?: string | null
+          browser?: string | null
           created_at?: string
           details?: Json | null
+          device_type?: string | null
           id?: string
+          ip_address?: string | null
+          ip_geolocation_city?: string | null
+          ip_geolocation_country?: string | null
           memo_id?: string | null
+          new_status?: string | null
+          notes?: string | null
+          on_behalf_of_name?: string | null
+          on_behalf_of_user_id?: string | null
+          os?: string | null
+          password_verified?: boolean | null
+          previous_status?: string | null
+          scan_attachment_url?: string | null
+          session_id?: string | null
+          signing_method?: string | null
+          transmittal_no?: string | null
+          user_agent_raw?: string | null
           user_id: string
         }
         Update: {
           action?: string
+          action_detail?: string | null
+          browser?: string | null
           created_at?: string
           details?: Json | null
+          device_type?: string | null
           id?: string
+          ip_address?: string | null
+          ip_geolocation_city?: string | null
+          ip_geolocation_country?: string | null
           memo_id?: string | null
+          new_status?: string | null
+          notes?: string | null
+          on_behalf_of_name?: string | null
+          on_behalf_of_user_id?: string | null
+          os?: string | null
+          password_verified?: boolean | null
+          previous_status?: string | null
+          scan_attachment_url?: string | null
+          session_id?: string | null
+          signing_method?: string | null
+          transmittal_no?: string | null
+          user_agent_raw?: string | null
           user_id?: string
         }
         Relationships: [
@@ -110,6 +179,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      delegate_assignments: {
+        Row: {
+          assigned_by_user_id: string
+          created_at: string
+          delegate_user_id: string
+          id: string
+          is_active: boolean
+          principal_user_id: string
+          revoked_at: string | null
+        }
+        Insert: {
+          assigned_by_user_id: string
+          created_at?: string
+          delegate_user_id: string
+          id?: string
+          is_active?: boolean
+          principal_user_id: string
+          revoked_at?: string | null
+        }
+        Update: {
+          assigned_by_user_id?: string
+          created_at?: string
+          delegate_user_id?: string
+          id?: string
+          is_active?: boolean
+          principal_user_id?: string
+          revoked_at?: string | null
+        }
+        Relationships: []
       }
       departments: {
         Row: {
@@ -441,6 +540,10 @@ export type Database = {
       }
       is_approver_for_memo: {
         Args: { _memo_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_delegate_for: {
+        Args: { _delegate_id: string; _principal_id: string }
         Returns: boolean
       }
       is_memo_owner: {

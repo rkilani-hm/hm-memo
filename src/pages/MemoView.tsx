@@ -5,11 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles, fetchDepartments, getAttachmentSignedUrl } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
+import { collectDeviceInfo } from '@/lib/device-info';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +24,11 @@ import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import SignaturePad from '@/components/memo/SignaturePad';
 import SignedImage from '@/components/memo/SignedImage';
+import AuditTrailTab from '@/components/memo/AuditTrailTab';
+import ManualRegistrationPanel from '@/components/memo/ManualRegistrationPanel';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
+
+
 
 type ActionType = 'approved' | 'rejected' | 'rework';
 type StepActionType = 'signature' | 'initial' | 'review' | 'acknowledge';
@@ -120,6 +126,21 @@ const MemoView = () => {
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
     queryFn: fetchDepartments,
+  });
+
+  // Fetch delegate assignments for current user
+  const { data: delegateAssignments = [] } = useQuery({
+    queryKey: ['my-delegate-assignments', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('delegate_assignments')
+        .select('*')
+        .eq('delegate_user_id', user!.id)
+        .eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
   });
 
   const getProfile = (userId: string) => profiles.find((p) => p.user_id === userId);
@@ -276,12 +297,22 @@ const MemoView = () => {
         }
       }
 
+      const deviceInfo = collectDeviceInfo();
       await supabase.from('audit_log').insert({
         memo_id: id,
         user_id: user.id,
-        action: `memo_${action}`,
+        action: action === 'approved'
+          ? (stepActionType === 'signature' ? 'digital_signature_applied' : stepActionType === 'initial' ? 'digital_initial_applied' : `digital_${stepActionType}_completed`)
+          : `memo_${action}`,
+        action_detail: action,
+        signing_method: 'digital',
+        transmittal_no: memo?.transmittal_no,
+        password_verified: true,
+        previous_status: 'pending',
+        new_status: action,
         details: { comments: comments || null, step_action_type: stepActionType },
-      });
+        ...deviceInfo,
+      } as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['memo', id] });
@@ -598,28 +629,45 @@ const MemoView = () => {
 
                       {/* Signature/Initials area */}
                       <div className="flex-1 flex items-center justify-center">
-                        {sat === 'signature' && step.signature_image_url ? (
-                          <SignedImage
-                            storagePath={step.signature_image_url}
-                            alt={`${approver?.full_name || 'Approver'} signature`}
-                            className="h-14 object-contain"
-                            fallback={
-                              step.status === 'approved'
-                                ? <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
-                                : null
-                            }
-                          />
+                        {/* Manual paper signed indicator */}
+                        {(step as any).signing_method === 'manual_paper' && step.status === 'approved' ? (
+                          <div className="text-center">
+                            <p className="text-xs font-bold text-accent">📄 SIGNED ON PAPER</p>
+                            {(step as any).registered_by_user_id && (
+                              <p className="text-[9px] text-muted-foreground mt-1">
+                                Registered by: {getProfile((step as any).registered_by_user_id)?.full_name || 'Delegate'}
+                              </p>
+                            )}
+                            <Badge className="text-[8px] bg-accent/20 text-accent mt-1">Manual</Badge>
+                          </div>
+                        ) : sat === 'signature' && step.signature_image_url ? (
+                          <div className="text-center">
+                            <SignedImage
+                              storagePath={step.signature_image_url}
+                              alt={`${approver?.full_name || 'Approver'} signature`}
+                              className="h-14 object-contain"
+                              fallback={
+                                step.status === 'approved'
+                                  ? <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
+                                  : null
+                              }
+                            />
+                            {step.status === 'approved' && <Badge variant="outline" className="text-[8px] mt-1">🔐 Digital</Badge>}
+                          </div>
                         ) : sat === 'initial' && step.signature_image_url ? (
-                          <SignedImage
-                            storagePath={step.signature_image_url}
-                            alt={`${approver?.full_name || 'Approver'} initials`}
-                            className="h-10 object-contain"
-                            fallback={
-                              step.status === 'approved'
-                                ? <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
-                                : null
-                            }
-                          />
+                          <div className="text-center">
+                            <SignedImage
+                              storagePath={step.signature_image_url}
+                              alt={`${approver?.full_name || 'Approver'} initials`}
+                              className="h-10 object-contain"
+                              fallback={
+                                step.status === 'approved'
+                                  ? <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
+                                  : null
+                              }
+                            />
+                            {step.status === 'approved' && <Badge variant="outline" className="text-[8px] mt-1">🔐 Digital</Badge>}
+                          </div>
                         ) : sat === 'initial' && step.status === 'approved' ? (
                           <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
                         ) : sat === 'review' && step.status === 'approved' ? (
@@ -649,6 +697,11 @@ const MemoView = () => {
                           <span className="font-bold">Date: </span>
                           {step.signed_at ? format(new Date(step.signed_at), 'dd/MM/yyyy') : ''}
                         </p>
+                        {(step as any).signing_method === 'manual_paper' && (step as any).date_of_physical_signing && (
+                          <p className="text-[9px] text-muted-foreground">
+                            Paper signed: {format(new Date((step as any).date_of_physical_signing), 'dd/MM/yyyy')}
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
@@ -693,7 +746,69 @@ const MemoView = () => {
         </div>
       </div>
 
-      {/* Action Dialog */}
+      {/* Delegate Manual Registration Panel */}
+      {memo && user && (() => {
+        // Find pending steps for principals this user is a delegate for
+        const delegateSteps = approvalSteps.filter(s =>
+          s.status === 'pending' &&
+          delegateAssignments.some(da => da.principal_user_id === s.approver_user_id)
+        );
+
+        if (delegateSteps.length === 0) return null;
+
+        return (
+          <div className="no-print max-w-4xl mx-auto mt-6 space-y-4">
+            {delegateSteps.map(step => {
+              const principal = getProfile(step.approver_user_id);
+              return (
+                <ManualRegistrationPanel
+                  key={step.id}
+                  step={step as any}
+                  principalName={principal?.full_name || 'Unknown'}
+                  principalTitle={principal?.job_title || ''}
+                  memoTransmittalNo={memo.transmittal_no}
+                />
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {/* Audit Trail Tab */}
+      {memo && id && (
+        <div className="no-print max-w-4xl mx-auto mt-6">
+          <Tabs defaultValue="comments">
+            <TabsList>
+              <TabsTrigger value="comments">Comments</TabsTrigger>
+              <TabsTrigger value="audit-trail">Audit Trail</TabsTrigger>
+            </TabsList>
+            <TabsContent value="comments" className="mt-4">
+              {approvalSteps.filter(s => s.comments).length > 0 ? (
+                <div className="space-y-2">
+                  {approvalSteps.filter(s => s.comments).map(s => {
+                    const approver = getProfile(s.approver_user_id);
+                    return (
+                      <div key={s.id} className="border rounded-md p-3">
+                        <p className="text-sm font-medium">{approver?.full_name || 'Unknown'}</p>
+                        <p className="text-sm text-muted-foreground">{s.comments}</p>
+                        {s.signed_at && (
+                          <p className="text-xs text-muted-foreground mt-1">{format(new Date(s.signed_at), 'dd MMM yyyy, HH:mm')}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No comments yet.</p>
+              )}
+            </TabsContent>
+            <TabsContent value="audit-trail" className="mt-4">
+              <AuditTrailTab memoId={id} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
+
       <Dialog open={!!actionDialog} onOpenChange={(open) => { if (!open) resetDialog(); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>

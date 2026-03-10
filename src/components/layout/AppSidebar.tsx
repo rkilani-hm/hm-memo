@@ -22,6 +22,8 @@ import {
   Users,
   LogOut,
   Building2,
+  Shield,
+  ScrollText,
 } from 'lucide-react';
 
 const AppSidebar = () => {
@@ -39,6 +41,8 @@ const AppSidebar = () => {
     { title: 'User Management', icon: Users, path: '/admin/users' },
     { title: 'Departments', icon: Building2, path: '/admin/departments' },
     { title: 'Workflows', icon: Settings, path: '/admin/workflows' },
+    { title: 'Delegates', icon: Shield, path: '/admin/delegates' },
+    { title: 'Audit Log', icon: ScrollText, path: '/admin/audit-log' },
   ];
 
   return (
