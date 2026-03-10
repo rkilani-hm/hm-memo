@@ -20,6 +20,7 @@ import {
 import TransmittedForGrid from '@/components/memo/TransmittedForGrid';
 import RichTextEditor from '@/components/memo/RichTextEditor';
 import FileUpload from '@/components/memo/FileUpload';
+import WorkflowPreview from '@/components/memo/WorkflowPreview';
 import type { FileAttachment } from '@/components/memo/FileUpload';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
 import { format } from 'date-fns';
