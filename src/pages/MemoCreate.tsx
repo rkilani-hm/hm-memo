@@ -134,7 +134,7 @@ const MemoCreate = () => {
       // If submitting, trigger workflow creation via edge function
       if (status === 'submitted') {
         const { data: submitResult, error: submitError } = await supabase.functions.invoke('submit-memo', {
-          body: { memo_id: memo.id },
+          body: { memo_id: memo.id, workflow_template_id: selectedWorkflowId || undefined },
         });
         if (submitError) {
           console.warn('Workflow creation warning:', submitError);
