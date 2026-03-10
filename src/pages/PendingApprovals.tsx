@@ -322,7 +322,7 @@ const PendingApprovals = () => {
                       <TableCell>{from?.full_name || '—'}</TableCell>
                       <TableCell>{dept?.name || '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(memo.created_at), 'dd MMM yyyy')}
+                        {format(new Date(memo.created_at), 'dd/MM/yyyy')}
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
