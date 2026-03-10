@@ -16,12 +16,39 @@ interface WorkflowStep {
   deadline?: string | null;
 }
 
+// Resolve IP to city/country via ip-api.com (non-blocking, best-effort)
+async function resolveIpGeolocation(ip: string): Promise<{ city: string | null; country: string | null }> {
+  if (!ip || ip === "unknown") return { city: null, country: null };
+  try {
+    const cleanIp = ip.split(",")[0].trim(); // take first IP if multiple (x-forwarded-for)
+    if (cleanIp === "127.0.0.1" || cleanIp === "::1" || cleanIp.startsWith("10.") || cleanIp.startsWith("192.168.")) {
+      return { city: "Internal Network", country: "Internal" };
+    }
+    const res = await fetch(`http://ip-api.com/json/${cleanIp}?fields=status,city,country`, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return { city: null, country: null };
+    const data = await res.json();
+    if (data.status === "success") {
+      return { city: data.city || null, country: data.country || null };
+    }
+    return { city: null, country: null };
+  } catch {
+    console.warn("IP geolocation lookup failed for:", ip);
+    return { city: null, country: null };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Extract client IP from request headers
+    const clientIp = req.headers.get("x-forwarded-for")
+      || req.headers.get("cf-connecting-ip")
+      || req.headers.get("x-real-ip")
+      || "unknown";
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -246,11 +273,17 @@ serve(async (req) => {
       }
     }
 
-    // Audit log
+    // Resolve IP geolocation (non-blocking)
+    const geo = await resolveIpGeolocation(clientIp);
+
+    // Audit log with IP + geolocation
     await adminClient.from("audit_log").insert({
       memo_id,
       user_id: user.id,
       action: "workflow_started",
+      ip_address: clientIp !== "unknown" ? clientIp.split(",")[0].trim() : null,
+      ip_geolocation_city: geo.city,
+      ip_geolocation_country: geo.country,
       details: {
         workflow_template_id: workflow?.id || null,
         workflow_source: workflowSource,
