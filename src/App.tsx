@@ -16,6 +16,7 @@ import UserManagement from "@/pages/admin/UserManagement";
 import WorkflowManagement from "@/pages/admin/WorkflowManagement";
 import DelegateManagement from "@/pages/admin/DelegateManagement";
 import AuditLog from "@/pages/admin/AuditLog";
+import AuditDashboard from "@/pages/admin/AuditDashboard";
 import Settings from "@/pages/Settings";
 import NotFound from "./pages/NotFound";
 
