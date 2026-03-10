@@ -6,10 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles, fetchDepartments, getAttachmentSignedUrl } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -358,254 +356,278 @@ const MemoView = () => {
 
       {/* Printable Area */}
       <div className="print-area max-w-4xl mx-auto">
-        <Card className="border-2 print-border">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <img src={alHamraLogo} alt="Al Hamra Logo" className="h-14 w-auto object-contain" />
-                <div>
-                  <CardTitle className="text-lg">Al Hamra Real Estate Co.</CardTitle>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                    Internal Transmittal Memorandum
-                  </p>
-                </div>
-              </div>
-              <Badge
-                className={`no-print capitalize ${
-                  memo.status === 'approved'
-                    ? 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
-                    : memo.status === 'rejected'
-                    ? 'bg-destructive/10 text-destructive'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {memo.status.replace('_', ' ')}
-              </Badge>
+        {/* Status badge - only on screen */}
+        <div className="no-print flex justify-end mb-2">
+          <Badge
+            className={`capitalize ${
+              memo.status === 'approved'
+                ? 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
+                : memo.status === 'rejected'
+                ? 'bg-destructive/10 text-destructive'
+                : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {memo.status.replace('_', ' ')}
+          </Badge>
+        </div>
+
+        <div className="border border-foreground/30 bg-card print-border">
+          {/* ── HEADER: Logo + Title ── */}
+          <div className="flex items-end justify-between px-6 pt-6 pb-4">
+            <img src={alHamraLogo} alt="Al Hamra Logo" className="h-20 w-auto object-contain" />
+            <div className="text-right">
+              <h2 className="text-3xl font-bold tracking-wide text-foreground">INTERNAL MEMO</h2>
+              <div className="h-0.5 bg-destructive mt-1" />
             </div>
-          </CardHeader>
+          </div>
 
-          <CardContent className="space-y-6">
-            {/* Header Table */}
-            <div className="border border-input rounded-md overflow-hidden print-border">
-              <div className="grid grid-cols-2 divide-x divide-y divide-input">
-                <div className="p-3">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">TO</p>
-                  <p className="text-sm font-medium">
-                    {toProfile ? `${toProfile.full_name} — ${toProfile.job_title || ''}` : '—'}
-                  </p>
-                </div>
-                <div className="p-3">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">Transmittal No</p>
-                  <p className="text-sm font-mono font-medium">{memo.transmittal_no}</p>
-                </div>
-                <div className="p-3">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">Date</p>
-                  <p className="text-sm font-medium">{format(new Date(memo.date), "dd/MM/yyyy")}</p>
-                </div>
-                <div className="p-3">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">From</p>
-                  <p className="text-sm font-medium">
-                    {fromProfile ? `${fromProfile.full_name} — ${fromProfile.job_title || ''}` : '—'}
-                  </p>
-                  {dept && <p className="text-xs text-muted-foreground">{dept.name}</p>}
-                </div>
+          {/* ── TO / TRANSMITTAL NO / DATE / FROM + TRANSMITTED FOR ── */}
+          <div className="border-t border-foreground/30">
+            {/* Row 1: TO | TRANSMITTAL NO */}
+            <div className="grid grid-cols-2">
+              <div className="border-r border-b border-foreground/30 p-3">
+                <p className="text-xs text-muted-foreground">TO:</p>
+                <p className="text-sm font-bold mt-1">
+                  {toProfile?.full_name || '—'}
+                </p>
+                {toProfile?.job_title && (
+                  <p className="text-sm">{toProfile.job_title}</p>
+                )}
               </div>
-            </div>
-
-            <Separator />
-
-            {/* Transmitted For */}
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Transmitted For
-              </p>
-              <div className="grid grid-cols-3 gap-2 p-3 border border-input rounded-md print-border">
-                {MEMO_TYPE_OPTIONS.map((opt) => (
-                  <div key={opt.value} className="flex items-center gap-2 text-sm">
-                    <span className={`w-4 h-4 border rounded flex items-center justify-center text-xs ${
-                      memo.memo_types.includes(opt.value)
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'border-input'
-                    }`}>
-                      {memo.memo_types.includes(opt.value) ? '✓' : ''}
-                    </span>
-                    <span className="font-medium">{opt.label}</span>
+              <div className="border-b border-foreground/30">
+                <div className="grid grid-cols-[auto_1fr]">
+                  <div className="bg-destructive text-destructive-foreground px-3 py-3 text-xs font-bold flex items-center">
+                    TRANSMITTAL NO:
                   </div>
-                ))}
+                  <div className="px-3 py-3 flex items-center">
+                    <p className="text-sm font-bold font-mono">{memo.transmittal_no}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-[auto_1fr] border-t border-foreground/30">
+                  <div className="bg-destructive text-destructive-foreground px-3 py-3 text-xs font-bold flex items-center">
+                    DATE:
+                  </div>
+                  <div className="px-3 py-3 flex items-center">
+                    <p className="text-sm font-medium">{format(new Date(memo.date), "do MMMM yyyy")}</p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <Separator />
-
-            {/* Subject */}
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-1">Subject</p>
-              <p className="text-base font-semibold">{memo.subject}</p>
+            {/* Row 2: FROM | TRANSMITTED FOR */}
+            <div className="grid grid-cols-2">
+              <div className="border-r border-b border-foreground/30 p-3">
+                <p className="text-xs text-muted-foreground">FROM:</p>
+                <p className="text-sm font-bold mt-2">
+                  {fromProfile?.full_name || '—'}
+                </p>
+                {fromProfile?.job_title && (
+                  <p className="text-sm">{fromProfile.job_title}</p>
+                )}
+                {dept && <p className="text-xs text-muted-foreground">{dept.name}</p>}
+              </div>
+              <div className="border-b border-foreground/30 p-3">
+                <p className="text-xs font-bold text-center uppercase tracking-wider mb-2">Transmitted For</p>
+                <div className="grid grid-cols-3 gap-x-2 gap-y-1.5">
+                  {MEMO_TYPE_OPTIONS.map((opt) => (
+                    <div key={opt.value} className="flex items-center gap-1.5 text-xs">
+                      <span className={`w-3.5 h-3.5 border flex items-center justify-center text-[10px] shrink-0 ${
+                        memo.memo_types.includes(opt.value)
+                          ? 'border-foreground'
+                          : 'border-foreground/40'
+                      }`}>
+                        {memo.memo_types.includes(opt.value) ? '✕' : ''}
+                      </span>
+                      <span className="uppercase text-[11px]">{opt.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
+          </div>
 
-            <Separator />
+          {/* ── SUBJECT ── */}
+          <div className="border-b border-foreground/30 px-4 py-2.5">
+            <p className="text-sm">
+              <span className="font-bold">Subject: </span>
+              <span className="font-bold">{memo.subject}</span>
+            </p>
+          </div>
 
-            {/* Description */}
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Description</p>
-              <div
-                className="prose prose-sm max-w-none text-foreground"
-                dangerouslySetInnerHTML={{ __html: memo.description || '<p>No description.</p>' }}
-              />
-            </div>
+          {/* ── DESCRIPTION ── */}
+          <div className="border-b border-foreground/30 px-4 py-3">
+            <p className="text-xs font-bold uppercase mb-2">Description:</p>
+            <div
+              className="prose prose-sm max-w-none text-foreground"
+              dangerouslySetInnerHTML={{ __html: memo.description || '<p>No description.</p>' }}
+            />
 
-            {/* Sender Signature */}
-            <div className="pt-4 border-t border-input">
-              <div className="text-sm">
+            {/* Sender Signature - right aligned */}
+            <div className="flex justify-end mt-8 mb-4">
+              <div className="text-center">
                 {fromProfile?.signature_image_url ? (
                   <SignedImage
                     storagePath={fromProfile.signature_image_url}
                     alt="Sender signature"
-                    className="h-16 mb-1 object-contain"
-                    fallback={<p className="border-b border-foreground inline-block w-60 pb-1 mb-1">&nbsp;</p>}
+                    className="h-16 mb-1 object-contain mx-auto"
+                    fallback={<p className="border-b border-foreground inline-block w-48 pb-1 mb-1">&nbsp;</p>}
                   />
                 ) : (
-                  <p className="border-b border-foreground inline-block w-60 pb-1 mb-1">&nbsp;</p>
+                  <p className="border-b border-foreground inline-block w-48 pb-1 mb-1">&nbsp;</p>
                 )}
-                <p className="font-medium">
+                <p className="text-sm font-bold">
                   {fromProfile?.full_name}, {fromProfile?.job_title}
                 </p>
               </div>
             </div>
 
-            <Separator />
+            {/* Continuation pages / Attachments / Initials row */}
+            <div className="flex items-center justify-center gap-8 text-xs mt-4 pt-2 border-t border-foreground/20">
+              <span>No. of Continuation Pages: <strong>{String(memo.continuation_pages || 0).padStart(2, '0')}</strong></span>
+              <span>No. of Attachments: <strong>{String(attachments.length).padStart(2, '0')}</strong></span>
+              <span className="font-bold">{memo.initials || ''}</span>
+            </div>
+          </div>
 
-            {/* Footer Fields */}
-            <div className="grid grid-cols-4 gap-4 text-sm">
-              <div>
-                <p className="text-xs font-bold uppercase text-muted-foreground">Continuation Pages</p>
-                <p>{memo.continuation_pages || 0}</p>
+          {/* ── COPIES TO ── */}
+          <div className="grid grid-cols-[140px_1fr] border-b border-foreground/30">
+            <div className="px-3 py-2 text-xs font-bold border-r border-foreground/30">COPIES TO:</div>
+            <div className="px-3 py-2 text-sm">{memo.copies_to?.join(', ') || ''}</div>
+          </div>
+
+          {/* ── ACTION REQUIRED / COMMENTS ── */}
+          <div className="grid grid-cols-[140px_1fr] border-b border-foreground/30">
+            <div className="px-3 py-2 text-xs font-bold border-r border-foreground/30">
+              <p>ACTION REQUIRED:</p>
+              <p className="mt-1">COMMENTS IF ANY:</p>
+            </div>
+            <div className="px-3 py-2 text-sm">
+              {approvalSteps
+                .filter((s) => s.comments)
+                .map((s) => {
+                  const approver = getProfile(s.approver_user_id);
+                  return (
+                    <p key={s.id} className="text-xs mb-1">
+                      <span className="font-medium">{approver?.full_name}:</span> {s.comments}
+                    </p>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* ── APPROVALS ── */}
+          {approvalSteps.length > 0 && (
+            <div className="mt-4 mx-4 mb-4">
+              {/* Red header bar */}
+              <div className="bg-destructive text-destructive-foreground text-center py-2 font-bold text-lg tracking-widest uppercase">
+                Approvals
               </div>
-              <div>
-                <p className="text-xs font-bold uppercase text-muted-foreground">Attachments</p>
-                <p>{attachments.length}</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase text-muted-foreground">Initials</p>
-                <p>{memo.initials || '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase text-muted-foreground">Copies To</p>
-                <p>{memo.copies_to?.join(', ') || '—'}</p>
+              {/* Signature columns */}
+              <div className="grid grid-cols-3 border border-t-0 border-foreground/30">
+                {approvalSteps.map((step) => {
+                  const approver = getProfile(step.approver_user_id);
+                  return (
+                    <div
+                      key={step.id}
+                      className="border-r last:border-r-0 border-foreground/30 p-3 flex flex-col justify-between min-h-[120px]"
+                    >
+                      {/* Status indicator - screen only */}
+                      <div className="no-print flex items-center gap-1 text-[10px] capitalize mb-1">
+                        {statusIcons[step.status]}
+                        <span className={
+                          step.status === 'approved' ? 'text-[hsl(var(--success))]' :
+                          step.status === 'rejected' ? 'text-destructive' :
+                          step.status === 'pending' ? 'text-[hsl(var(--warning))]' :
+                          'text-accent'
+                        }>
+                          {step.status}
+                        </span>
+                      </div>
+
+                      {/* Signature area */}
+                      <div className="flex-1 flex items-center justify-center">
+                        {step.signature_image_url ? (
+                          <SignedImage
+                            storagePath={step.signature_image_url}
+                            alt={`${approver?.full_name || 'Approver'} signature`}
+                            className="h-14 object-contain"
+                            fallback={
+                              step.status === 'approved'
+                                ? <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
+                                : null
+                            }
+                          />
+                        ) : step.status === 'approved' ? (
+                          <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
+                        ) : null}
+                      </div>
+
+                      {/* Label & Date */}
+                      <div className="border-t border-foreground/20 pt-1 mt-2">
+                        <p className="text-xs font-bold break-words leading-tight">
+                          {approver?.full_name || 'Unknown'}{approver?.job_title ? ` – ${approver.job_title}` : ''}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">– SIGNATURE</p>
+                        <p className="text-xs mt-0.5">
+                          <span className="font-bold">Date: </span>
+                          {step.signed_at ? format(new Date(step.signed_at), 'dd/MM/yyyy') : ''}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+          )}
 
-            {/* Approval Signatures Section */}
-            {approvalSteps.length > 0 && (
-              <>
-                <Separator />
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                    Approval Signatures
-                  </p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {approvalSteps.map((step) => {
-                      const approver = getProfile(step.approver_user_id);
-                      return (
-                        <div
-                          key={step.id}
-                          className="border border-input rounded-md p-3 print-border"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-[10px] font-bold uppercase text-muted-foreground">
-                              Step {step.step_order}
-                            </p>
-                            <div className="flex items-center gap-1 text-[10px] capitalize">
-                              {statusIcons[step.status]}
-                              <span className={
-                                step.status === 'approved' ? 'text-[hsl(var(--success))]' :
-                                step.status === 'rejected' ? 'text-destructive' :
-                                step.status === 'pending' ? 'text-[hsl(var(--warning))]' :
-                                'text-accent'
-                              }>
-                                {step.status}
-                              </span>
-                            </div>
-                          </div>
+          {/* ── RECEIVING PARTY STAMP ── */}
+          <div className="mx-4 mb-4">
+            <div className="grid grid-cols-[120px_1fr] border border-foreground/30 bg-secondary/30">
+              <div className="px-3 py-6 text-xs font-bold text-center border-r border-foreground/30">
+                <p>RECEIVING</p>
+                <p>PARTY</p>
+                <p>STAMP</p>
+              </div>
+              <div className="min-h-[80px]" />
+            </div>
+          </div>
 
-                          {/* Signature Image */}
-                          <div className="min-h-[48px] mb-1 flex items-end">
-                            {step.signature_image_url ? (
-                              <SignedImage
-                                storagePath={step.signature_image_url}
-                                alt={`${approver?.full_name || 'Approver'} signature`}
-                                className="h-12 object-contain"
-                                fallback={
-                                  step.status === 'approved'
-                                    ? <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
-                                    : <p className="border-b border-foreground inline-block w-full pb-1">&nbsp;</p>
-                                }
-                              />
-                            ) : step.status === 'approved' ? (
-                              <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
-                            ) : (
-                              <p className="border-b border-foreground inline-block w-full pb-1">&nbsp;</p>
-                            )}
-                          </div>
+          {/* ── Attachments (screen only) ── */}
+          {attachments.length > 0 && (
+            <div className="no-print px-4 pb-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                Attachments
+              </p>
+              <ul className="space-y-1 text-sm">
+                {attachments.map((att) => (
+                  <li key={att.id} className="flex items-center gap-2">
+                    <span>📎</span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const url = await getAttachmentSignedUrl(att.file_url);
+                          window.open(url, '_blank');
+                        } catch (e) {
+                          toast({ title: 'Error opening attachment', variant: 'destructive' });
+                        }
+                      }}
+                      className="text-primary underline text-left hover:text-primary/80"
+                    >
+                      {att.file_name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-                          <p className="text-xs font-medium truncate" title={approver?.full_name || 'Unknown'}>
-                            {approver?.full_name || 'Unknown'}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground break-words leading-tight">
-                            {approver?.job_title || ''}
-                          </p>
-                          {step.signed_at && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Signed: {format(new Date(step.signed_at), 'dd/MM/yyyy, HH:mm')}
-                            </p>
-                          )}
-                          {step.comments && (
-                            <p className="text-xs mt-2 italic border-l-2 border-accent pl-2">
-                              {step.comments}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Attachments List */}
-            {attachments.length > 0 && (
-              <>
-                <Separator />
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                    Attachments
-                  </p>
-                  <ul className="space-y-1 text-sm">
-                    {attachments.map((att) => (
-                      <li key={att.id} className="flex items-center gap-2">
-                        <span>📎</span>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const url = await getAttachmentSignedUrl(att.file_url);
-                              window.open(url, '_blank');
-                            } catch (e) {
-                              toast({ title: 'Error opening attachment', variant: 'destructive' });
-                            }
-                          }}
-                          className="text-primary underline no-print text-left hover:text-primary/80"
-                        >
-                          {att.file_name}
-                        </button>
-                        <span className="print-only hidden">{att.file_name}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+          {/* ── Document Footer ── */}
+          <div className="px-4 py-2 text-[10px] text-muted-foreground border-t border-foreground/10">
+            <p>HRA 09/00/T/I/01</p>
+            <p>Version 1.3</p>
+            <p>For Internal Use</p>
+          </div>
+        </div>
       </div>
 
       {/* Action Confirmation Dialog */}
