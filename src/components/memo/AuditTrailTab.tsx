@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfiles } from '@/lib/memo-api';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Smartphone, Tablet } from 'lucide-react';
+import { Monitor, Smartphone, Tablet, Globe, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface AuditTrailTabProps {
@@ -113,11 +113,21 @@ const AuditTrailTab = ({ memoId }: AuditTrailTabProps) => {
               {/* Details row */}
               <div className="flex flex-wrap gap-3 mt-1.5 text-[11px] text-muted-foreground">
                 {entry.ip_address && (
-                  <span>IP: {entry.ip_address} {location && `(${location})`}</span>
+                  <span className="flex items-center gap-1">
+                    <Globe className="h-3 w-3 text-primary/60" />
+                    IP: {entry.ip_address}
+                  </span>
+                )}
+                {(entry.ip_geolocation_city || entry.ip_geolocation_country) && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3 text-accent/70" />
+                    {[entry.ip_geolocation_city, entry.ip_geolocation_country].filter(Boolean).join(', ')}
+                  </span>
                 )}
                 {entry.device_type && (
                   <span className="flex items-center gap-1">
                     {DEVICE_ICONS[entry.device_type]} {entry.browser || entry.device_type}
+                    {entry.os ? ` / ${entry.os}` : ''}
                   </span>
                 )}
               </div>
