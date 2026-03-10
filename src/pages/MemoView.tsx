@@ -6,10 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles, fetchDepartments, getAttachmentSignedUrl } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
