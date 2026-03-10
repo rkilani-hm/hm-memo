@@ -105,17 +105,23 @@ const PendingApprovals = () => {
 
       const { stepId, memoId, action } = actionDialog;
 
-      // Upload signature image if provided
+      // Handle signature: use saved URL directly or upload drawn signature
       let signatureUrl: string | null = null;
       if (signatureDataUrl) {
-        const blob = await (await fetch(signatureDataUrl)).blob();
-        const path = `${user.id}/${stepId}-approval.png`;
-        const { error: uploadError } = await supabase.storage
-          .from('signatures')
-          .upload(path, blob, { upsert: true, contentType: 'image/png' });
-        if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(path);
-        signatureUrl = urlData.publicUrl;
+        if (signatureDataUrl.startsWith('data:')) {
+          // Drawn signature - upload to storage
+          const blob = await (await fetch(signatureDataUrl)).blob();
+          const path = `${user.id}/${stepId}-approval.png`;
+          const { error: uploadError } = await supabase.storage
+            .from('signatures')
+            .upload(path, blob, { upsert: true, contentType: 'image/png' });
+          if (uploadError) throw uploadError;
+          const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(path);
+          signatureUrl = urlData.publicUrl;
+        } else {
+          // Saved profile signature URL
+          signatureUrl = signatureDataUrl;
+        }
       }
 
       // Update approval step
