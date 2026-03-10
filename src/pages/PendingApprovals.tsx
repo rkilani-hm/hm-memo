@@ -438,10 +438,11 @@ const PendingApprovals = () => {
           if (!open) {
             setActionDialog(null);
             setComments('');
+            setSignatureDataUrl(null);
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {actionDialog && actionLabel[actionDialog.action]} Memo
@@ -451,12 +452,21 @@ const PendingApprovals = () => {
             {actionDialog && (
               <p className="text-sm text-muted-foreground">
                 {actionDialog.action === 'approved'
-                  ? 'You are about to approve this memo. This action will be recorded.'
+                  ? 'You are about to approve this memo. Please sign below.'
                   : actionDialog.action === 'rejected'
                   ? 'You are about to reject this memo. Please provide a reason below.'
                   : 'You are requesting the sender to rework this memo. Please explain what needs to change.'}
               </p>
             )}
+
+            {/* Signature Pad - shown for approve action */}
+            {actionDialog?.action === 'approved' && (
+              <div className="space-y-2">
+                <Label>Your Signature <span className="text-destructive">*</span></Label>
+                <SignaturePad onSignatureChange={setSignatureDataUrl} />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>
                 Comments{' '}
@@ -472,7 +482,7 @@ const PendingApprovals = () => {
                     ? 'Optional comments...'
                     : 'Provide reason or feedback...'
                 }
-                rows={4}
+                rows={3}
               />
             </div>
           </div>
@@ -482,6 +492,7 @@ const PendingApprovals = () => {
               onClick={() => {
                 setActionDialog(null);
                 setComments('');
+                setSignatureDataUrl(null);
               }}
             >
               Cancel
@@ -490,6 +501,7 @@ const PendingApprovals = () => {
               className={actionDialog ? actionColor[actionDialog.action] : ''}
               disabled={
                 actionMutation.isPending ||
+                (actionDialog?.action === 'approved' && !signatureDataUrl) ||
                 (actionDialog?.action !== 'approved' && !comments.trim())
               }
               onClick={() => actionMutation.mutate()}
