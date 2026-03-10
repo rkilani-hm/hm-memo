@@ -5,8 +5,28 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles, fetchDepartments, getAttachmentSignedUrl } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
+import { collectDeviceInfo } from '@/lib/device-info';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, Eye, Bell } from 'lucide-react';
+import { format } from 'date-fns';
+import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
+import SignaturePad from '@/components/memo/SignaturePad';
+import SignedImage from '@/components/memo/SignedImage';
+import AuditTrailTab from '@/components/memo/AuditTrailTab';
+import ManualRegistrationPanel from '@/components/memo/ManualRegistrationPanel';
+import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
