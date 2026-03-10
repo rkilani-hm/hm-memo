@@ -53,6 +53,7 @@ const PendingApprovals = () => {
   } | null>(null);
   const [comments, setComments] = useState('');
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [signatureMode, setSignatureMode] = useState<'saved' | 'draw'>('saved');
   // Fetch approval steps assigned to current user
   const { data: mySteps = [], isLoading } = useQuery({
     queryKey: ['my-approval-steps', user?.id],
