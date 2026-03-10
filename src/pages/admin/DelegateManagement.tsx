@@ -49,9 +49,12 @@ const DelegateManagement = () => {
       });
       if (error) throw error;
 
-      // Audit log
+      // Audit log with device info
       const delegateProfile = profiles.find(p => p.user_id === delegateUserId);
       const principalProfile = profiles.find(p => p.user_id === principalUserId);
+      const deviceInfo = collectDeviceInfo();
+      const clientIp = await getClientIp();
+      const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
       await supabase.from('audit_log').insert({
         user_id: user.id,
         action: 'delegate_assigned',
@@ -59,7 +62,11 @@ const DelegateManagement = () => {
           delegate_name: delegateProfile?.full_name,
           principal_name: principalProfile?.full_name,
         },
-      });
+        ip_address: clientIp,
+        ip_geolocation_city: geo.city,
+        ip_geolocation_country: geo.country,
+        ...deviceInfo,
+      } as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['delegate-assignments'] });
