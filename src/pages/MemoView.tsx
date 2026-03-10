@@ -548,10 +548,10 @@ const MemoView = () => {
                             )}
                           </div>
 
-                          <p className="text-xs font-medium">
+                          <p className="text-xs font-medium truncate" title={approver?.full_name || 'Unknown'}>
                             {approver?.full_name || 'Unknown'}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">
+                          <p className="text-[10px] text-muted-foreground break-words leading-tight">
                             {approver?.job_title || ''}
                           </p>
                           {step.signed_at && (
