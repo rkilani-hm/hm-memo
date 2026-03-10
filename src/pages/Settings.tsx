@@ -5,12 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { User, Pen, Save, Upload, Trash2, Lock } from 'lucide-react';
+import { User, Pen, Save, Upload, Trash2, Type } from 'lucide-react';
 import { ChangePasswordCard } from '@/components/settings/ChangePasswordCard';
+import SignedImage from '@/components/memo/SignedImage';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Profile = Tables<'profiles'>;
@@ -18,8 +19,10 @@ type Profile = Tables<'profiles'>;
 const Settings = () => {
   const { user, profile, signOut } = useAuth();
   const { toast } = useToast();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const sigCanvasRef = useRef<HTMLCanvasElement>(null);
+  const iniCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [isSigDrawing, setIsSigDrawing] = useState(false);
+  const [isIniDrawing, setIsIniDrawing] = useState(false);
 
   const [fullName, setFullName] = useState('');
   const [initials, setInitials] = useState('');
@@ -27,9 +30,10 @@ const Settings = () => {
   const [email, setEmail] = useState('');
   const [signatureType, setSignatureType] = useState<string>('none');
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [initialsImageUrl, setInitialsImageUrl] = useState<string | null>(null);
+  const [initialsType, setInitialsType] = useState<'text' | 'image' | 'drawn'>('text');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [departmentName, setDepartmentName] = useState('');
 
   useEffect(() => {
@@ -40,6 +44,11 @@ const Settings = () => {
       setEmail(profile.email || '');
       setSignatureType(profile.signature_type || 'none');
       setSignatureUrl(profile.signature_image_url || null);
+      // initials_image_url is a new column, access via any
+      setInitialsImageUrl((profile as any).initials_image_url || null);
+      if ((profile as any).initials_image_url) {
+        setInitialsType('image');
+      }
     }
   }, [profile]);
 
@@ -68,7 +77,8 @@ const Settings = () => {
           job_title: jobTitle,
           signature_type: signatureType,
           signature_image_url: signatureUrl,
-        })
+          initials_image_url: initialsImageUrl,
+        } as any)
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -80,19 +90,33 @@ const Settings = () => {
     }
   };
 
+  const uploadFile = async (file: File, pathSuffix: string) => {
+    if (!user) throw new Error('Not authenticated');
+    const path = `${user.id}/${pathSuffix}`;
+    const { error } = await supabase.storage
+      .from('signatures')
+      .upload(path, file, { upsert: true });
+    if (error) throw error;
+    return path;
+  };
+
+  const uploadBlob = async (blob: Blob, pathSuffix: string) => {
+    if (!user) throw new Error('Not authenticated');
+    const path = `${user.id}/${pathSuffix}`;
+    const { error } = await supabase.storage
+      .from('signatures')
+      .upload(path, blob, { upsert: true, contentType: 'image/png' });
+    if (error) throw error;
+    return path;
+  };
+
   const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     setUploading(true);
     try {
-      const path = `${user.id}/signature.${file.name.split('.').pop()}`;
-      const { error: uploadError } = await supabase.storage
-        .from('signatures')
-        .upload(path, file, { upsert: true });
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage.from('signatures').getPublicUrl(path);
-      setSignatureUrl(data.publicUrl);
+      const path = await uploadFile(file, `signature.${file.name.split('.').pop()}`);
+      setSignatureUrl(path);
       setSignatureType('image');
       toast({ title: 'Signature uploaded' });
     } catch (err: any) {
@@ -102,58 +126,96 @@ const Settings = () => {
     }
   };
 
-  // Drawing signature
-  const startDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    setIsDrawing(true);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+  const handleInitialsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploading(true);
+    try {
+      const path = await uploadFile(file, `initials.${file.name.split('.').pop()}`);
+      setInitialsImageUrl(path);
+      setInitialsType('image');
+      toast({ title: 'Initials image uploaded' });
+    } catch (err: any) {
+      toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-    ctx.strokeStyle = 'hsl(213, 52%, 23%)';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-  };
+  // Generic canvas drawing helpers
+  const createDrawHandlers = (
+    canvasRef: React.RefObject<HTMLCanvasElement>,
+    setDrawing: (v: boolean) => void,
+    isDrawing: boolean
+  ) => ({
+    startDraw: (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      setDrawing(true);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      ctx.beginPath();
+      ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+    },
+    draw: (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!isDrawing) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+      ctx.strokeStyle = 'hsl(213, 52%, 23%)';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    },
+    endDraw: () => setDrawing(false),
+    clear: () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    },
+  });
 
-  const endDraw = () => setIsDrawing(false);
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx?.clearRect(0, 0, canvas.width, canvas.height);
-  };
+  const sigDraw = createDrawHandlers(sigCanvasRef, setIsSigDrawing, isSigDrawing);
+  const iniDraw = createDrawHandlers(iniCanvasRef, setIsIniDrawing, isIniDrawing);
 
   const saveDrawnSignature = async () => {
-    const canvas = canvasRef.current;
+    const canvas = sigCanvasRef.current;
     if (!canvas || !user) return;
     setUploading(true);
     try {
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
       if (!blob) throw new Error('Failed to capture signature');
-      const path = `${user.id}/signature-drawn.png`;
-      const { error } = await supabase.storage
-        .from('signatures')
-        .upload(path, blob, { upsert: true, contentType: 'image/png' });
-      if (error) throw error;
-
-      const { data } = supabase.storage.from('signatures').getPublicUrl(path);
-      setSignatureUrl(data.publicUrl);
+      const path = await uploadBlob(blob, 'signature-drawn.png');
+      setSignatureUrl(path);
       setSignatureType('drawn');
       toast({ title: 'Drawn signature saved' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const saveDrawnInitials = async () => {
+    const canvas = iniCanvasRef.current;
+    if (!canvas || !user) return;
+    setUploading(true);
+    try {
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('Failed to capture initials');
+      const path = await uploadBlob(blob, 'initials-drawn.png');
+      setInitialsImageUrl(path);
+      setInitialsType('drawn');
+      toast({ title: 'Drawn initials saved' });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -172,7 +234,7 @@ const Settings = () => {
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Profile & Settings</h1>
-        <p className="text-muted-foreground">Manage your personal details and signature</p>
+        <p className="text-muted-foreground">Manage your personal details, signature and initials</p>
       </div>
 
       {/* Personal Details */}
@@ -197,7 +259,7 @@ const Settings = () => {
               <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="initials">Initials</Label>
+              <Label htmlFor="initials">Initials (Text)</Label>
               <Input
                 id="initials"
                 value={initials}
@@ -222,105 +284,178 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Signature */}
+      {/* Dual Signing Assets */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Pen className="h-5 w-5 text-accent" />
-            Signature
+            Signing Assets
           </CardTitle>
-          <CardDescription>Set up your signature for memo approvals</CardDescription>
+          <CardDescription>
+            Manage your full signature (for approvals) and initials stamp (for quick endorsements) separately.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Signature Method</Label>
-            <Select value={signatureType} onValueChange={setSignatureType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose signature method" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No signature</SelectItem>
-                <SelectItem value="initials">Use initials</SelectItem>
-                <SelectItem value="image">Upload image</SelectItem>
-                <SelectItem value="drawn">Draw signature</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <CardContent>
+          <Tabs defaultValue="signature" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="signature">Full Signature</TabsTrigger>
+              <TabsTrigger value="initials-asset">Initials Stamp</TabsTrigger>
+            </TabsList>
 
-          {signatureType === 'initials' && (
-            <div className="border border-border rounded-lg p-6 flex items-center justify-center bg-muted/30">
-              <span className="text-2xl font-bold text-primary italic">
-                {initials || userInitials}
-              </span>
-            </div>
-          )}
+            {/* ── Full Signature Tab ── */}
+            <TabsContent value="signature" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Signature Method</Label>
+                <Select value={signatureType} onValueChange={setSignatureType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose signature method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No signature</SelectItem>
+                    <SelectItem value="image">Upload image</SelectItem>
+                    <SelectItem value="drawn">Draw signature</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {signatureType === 'image' && (
-            <div className="space-y-3">
-              {signatureUrl && (
-                <div className="border border-border rounded-lg p-4 bg-muted/30 flex items-center justify-center">
-                  <img src={signatureUrl} alt="Signature" className="max-h-20 object-contain" />
+              {signatureType === 'image' && (
+                <div className="space-y-3">
+                  {signatureUrl && (
+                    <div className="border border-border rounded-lg p-4 bg-white flex items-center justify-center">
+                      <SignedImage storagePath={signatureUrl} alt="Signature" className="max-h-20 object-contain" />
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Label
+                      htmlFor="sig-upload"
+                      className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm font-medium"
+                    >
+                      <Upload className="h-4 w-4" />
+                      {uploading ? 'Uploading...' : 'Upload Image'}
+                    </Label>
+                    <input id="sig-upload" type="file" accept="image/*" className="hidden" onChange={handleSignatureUpload} disabled={uploading} />
+                    {signatureUrl && (
+                      <Button variant="outline" size="sm" onClick={() => setSignatureUrl(null)}>
+                        <Trash2 className="h-4 w-4 mr-1" /> Remove
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
-              <div className="flex gap-2">
-                <Label
-                  htmlFor="sig-upload"
-                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm font-medium"
-                >
-                  <Upload className="h-4 w-4" />
-                  {uploading ? 'Uploading...' : 'Upload Signature Image'}
-                </Label>
-                <input
-                  id="sig-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleSignatureUpload}
-                  disabled={uploading}
-                />
-                {signatureUrl && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => { setSignatureUrl(null); }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" /> Remove
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
 
-          {signatureType === 'drawn' && (
-            <div className="space-y-3">
-              <div className="border border-border rounded-lg overflow-hidden bg-white">
-                <canvas
-                  ref={canvasRef}
-                  width={500}
-                  height={150}
-                  className="w-full cursor-crosshair"
-                  onMouseDown={startDraw}
-                  onMouseMove={draw}
-                  onMouseUp={endDraw}
-                  onMouseLeave={endDraw}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={clearCanvas}>
-                  Clear
-                </Button>
-                <Button size="sm" onClick={saveDrawnSignature} disabled={uploading}>
-                  <Save className="h-4 w-4 mr-1" />
-                  {uploading ? 'Saving...' : 'Save Drawn Signature'}
-                </Button>
-              </div>
-              {signatureUrl && signatureType === 'drawn' && (
-                <div className="border border-border rounded-lg p-4 bg-muted/30 flex items-center justify-center">
-                  <img src={signatureUrl} alt="Saved signature" className="max-h-20 object-contain" />
+              {signatureType === 'drawn' && (
+                <div className="space-y-3">
+                  <div className="border border-border rounded-lg overflow-hidden bg-white">
+                    <canvas
+                      ref={sigCanvasRef}
+                      width={500}
+                      height={150}
+                      className="w-full cursor-crosshair"
+                      onMouseDown={sigDraw.startDraw}
+                      onMouseMove={sigDraw.draw}
+                      onMouseUp={sigDraw.endDraw}
+                      onMouseLeave={sigDraw.endDraw}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={sigDraw.clear}>Clear</Button>
+                    <Button size="sm" onClick={saveDrawnSignature} disabled={uploading}>
+                      <Save className="h-4 w-4 mr-1" />
+                      {uploading ? 'Saving...' : 'Save Drawn Signature'}
+                    </Button>
+                  </div>
+                  {signatureUrl && signatureType === 'drawn' && (
+                    <div className="border border-border rounded-lg p-4 bg-white flex items-center justify-center">
+                      <SignedImage storagePath={signatureUrl} alt="Saved signature" className="max-h-20 object-contain" />
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
+            </TabsContent>
+
+            {/* ── Initials Stamp Tab ── */}
+            <TabsContent value="initials-asset" className="space-y-4 mt-4">
+              <p className="text-sm text-muted-foreground">
+                Your initials stamp is used for workflow steps that require a quick "Initial" endorsement rather than a full signature.
+              </p>
+
+              <div className="space-y-2">
+                <Label>Initials Method</Label>
+                <Select value={initialsType} onValueChange={(v) => setInitialsType(v as any)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Use text initials</SelectItem>
+                    <SelectItem value="image">Upload initials image</SelectItem>
+                    <SelectItem value="drawn">Draw initials</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {initialsType === 'text' && (
+                <div className="border border-border rounded-lg p-6 flex items-center justify-center bg-muted/30">
+                  <span className="text-3xl font-bold text-primary italic tracking-wider">
+                    {initials || userInitials}
+                  </span>
+                </div>
+              )}
+
+              {initialsType === 'image' && (
+                <div className="space-y-3">
+                  {initialsImageUrl && (
+                    <div className="border border-border rounded-lg p-4 bg-white flex items-center justify-center">
+                      <SignedImage storagePath={initialsImageUrl} alt="Initials" className="max-h-16 object-contain" />
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Label
+                      htmlFor="ini-upload"
+                      className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm font-medium"
+                    >
+                      <Upload className="h-4 w-4" />
+                      {uploading ? 'Uploading...' : 'Upload Image'}
+                    </Label>
+                    <input id="ini-upload" type="file" accept="image/*" className="hidden" onChange={handleInitialsUpload} disabled={uploading} />
+                    {initialsImageUrl && (
+                      <Button variant="outline" size="sm" onClick={() => setInitialsImageUrl(null)}>
+                        <Trash2 className="h-4 w-4 mr-1" /> Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {initialsType === 'drawn' && (
+                <div className="space-y-3">
+                  <div className="border border-border rounded-lg overflow-hidden bg-white">
+                    <canvas
+                      ref={iniCanvasRef}
+                      width={300}
+                      height={100}
+                      className="w-full cursor-crosshair"
+                      onMouseDown={iniDraw.startDraw}
+                      onMouseMove={iniDraw.draw}
+                      onMouseUp={iniDraw.endDraw}
+                      onMouseLeave={iniDraw.endDraw}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={iniDraw.clear}>Clear</Button>
+                    <Button size="sm" onClick={saveDrawnInitials} disabled={uploading}>
+                      <Save className="h-4 w-4 mr-1" />
+                      {uploading ? 'Saving...' : 'Save Drawn Initials'}
+                    </Button>
+                  </div>
+                  {initialsImageUrl && (
+                    <div className="border border-border rounded-lg p-4 bg-white flex items-center justify-center">
+                      <SignedImage storagePath={initialsImageUrl} alt="Saved initials" className="max-h-16 object-contain" />
+                    </div>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
