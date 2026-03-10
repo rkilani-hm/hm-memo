@@ -128,6 +128,21 @@ const MemoView = () => {
     queryFn: fetchDepartments,
   });
 
+  // Fetch delegate assignments for current user
+  const { data: delegateAssignments = [] } = useQuery({
+    queryKey: ['my-delegate-assignments', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('delegate_assignments')
+        .select('*')
+        .eq('delegate_user_id', user!.id)
+        .eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
   const getProfile = (userId: string) => profiles.find((p) => p.user_id === userId);
   const getDept = (deptId: string) => departments.find((d) => d.id === deptId);
 
