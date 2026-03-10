@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles, fetchDepartments, getAttachmentSignedUrl } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
-import { collectDeviceInfo } from '@/lib/device-info';
+import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 import { generateMemoPdf } from '@/lib/memo-pdf';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
