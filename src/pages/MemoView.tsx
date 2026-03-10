@@ -369,7 +369,39 @@ const MemoView = () => {
     setActionDialog({ stepId, action: 'approved', stepActionType: sat });
   };
 
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+
   const handlePrint = () => window.print();
+
+  const handleExportPdf = async () => {
+    if (!memo) return;
+    setPdfGenerating(true);
+    try {
+      // Convert logo to data URL
+      const logoResponse = await fetch(alHamraLogo);
+      const logoBlob = await logoResponse.blob();
+      const logoDataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(logoBlob);
+      });
+
+      await generateMemoPdf({
+        memo,
+        fromProfile: fromProfile,
+        toProfile: toProfile,
+        department: dept,
+        approvalSteps,
+        attachments,
+        profiles,
+        logoDataUrl,
+      });
+    } catch (error: any) {
+      toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
 
   if (memoLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading memo...</div>;
