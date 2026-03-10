@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfiles } from '@/lib/memo-api';
+import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -48,9 +49,12 @@ const DelegateManagement = () => {
       });
       if (error) throw error;
 
-      // Audit log
+      // Audit log with device info
       const delegateProfile = profiles.find(p => p.user_id === delegateUserId);
       const principalProfile = profiles.find(p => p.user_id === principalUserId);
+      const deviceInfo = collectDeviceInfo();
+      const clientIp = await getClientIp();
+      const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
       await supabase.from('audit_log').insert({
         user_id: user.id,
         action: 'delegate_assigned',
@@ -58,7 +62,11 @@ const DelegateManagement = () => {
           delegate_name: delegateProfile?.full_name,
           principal_name: principalProfile?.full_name,
         },
-      });
+        ip_address: clientIp,
+        ip_geolocation_city: geo.city,
+        ip_geolocation_country: geo.country,
+        ...deviceInfo,
+      } as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['delegate-assignments'] });
@@ -82,11 +90,18 @@ const DelegateManagement = () => {
         .eq('id', assignmentId);
       if (error) throw error;
 
+      const deviceInfo = collectDeviceInfo();
+      const clientIp = await getClientIp();
+      const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
       await supabase.from('audit_log').insert({
         user_id: user.id,
         action: 'delegate_removed',
         details: { assignment_id: assignmentId },
-      });
+        ip_address: clientIp,
+        ip_geolocation_city: geo.city,
+        ip_geolocation_country: geo.country,
+        ...deviceInfo,
+      } as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['delegate-assignments'] });
