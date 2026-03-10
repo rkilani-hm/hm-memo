@@ -273,11 +273,17 @@ serve(async (req) => {
       }
     }
 
-    // Audit log
+    // Resolve IP geolocation (non-blocking)
+    const geo = await resolveIpGeolocation(clientIp);
+
+    // Audit log with IP + geolocation
     await adminClient.from("audit_log").insert({
       memo_id,
       user_id: user.id,
       action: "workflow_started",
+      ip_address: clientIp !== "unknown" ? clientIp.split(",")[0].trim() : null,
+      ip_geolocation_city: geo.city,
+      ip_geolocation_country: geo.country,
       details: {
         workflow_template_id: workflow?.id || null,
         workflow_source: workflowSource,
