@@ -20,7 +20,8 @@ import {
 import TransmittedForGrid from '@/components/memo/TransmittedForGrid';
 import RichTextEditor from '@/components/memo/RichTextEditor';
 import FileUpload from '@/components/memo/FileUpload';
-import WorkflowPreview from '@/components/memo/WorkflowPreview';
+import WorkflowBuilder from '@/components/memo/WorkflowBuilder';
+import type { WorkflowStepDef } from '@/components/memo/WorkflowBuilder';
 import type { FileAttachment } from '@/components/memo/FileUpload';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
 import { format } from 'date-fns';
@@ -43,6 +44,10 @@ const MemoCreate = () => {
   const [files, setFiles] = useState<FileAttachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
+
+  // Workflow builder state
+  const [workflowMode, setWorkflowMode] = useState<'preset' | 'dynamic'>('preset');
+  const [customSteps, setCustomSteps] = useState<WorkflowStepDef[]>([]);
 
   // Fetch users and departments
   const { data: profiles = [] } = useQuery({
@@ -77,6 +82,22 @@ const MemoCreate = () => {
         toast({ title: 'Validation Error', description: 'Select at least one "Transmitted For" type.', variant: 'destructive' });
         return;
       }
+
+      // Validate dynamic workflow
+      if (workflowMode === 'dynamic') {
+        if (customSteps.some((s) => s.approver_user_id === user.id)) {
+          toast({ title: 'Validation Error', description: 'You cannot add yourself as an approver.', variant: 'destructive' });
+          return;
+        }
+        if (customSteps.length > 0 && !customSteps.some((s) => s.action_type === 'signature')) {
+          toast({ title: 'Validation Error', description: 'At least one step must require a Signature.', variant: 'destructive' });
+          return;
+        }
+        if (customSteps.some((s) => !s.approver_user_id)) {
+          toast({ title: 'Validation Error', description: 'All workflow steps must have an approver selected.', variant: 'destructive' });
+          return;
+        }
+      }
     }
 
     setSubmitting(true);
@@ -89,7 +110,6 @@ const MemoCreate = () => {
         return;
       }
 
-      // Get transmittal number
       const transmittalNo = await getNextTransmittalNo(deptId);
 
       const copiesArray = copiesTo
@@ -97,7 +117,6 @@ const MemoCreate = () => {
         .map((s) => s.trim())
         .filter(Boolean);
 
-      // Insert memo
       const { data: memo, error: memoError } = await supabase
         .from('memos')
         .insert({
@@ -123,7 +142,7 @@ const MemoCreate = () => {
         await uploadAttachment(memo.id, attachment.file, user.id);
       }
 
-      // Log to audit trail
+      // Audit log
       await supabase.from('audit_log').insert({
         memo_id: memo.id,
         user_id: user.id,
@@ -133,12 +152,19 @@ const MemoCreate = () => {
 
       // If submitting, trigger workflow creation via edge function
       if (status === 'submitted') {
+        const body: any = { memo_id: memo.id };
+
+        if (workflowMode === 'preset') {
+          body.workflow_template_id = selectedWorkflowId || undefined;
+        } else if (workflowMode === 'dynamic' && customSteps.length > 0) {
+          body.custom_steps = customSteps;
+        }
+
         const { data: submitResult, error: submitError } = await supabase.functions.invoke('submit-memo', {
-          body: { memo_id: memo.id, workflow_template_id: selectedWorkflowId || undefined },
+          body,
         });
         if (submitError) {
           console.warn('Workflow creation warning:', submitError);
-          // Non-blocking — memo is already saved as submitted
         } else {
           console.log('Workflow result:', submitResult);
         }
@@ -170,7 +196,7 @@ const MemoCreate = () => {
         </div>
       </div>
 
-      {/* Memo Form - Transmittal Layout */}
+      {/* Memo Form */}
       <Card className="border-2">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
@@ -190,7 +216,6 @@ const MemoCreate = () => {
           {/* Header Table */}
           <div className="border border-input rounded-md overflow-hidden">
             <div className="grid grid-cols-2 divide-x divide-y divide-input">
-              {/* TO */}
               <div className="p-3 space-y-1">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">TO</Label>
                 <Select value={toUserId} onValueChange={setToUserId}>
@@ -209,13 +234,11 @@ const MemoCreate = () => {
                 </Select>
               </div>
 
-              {/* TRANSMITTAL NO */}
               <div className="p-3 space-y-1">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">Transmittal No</Label>
                 <p className="text-sm text-muted-foreground italic">Auto-generated on save</p>
               </div>
 
-              {/* DATE */}
               <div className="p-3 space-y-1">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">Date</Label>
                 <p className="text-sm font-medium">{currentDate}</p>
@@ -245,17 +268,11 @@ const MemoCreate = () => {
           </div>
 
           <Separator />
-
-          {/* Transmitted For Grid */}
           <TransmittedForGrid selected={memoTypes} onChange={setMemoTypes} />
-
           <Separator />
 
-          {/* Subject */}
           <div className="space-y-2">
-            <Label htmlFor="subject" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Subject
-            </Label>
+            <Label htmlFor="subject" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Subject</Label>
             <Input
               id="subject"
               value={subject}
@@ -268,16 +285,9 @@ const MemoCreate = () => {
 
           <Separator />
 
-          {/* Description */}
           <div className="space-y-2">
-            <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Description
-            </Label>
-            <RichTextEditor
-              content={description}
-              onChange={setDescription}
-              placeholder="Write the memo body here..."
-            />
+            <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Description</Label>
+            <RichTextEditor content={description} onChange={setDescription} placeholder="Write the memo body here..." />
           </div>
 
           {/* Signature block preview */}
@@ -304,12 +314,7 @@ const MemoCreate = () => {
             </div>
             <div className="space-y-1">
               <Label className="text-xs font-bold uppercase text-muted-foreground">No. of Attachments</Label>
-              <Input
-                type="text"
-                value={files.length}
-                disabled
-                className="h-8 bg-muted"
-              />
+              <Input type="text" value={files.length} disabled className="h-8 bg-muted" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs font-bold uppercase text-muted-foreground">Initials</Label>
@@ -335,18 +340,15 @@ const MemoCreate = () => {
 
           <Separator />
 
-          {/* File Attachments */}
           <div className="space-y-2">
-            <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Attachments
-            </Label>
+            <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Attachments</Label>
             <FileUpload files={files} onChange={setFiles} />
           </div>
 
           <Separator />
 
-          {/* Workflow Preview */}
-          <WorkflowPreview
+          {/* Workflow Builder */}
+          <WorkflowBuilder
             departmentId={(() => {
               const selectedProfile = profiles.find(p => p.user_id === fromUserId);
               return selectedProfile?.department_id || profile?.department_id || null;
@@ -354,24 +356,21 @@ const MemoCreate = () => {
             memoTypes={memoTypes}
             selectedTemplateId={selectedWorkflowId}
             onTemplateChange={setSelectedWorkflowId}
+            customSteps={customSteps}
+            onCustomStepsChange={setCustomSteps}
+            mode={workflowMode}
+            onModeChange={setWorkflowMode}
           />
         </CardContent>
       </Card>
 
       {/* Action Buttons */}
       <div className="flex justify-end gap-3 pb-8">
-        <Button
-          variant="outline"
-          onClick={() => saveMemo('draft')}
-          disabled={submitting}
-        >
+        <Button variant="outline" onClick={() => saveMemo('draft')} disabled={submitting}>
           <Save className="h-4 w-4 mr-2" />
           Save as Draft
         </Button>
-        <Button
-          onClick={() => saveMemo('submitted')}
-          disabled={submitting}
-        >
+        <Button onClick={() => saveMemo('submitted')} disabled={submitting}>
           <Send className="h-4 w-4 mr-2" />
           {submitting ? 'Submitting...' : 'Submit Memo'}
         </Button>
