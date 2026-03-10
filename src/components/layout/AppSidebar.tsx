@@ -24,6 +24,7 @@ import {
   Building2,
   Shield,
   ScrollText,
+  BarChart3,
 } from 'lucide-react';
 
 const AppSidebar = () => {
@@ -43,6 +44,7 @@ const AppSidebar = () => {
     { title: 'Workflows', icon: Settings, path: '/admin/workflows' },
     { title: 'Delegates', icon: Shield, path: '/admin/delegates' },
     { title: 'Audit Log', icon: ScrollText, path: '/admin/audit-log' },
+    { title: 'Audit Analytics', icon: BarChart3, path: '/admin/audit-dashboard' },
   ];
 
   return (
