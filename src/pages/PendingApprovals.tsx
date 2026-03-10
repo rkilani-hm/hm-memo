@@ -225,6 +225,7 @@ const PendingApprovals = () => {
       });
       setActionDialog(null);
       setComments('');
+      setSignatureDataUrl(null);
     },
     onError: (e: Error) =>
       toast({ title: 'Error', description: e.message, variant: 'destructive' }),
