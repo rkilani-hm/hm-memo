@@ -158,7 +158,7 @@ const MemoList = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(memo.created_at), 'dd MMM yyyy')}
+                      {format(new Date(memo.created_at), 'dd/MM/yyyy')}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -55,7 +55,7 @@ const MemoCreate = () => {
     queryFn: fetchDepartments,
   });
 
-  const currentDate = format(new Date(), "do MMMM yyyy");
+  const currentDate = format(new Date(), "dd/MM/yyyy");
   const userDept = departments.find((d) => d.id === profile?.department_id);
 
   const saveMemo = async (status: 'draft' | 'submitted') => {

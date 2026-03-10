@@ -447,7 +447,7 @@ const PendingApprovals = () => {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {step.signed_at
-                          ? format(new Date(step.signed_at), 'dd MMM yyyy, HH:mm')
+                          ? format(new Date(step.signed_at), 'dd/MM/yyyy, HH:mm')
                           : '—'}
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">

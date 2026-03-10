@@ -315,7 +315,7 @@ const MemoView = () => {
                           </p>
                           {step.signed_at && (
                             <p className="text-xs text-muted-foreground mt-1">
-                              Signed: {format(new Date(step.signed_at), 'dd MMM yyyy, HH:mm')}
+                              Signed: {format(new Date(step.signed_at), 'dd/MM/yyyy, HH:mm')}
                             </p>
                           )}
                           {step.comments && (
