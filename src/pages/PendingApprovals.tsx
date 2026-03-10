@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import SignaturePad from '@/components/memo/SignaturePad';
+import SignedImage from '@/components/memo/SignedImage';
 import {
   Dialog,
   DialogContent,
@@ -529,8 +530,8 @@ const PendingApprovals = () => {
 
                   {signatureMode === 'saved' && hasSavedSig ? (
                     <div className="border border-input rounded-md p-4 bg-white flex items-center justify-center">
-                      <img
-                        src={myProfile!.signature_image_url!}
+                      <SignedImage
+                        storagePath={myProfile!.signature_image_url!}
                         alt="Your saved signature"
                         className="max-h-24 object-contain"
                       />
