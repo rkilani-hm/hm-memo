@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfiles } from '@/lib/memo-api';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Smartphone, Tablet } from 'lucide-react';
+import { Monitor, Smartphone, Tablet, Globe, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface AuditTrailTabProps {
