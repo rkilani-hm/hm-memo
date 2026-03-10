@@ -629,28 +629,45 @@ const MemoView = () => {
 
                       {/* Signature/Initials area */}
                       <div className="flex-1 flex items-center justify-center">
-                        {sat === 'signature' && step.signature_image_url ? (
-                          <SignedImage
-                            storagePath={step.signature_image_url}
-                            alt={`${approver?.full_name || 'Approver'} signature`}
-                            className="h-14 object-contain"
-                            fallback={
-                              step.status === 'approved'
-                                ? <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
-                                : null
-                            }
-                          />
+                        {/* Manual paper signed indicator */}
+                        {(step as any).signing_method === 'manual_paper' && step.status === 'approved' ? (
+                          <div className="text-center">
+                            <p className="text-xs font-bold text-accent">📄 SIGNED ON PAPER</p>
+                            {(step as any).registered_by_user_id && (
+                              <p className="text-[9px] text-muted-foreground mt-1">
+                                Registered by: {getProfile((step as any).registered_by_user_id)?.full_name || 'Delegate'}
+                              </p>
+                            )}
+                            <Badge className="text-[8px] bg-accent/20 text-accent mt-1">Manual</Badge>
+                          </div>
+                        ) : sat === 'signature' && step.signature_image_url ? (
+                          <div className="text-center">
+                            <SignedImage
+                              storagePath={step.signature_image_url}
+                              alt={`${approver?.full_name || 'Approver'} signature`}
+                              className="h-14 object-contain"
+                              fallback={
+                                step.status === 'approved'
+                                  ? <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
+                                  : null
+                              }
+                            />
+                            {step.status === 'approved' && <Badge variant="outline" className="text-[8px] mt-1">🔐 Digital</Badge>}
+                          </div>
                         ) : sat === 'initial' && step.signature_image_url ? (
-                          <SignedImage
-                            storagePath={step.signature_image_url}
-                            alt={`${approver?.full_name || 'Approver'} initials`}
-                            className="h-10 object-contain"
-                            fallback={
-                              step.status === 'approved'
-                                ? <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
-                                : null
-                            }
-                          />
+                          <div className="text-center">
+                            <SignedImage
+                              storagePath={step.signature_image_url}
+                              alt={`${approver?.full_name || 'Approver'} initials`}
+                              className="h-10 object-contain"
+                              fallback={
+                                step.status === 'approved'
+                                  ? <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
+                                  : null
+                              }
+                            />
+                            {step.status === 'approved' && <Badge variant="outline" className="text-[8px] mt-1">🔐 Digital</Badge>}
+                          </div>
                         ) : sat === 'initial' && step.status === 'approved' ? (
                           <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
                         ) : sat === 'review' && step.status === 'approved' ? (
@@ -680,6 +697,11 @@ const MemoView = () => {
                           <span className="font-bold">Date: </span>
                           {step.signed_at ? format(new Date(step.signed_at), 'dd/MM/yyyy') : ''}
                         </p>
+                        {(step as any).signing_method === 'manual_paper' && (step as any).date_of_physical_signing && (
+                          <p className="text-[9px] text-muted-foreground">
+                            Paper signed: {format(new Date((step as any).date_of_physical_signing), 'dd/MM/yyyy')}
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
