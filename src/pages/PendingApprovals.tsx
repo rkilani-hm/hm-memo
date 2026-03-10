@@ -315,13 +315,21 @@ const PendingApprovals = () => {
                           <Button
                             size="sm"
                             className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-[hsl(var(--success-foreground))] h-8"
-                            onClick={() =>
+                            onClick={() => {
+                              const myProfile = user ? getProfile(user.id) : null;
+                              if (myProfile?.signature_image_url) {
+                                setSignatureMode('saved');
+                                setSignatureDataUrl(myProfile.signature_image_url);
+                              } else {
+                                setSignatureMode('draw');
+                                setSignatureDataUrl(null);
+                              }
                               setActionDialog({
                                 stepId: step.id,
                                 memoId: step.memo_id,
                                 action: 'approved',
-                              })
-                            }
+                              });
+                            }}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                             Approve
