@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles, fetchDepartments, getAttachmentSignedUrl } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
-import { collectDeviceInfo } from '@/lib/device-info';
+import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 import { generateMemoPdf } from '@/lib/memo-pdf';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -299,6 +299,8 @@ const MemoView = () => {
       }
 
       const deviceInfo = collectDeviceInfo();
+      const clientIp = await getClientIp();
+      const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
       await supabase.from('audit_log').insert({
         memo_id: id,
         user_id: user.id,
@@ -312,6 +314,9 @@ const MemoView = () => {
         previous_status: 'pending',
         new_status: action,
         details: { comments: comments || null, step_action_type: stepActionType },
+        ip_address: clientIp,
+        ip_geolocation_city: geo.city,
+        ip_geolocation_country: geo.country,
         ...deviceInfo,
       } as any);
     },

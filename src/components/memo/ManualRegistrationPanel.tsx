@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, FileText, Upload } from 'lucide-react';
 import { format } from 'date-fns';
-import { collectDeviceInfo } from '@/lib/device-info';
+import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 
 interface ManualRegistrationPanelProps {
   step: {
@@ -109,8 +109,10 @@ const ManualRegistrationPanel = ({
         await supabase.from('memos').update({ status: newStatus as any }).eq('id', step.memo_id);
       }
 
-      // Collect device info for audit
+      // Collect device info + IP for audit
       const deviceInfo = collectDeviceInfo();
+      const clientIp = await getClientIp();
+      const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
 
       // Audit log
       await supabase.from('audit_log').insert({
@@ -129,6 +131,9 @@ const ManualRegistrationPanel = ({
         notes: notes || null,
         previous_status: 'pending',
         new_status: action,
+        ip_address: clientIp,
+        ip_geolocation_city: geo.city,
+        ip_geolocation_country: geo.country,
         ...deviceInfo,
       } as any);
     },
