@@ -1024,5 +1024,8 @@ const MemoView = () => {
         onPrint={handlePrintFromPreview}
         savedPreferences={savedPrintPrefs}
       />
+    </>
+  );
+};
 
 export default MemoView;
