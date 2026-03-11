@@ -8,6 +8,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import MemoCreate from "@/pages/MemoCreate";
+import MemoEdit from "@/pages/MemoEdit";
 import MemoList from "@/pages/MemoList";
 import MemoView from "@/pages/MemoView";
 import PendingApprovals from "@/pages/PendingApprovals";
@@ -36,6 +37,7 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/memos" element={<MemoList />} />
               <Route path="/memos/create" element={<MemoCreate />} />
+              <Route path="/memos/:id/edit" element={<MemoEdit />} />
               <Route path="/memos/:id" element={<MemoView />} />
               <Route path="/approvals" element={<PendingApprovals />} />
               <Route path="/settings" element={<Settings />} />

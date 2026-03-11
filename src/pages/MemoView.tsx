@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, Eye, Bell, FileDown } from 'lucide-react';
+import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, Eye, Bell, FileDown, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import SignaturePad from '@/components/memo/SignaturePad';
@@ -503,6 +503,12 @@ const MemoView = () => {
                 Rework
               </Button>
             </>
+          )}
+          {memo.status === 'draft' && memo.from_user_id === user?.id && (
+            <Button variant="outline" onClick={() => navigate(`/memos/${memo.id}/edit`)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Draft
+            </Button>
           )}
           <Button variant="outline" onClick={handleOpenPrintPreview} disabled={pdfGenerating}>
             <FileDown className="h-4 w-4 mr-2" />
