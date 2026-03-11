@@ -846,6 +846,7 @@ const MemoView = () => {
             <TabsList>
               <TabsTrigger value="comments">Comments</TabsTrigger>
               <TabsTrigger value="audit-trail">Audit Trail</TabsTrigger>
+              <TabsTrigger value="versions">Version History</TabsTrigger>
             </TabsList>
             <TabsContent value="comments" className="mt-4">
               {approvalSteps.filter(s => s.comments).length > 0 ? (
@@ -869,6 +870,9 @@ const MemoView = () => {
             </TabsContent>
             <TabsContent value="audit-trail" className="mt-4">
               <AuditTrailTab memoId={id} />
+            </TabsContent>
+            <TabsContent value="versions" className="mt-4">
+              <VersionHistory memoId={id} />
             </TabsContent>
           </Tabs>
         </div>
