@@ -52,7 +52,7 @@ const emptyForm: RuleForm = {
   name: '',
   viewer_department_id: '',
   source_department_ids: [],
-  memo_type_filter: [],
+  memo_type_filter: [] as MemoType[],
   access_level: 'view_only',
   scope: 'all_users',
 };

@@ -130,7 +130,7 @@ const MemoList = () => {
   const getVisibilityBadge = (memo: any) => {
     const matchingRules = crossDeptRules.filter(r => {
       const sourceMatch = !r.source_department_ids?.length || r.source_department_ids.includes(memo.department_id);
-      const typeMatch = !r.memo_type_filter?.length || memo.memo_types.some((t: string) => r.memo_type_filter.includes(t));
+      const typeMatch = !r.memo_type_filter?.length || memo.memo_types.some((t: any) => (r.memo_type_filter as any[]).includes(t));
       return sourceMatch && typeMatch;
     });
 
