@@ -1015,8 +1015,14 @@ const MemoView = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
-  );
-};
+
+      {/* Print Preview Dialog */}
+      <PrintPreviewDialog
+        open={printPreviewOpen}
+        onClose={() => setPrintPreviewOpen(false)}
+        htmlContent={previewHtml}
+        onPrint={handlePrintFromPreview}
+        savedPreferences={savedPrintPrefs}
+      />
 
 export default MemoView;
