@@ -643,10 +643,16 @@ export type Database = {
     }
     Functions: {
       get_next_transmittal_no: { Args: { dept_id: string }; Returns: string }
-      has_cross_dept_access: {
-        Args: { _memo_id: string; _user_id: string }
-        Returns: boolean
-      }
+      has_cross_dept_access:
+        | {
+            Args: {
+              _memo_dept_id: string
+              _memo_types: Database["public"]["Enums"]["memo_type"][]
+              _user_id: string
+            }
+            Returns: boolean
+          }
+        | { Args: { _memo_id: string; _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
