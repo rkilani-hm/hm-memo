@@ -28,6 +28,7 @@ import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import SignaturePad from '@/components/memo/SignaturePad';
 import SignedImage from '@/components/memo/SignedImage';
 import AuditTrailTab from '@/components/memo/AuditTrailTab';
+import VersionHistory from '@/components/memo/VersionHistory';
 import ManualRegistrationPanel from '@/components/memo/ManualRegistrationPanel';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 
@@ -845,6 +846,7 @@ const MemoView = () => {
             <TabsList>
               <TabsTrigger value="comments">Comments</TabsTrigger>
               <TabsTrigger value="audit-trail">Audit Trail</TabsTrigger>
+              <TabsTrigger value="versions">Version History</TabsTrigger>
             </TabsList>
             <TabsContent value="comments" className="mt-4">
               {approvalSteps.filter(s => s.comments).length > 0 ? (
@@ -868,6 +870,9 @@ const MemoView = () => {
             </TabsContent>
             <TabsContent value="audit-trail" className="mt-4">
               <AuditTrailTab memoId={id} />
+            </TabsContent>
+            <TabsContent value="versions" className="mt-4">
+              <VersionHistory memoId={id} />
             </TabsContent>
           </Tabs>
         </div>
