@@ -37,6 +37,7 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/memos" element={<MemoList />} />
               <Route path="/memos/create" element={<MemoCreate />} />
+              <Route path="/memos/:id/edit" element={<MemoEdit />} />
               <Route path="/memos/:id" element={<MemoView />} />
               <Route path="/approvals" element={<PendingApprovals />} />
               <Route path="/settings" element={<Settings />} />
