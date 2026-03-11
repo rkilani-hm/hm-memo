@@ -174,7 +174,7 @@ export async function generateMemoPdf(data: MemoData): Promise<void> {
         <div style="background:#c00;color:#fff;text-align:center;padding:8px;font-weight:bold;font-size:14px;letter-spacing:3px;text-transform:uppercase;">
           Approvals
         </div>
-        <table style="width:100%;border-collapse:collapse;">${rows.join('')}</table>
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed;">${rows.join('')}</table>
       </div>`;
   }
 
