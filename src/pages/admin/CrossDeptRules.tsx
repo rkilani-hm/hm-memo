@@ -164,7 +164,7 @@ const CrossDeptRules = () => {
     setForm(emptyForm);
   };
 
-  const toggleMemoType = (type: string) => {
+  const toggleMemoType = (type: MemoType) => {
     setForm(prev => ({
       ...prev,
       memo_type_filter: prev.memo_type_filter.includes(type)
