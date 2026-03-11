@@ -483,6 +483,73 @@ const Settings = () => {
         </CardContent>
       </Card>
 
+      {/* Print Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Printer className="h-5 w-5 text-accent" />
+            Print & PDF Preferences
+          </CardTitle>
+          <CardDescription>
+            Default settings applied when printing or exporting memos as PDF. Can be overridden per print.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Duplex Mode</Label>
+              <Select value={printDuplexMode} onValueChange={setPrintDuplexMode}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="long_edge">Double-Sided (Long Edge)</SelectItem>
+                  <SelectItem value="short_edge">Double-Sided (Short Edge)</SelectItem>
+                  <SelectItem value="simplex">Single-Sided</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Color Mode</Label>
+              <Select value={printColorMode} onValueChange={setPrintColorMode}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="color">Full Color</SelectItem>
+                  <SelectItem value="grayscale">Grayscale</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Page Numbers</Label>
+              <Select value={printPageNumberStyle} onValueChange={setPrintPageNumberStyle}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bottom_center">Bottom Center</SelectItem>
+                  <SelectItem value="bottom_right">Bottom Right</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Confidentiality Line</Label>
+              <Input
+                value={printConfidentialityLine}
+                onChange={(e) => setPrintConfidentialityLine(e.target.value)}
+                placeholder="e.g. CONFIDENTIAL — For Internal Use Only"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-6 pt-2">
+            <div className="flex items-center gap-2">
+              <Switch checked={printBlankBackPages} onCheckedChange={setPrintBlankBackPages} />
+              <Label className="text-sm">Blank back pages (duplex)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={printIncludeAttachments} onCheckedChange={setPrintIncludeAttachments} />
+              <Label className="text-sm">Include attachments</Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Change Password */}
       <ChangePasswordCard />
 
