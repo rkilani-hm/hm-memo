@@ -30,6 +30,7 @@ import SignedImage from '@/components/memo/SignedImage';
 import AuditTrailTab from '@/components/memo/AuditTrailTab';
 import VersionHistory from '@/components/memo/VersionHistory';
 import ManualRegistrationPanel from '@/components/memo/ManualRegistrationPanel';
+import WorkflowTracker from '@/components/memo/WorkflowTracker';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 
 
@@ -816,6 +817,16 @@ const MemoView = () => {
           </div>
         </div>
       </div>
+
+      {/* Workflow Progress Tracker */}
+      {approvalSteps.length > 0 && (
+        <WorkflowTracker
+          steps={approvalSteps as any}
+          profiles={profiles}
+          memoStatus={memo.status}
+          currentStep={memo.current_step}
+        />
+      )}
 
       {/* Delegate Manual Registration Panel */}
       {memo && user && (() => {
