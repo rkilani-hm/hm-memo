@@ -58,6 +58,14 @@ const Settings = () => {
       if ((profile as any).initials_image_url) {
         setInitialsType('image');
       }
+      // Print preferences
+      setPrintDuplexMode((profile as any).print_duplex_mode || 'long_edge');
+      setPrintBlankBackPages((profile as any).print_blank_back_pages ?? true);
+      setPrintWatermark((profile as any).print_watermark ?? false);
+      setPrintIncludeAttachments((profile as any).print_include_attachments ?? false);
+      setPrintColorMode((profile as any).print_color_mode || 'color');
+      setPrintPageNumberStyle((profile as any).print_page_number_style || 'bottom_center');
+      setPrintConfidentialityLine((profile as any).print_confidentiality_line || '');
     }
   }, [profile]);
 
