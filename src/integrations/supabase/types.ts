@@ -421,6 +421,13 @@ export type Database = {
           initials_image_url: string | null
           is_active: boolean
           job_title: string | null
+          print_blank_back_pages: boolean
+          print_color_mode: string
+          print_confidentiality_line: string | null
+          print_duplex_mode: string
+          print_include_attachments: boolean
+          print_page_number_style: string
+          print_watermark: boolean
           signature_image_url: string | null
           signature_type: string | null
           updated_at: string
@@ -436,6 +443,13 @@ export type Database = {
           initials_image_url?: string | null
           is_active?: boolean
           job_title?: string | null
+          print_blank_back_pages?: boolean
+          print_color_mode?: string
+          print_confidentiality_line?: string | null
+          print_duplex_mode?: string
+          print_include_attachments?: boolean
+          print_page_number_style?: string
+          print_watermark?: boolean
           signature_image_url?: string | null
           signature_type?: string | null
           updated_at?: string
@@ -451,6 +465,13 @@ export type Database = {
           initials_image_url?: string | null
           is_active?: boolean
           job_title?: string | null
+          print_blank_back_pages?: boolean
+          print_color_mode?: string
+          print_confidentiality_line?: string | null
+          print_duplex_mode?: string
+          print_include_attachments?: boolean
+          print_page_number_style?: string
+          print_watermark?: boolean
           signature_image_url?: string | null
           signature_type?: string | null
           updated_at?: string
