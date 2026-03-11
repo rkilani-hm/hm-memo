@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { User, Pen, Save, Upload, Trash2, Type } from 'lucide-react';
+import { User, Pen, Save, Upload, Trash2, Type, Printer } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { ChangePasswordCard } from '@/components/settings/ChangePasswordCard';
 import SignedImage from '@/components/memo/SignedImage';
 import type { Tables } from '@/integrations/supabase/types';
@@ -36,6 +37,14 @@ const Settings = () => {
   const [uploading, setUploading] = useState(false);
   const [departmentName, setDepartmentName] = useState('');
 
+  // Print preferences
+  const [printDuplexMode, setPrintDuplexMode] = useState('long_edge');
+  const [printBlankBackPages, setPrintBlankBackPages] = useState(true);
+  const [printWatermark, setPrintWatermark] = useState(false);
+  const [printIncludeAttachments, setPrintIncludeAttachments] = useState(false);
+  const [printColorMode, setPrintColorMode] = useState('color');
+  const [printPageNumberStyle, setPrintPageNumberStyle] = useState('bottom_center');
+  const [printConfidentialityLine, setPrintConfidentialityLine] = useState('');
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || '');
@@ -49,6 +58,14 @@ const Settings = () => {
       if ((profile as any).initials_image_url) {
         setInitialsType('image');
       }
+      // Print preferences
+      setPrintDuplexMode((profile as any).print_duplex_mode || 'long_edge');
+      setPrintBlankBackPages((profile as any).print_blank_back_pages ?? true);
+      setPrintWatermark((profile as any).print_watermark ?? false);
+      setPrintIncludeAttachments((profile as any).print_include_attachments ?? false);
+      setPrintColorMode((profile as any).print_color_mode || 'color');
+      setPrintPageNumberStyle((profile as any).print_page_number_style || 'bottom_center');
+      setPrintConfidentialityLine((profile as any).print_confidentiality_line || '');
     }
   }, [profile]);
 
@@ -78,6 +95,13 @@ const Settings = () => {
           signature_type: signatureType,
           signature_image_url: signatureUrl,
           initials_image_url: initialsImageUrl,
+          print_duplex_mode: printDuplexMode,
+          print_blank_back_pages: printBlankBackPages,
+          print_watermark: printWatermark,
+          print_include_attachments: printIncludeAttachments,
+          print_color_mode: printColorMode,
+          print_page_number_style: printPageNumberStyle,
+          print_confidentiality_line: printConfidentialityLine || null,
         } as any)
         .eq('user_id', user.id);
 
@@ -456,6 +480,73 @@ const Settings = () => {
               )}
             </TabsContent>
           </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Print Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Printer className="h-5 w-5 text-accent" />
+            Print & PDF Preferences
+          </CardTitle>
+          <CardDescription>
+            Default settings applied when printing or exporting memos as PDF. Can be overridden per print.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Duplex Mode</Label>
+              <Select value={printDuplexMode} onValueChange={setPrintDuplexMode}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="long_edge">Double-Sided (Long Edge)</SelectItem>
+                  <SelectItem value="short_edge">Double-Sided (Short Edge)</SelectItem>
+                  <SelectItem value="simplex">Single-Sided</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Color Mode</Label>
+              <Select value={printColorMode} onValueChange={setPrintColorMode}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="color">Full Color</SelectItem>
+                  <SelectItem value="grayscale">Grayscale</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Page Numbers</Label>
+              <Select value={printPageNumberStyle} onValueChange={setPrintPageNumberStyle}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bottom_center">Bottom Center</SelectItem>
+                  <SelectItem value="bottom_right">Bottom Right</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Confidentiality Line</Label>
+              <Input
+                value={printConfidentialityLine}
+                onChange={(e) => setPrintConfidentialityLine(e.target.value)}
+                placeholder="e.g. CONFIDENTIAL — For Internal Use Only"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-6 pt-2">
+            <div className="flex items-center gap-2">
+              <Switch checked={printBlankBackPages} onCheckedChange={setPrintBlankBackPages} />
+              <Label className="text-sm">Blank back pages (duplex)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={printIncludeAttachments} onCheckedChange={setPrintIncludeAttachments} />
+              <Label className="text-sm">Include attachments</Label>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

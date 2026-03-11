@@ -6,7 +6,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles, fetchDepartments, getAttachmentSignedUrl } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
-import { generateMemoPdf } from '@/lib/memo-pdf';
+import { generateMemoPdf, prepareMemoData, type PrintPreferences, DEFAULT_PRINT_PREFERENCES } from '@/lib/memo-pdf';
+import { buildMemoHtml } from '@/lib/memo-pdf-html';
+import PrintPreviewDialog from '@/components/memo/PrintPreviewDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -375,36 +377,60 @@ const MemoView = () => {
   };
 
   const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
 
-  const handlePrint = () => window.print();
+  const myProfile = user ? getProfile(user.id) : null;
+  const savedPrintPrefs: Partial<PrintPreferences> = {
+    duplexMode: ((myProfile as any)?.print_duplex_mode as any) || 'long_edge',
+    blankBackPages: (myProfile as any)?.print_blank_back_pages ?? true,
+    watermark: (myProfile as any)?.print_watermark ?? false,
+    includeAttachments: (myProfile as any)?.print_include_attachments ?? false,
+    colorMode: ((myProfile as any)?.print_color_mode as any) || 'color',
+    pageNumberStyle: ((myProfile as any)?.print_page_number_style as any) || 'bottom_center',
+    confidentialityLine: (myProfile as any)?.print_confidentiality_line || null,
+  };
 
-  const handleExportPdf = async () => {
+  const getLogoDataUrl = async () => {
+    const logoResponse = await fetch(alHamraLogo);
+    const logoBlob = await logoResponse.blob();
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(logoBlob);
+    });
+  };
+
+  const handleOpenPrintPreview = async () => {
     if (!memo) return;
     setPdfGenerating(true);
     try {
-      // Convert logo to data URL
-      const logoResponse = await fetch(alHamraLogo);
-      const logoBlob = await logoResponse.blob();
-      const logoDataUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(logoBlob);
-      });
-
-      await generateMemoPdf({
-        memo,
-        fromProfile: fromProfile,
-        toProfile: toProfile,
-        department: dept,
-        approvalSteps,
-        attachments,
-        profiles,
-        logoDataUrl,
-      });
+      const logoDataUrl = await getLogoDataUrl();
+      const memoData = {
+        memo, fromProfile, toProfile, department: dept,
+        approvalSteps, attachments, profiles, logoDataUrl,
+      };
+      const prepared = await prepareMemoData(memoData);
+      const html = buildMemoHtml(memoData, prepared, { ...DEFAULT_PRINT_PREFERENCES, ...savedPrintPrefs });
+      setPreviewHtml(html);
+      setPrintPreviewOpen(true);
     } catch (error: any) {
-      toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
+      toast({ title: 'Preview Failed', description: error.message, variant: 'destructive' });
     } finally {
       setPdfGenerating(false);
+    }
+  };
+
+  const handlePrintFromPreview = async (prefs: PrintPreferences) => {
+    if (!memo) return;
+    try {
+      const logoDataUrl = await getLogoDataUrl();
+      await generateMemoPdf({
+        memo, fromProfile, toProfile, department: dept,
+        approvalSteps, attachments, profiles, logoDataUrl,
+      }, prefs);
+    } catch (error: any) {
+      toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -477,13 +503,9 @@ const MemoView = () => {
               </Button>
             </>
           )}
-          <Button variant="outline" onClick={handleExportPdf} disabled={pdfGenerating}>
+          <Button variant="outline" onClick={handleOpenPrintPreview} disabled={pdfGenerating}>
             <FileDown className="h-4 w-4 mr-2" />
-            {pdfGenerating ? 'Generating...' : 'Export PDF'}
-          </Button>
-          <Button onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            Print
+            {pdfGenerating ? 'Generating...' : 'Print / Export PDF'}
           </Button>
         </div>
       </div>
@@ -993,6 +1015,15 @@ const MemoView = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Print Preview Dialog */}
+      <PrintPreviewDialog
+        open={printPreviewOpen}
+        onClose={() => setPrintPreviewOpen(false)}
+        htmlContent={previewHtml}
+        onPrint={handlePrintFromPreview}
+        savedPreferences={savedPrintPrefs}
+      />
     </>
   );
 };
