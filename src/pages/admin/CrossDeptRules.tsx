@@ -41,7 +41,7 @@ interface RuleForm {
   name: string;
   viewer_department_id: string;
   source_department_ids: string[];
-  memo_type_filter: string[];
+  memo_type_filter: Database['public']['Enums']['memo_type'][];
   access_level: string;
   scope: string;
 }
