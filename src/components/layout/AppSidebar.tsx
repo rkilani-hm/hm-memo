@@ -25,6 +25,7 @@ import {
   Shield,
   ScrollText,
   BarChart3,
+  ShieldCheck,
 } from 'lucide-react';
 
 const AppSidebar = () => {
