@@ -524,13 +524,13 @@ const MemoView = () => {
               </div>
               <div className="border-b border-foreground/30">
                 <div className="grid grid-cols-[auto_1fr]">
-                  <div className="bg-destructive text-destructive-foreground px-3 py-3 text-xs font-bold flex items-center">TRANSMITTAL NO:</div>
+                  <div className="bg-background text-destructive px-3 py-3 text-xs font-bold flex items-center border-r border-foreground/30">TRANSMITTAL NO:</div>
                   <div className="px-3 py-3 flex items-center">
                     <p className="text-sm font-bold font-mono">{memo.transmittal_no}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-[auto_1fr] border-t border-foreground/30">
-                  <div className="bg-destructive text-destructive-foreground px-3 py-3 text-xs font-bold flex items-center">DATE:</div>
+                  <div className="bg-background text-destructive px-3 py-3 text-xs font-bold flex items-center border-r border-foreground/30">DATE:</div>
                   <div className="px-3 py-3 flex items-center">
                     <p className="text-sm font-medium">{format(new Date(memo.date), "do MMMM yyyy")}</p>
                   </div>
