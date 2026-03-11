@@ -668,6 +668,10 @@ export type Database = {
         Args: { _delegate_id: string; _principal_id: string }
         Returns: boolean
       }
+      is_delegate_for_memo: {
+        Args: { _delegate_id: string; _memo_id: string }
+        Returns: boolean
+      }
       is_memo_owner: {
         Args: { _memo_id: string; _user_id: string }
         Returns: boolean
