@@ -377,36 +377,60 @@ const MemoView = () => {
   };
 
   const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
 
-  const handlePrint = () => window.print();
+  // Load saved print preferences from profile
+  const savedPrintPrefs: Partial<PrintPreferences> = {
+    duplexMode: ((profile as any)?.print_duplex_mode as any) || 'long_edge',
+    blankBackPages: (profile as any)?.print_blank_back_pages ?? true,
+    watermark: (profile as any)?.print_watermark ?? false,
+    includeAttachments: (profile as any)?.print_include_attachments ?? false,
+    colorMode: ((profile as any)?.print_color_mode as any) || 'color',
+    pageNumberStyle: ((profile as any)?.print_page_number_style as any) || 'bottom_center',
+    confidentialityLine: (profile as any)?.print_confidentiality_line || null,
+  };
 
-  const handleExportPdf = async () => {
+  const getLogoDataUrl = async () => {
+    const logoResponse = await fetch(alHamraLogo);
+    const logoBlob = await logoResponse.blob();
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(logoBlob);
+    });
+  };
+
+  const handleOpenPrintPreview = async () => {
     if (!memo) return;
     setPdfGenerating(true);
     try {
-      // Convert logo to data URL
-      const logoResponse = await fetch(alHamraLogo);
-      const logoBlob = await logoResponse.blob();
-      const logoDataUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(logoBlob);
-      });
-
-      await generateMemoPdf({
-        memo,
-        fromProfile: fromProfile,
-        toProfile: toProfile,
-        department: dept,
-        approvalSteps,
-        attachments,
-        profiles,
-        logoDataUrl,
-      });
+      const logoDataUrl = await getLogoDataUrl();
+      const memoData = {
+        memo, fromProfile, toProfile, department: dept,
+        approvalSteps, attachments, profiles, logoDataUrl,
+      };
+      const prepared = await prepareMemoData(memoData);
+      const html = buildMemoHtml(memoData, prepared, { ...DEFAULT_PRINT_PREFERENCES, ...savedPrintPrefs });
+      setPreviewHtml(html);
+      setPrintPreviewOpen(true);
     } catch (error: any) {
-      toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
+      toast({ title: 'Preview Failed', description: error.message, variant: 'destructive' });
     } finally {
       setPdfGenerating(false);
+    }
+  };
+
+  const handlePrintFromPreview = async (prefs: PrintPreferences) => {
+    if (!memo) return;
+    try {
+      const logoDataUrl = await getLogoDataUrl();
+      await generateMemoPdf({
+        memo, fromProfile, toProfile, department: dept,
+        approvalSteps, attachments, profiles, logoDataUrl,
+      }, prefs);
+    } catch (error: any) {
+      toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
     }
   };
 
