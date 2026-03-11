@@ -8,6 +8,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import MemoCreate from "@/pages/MemoCreate";
+import MemoEdit from "@/pages/MemoEdit";
 import MemoList from "@/pages/MemoList";
 import MemoView from "@/pages/MemoView";
 import PendingApprovals from "@/pages/PendingApprovals";
