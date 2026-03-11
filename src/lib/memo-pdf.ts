@@ -108,11 +108,11 @@ function buildApprovalStepHtml(
     : '';
 
   return `
-    <td style="border:1px solid #333;padding:8px;vertical-align:top;min-width:140px;width:33%;">
+    <td style="border:1px solid #333;padding:8px;vertical-align:top;min-width:140px;width:33%;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;">
       ${sigArea}
       <div style="border-top:1px solid #ccc;padding-top:4px;margin-top:4px;">
-        <p style="font-size:10px;font-weight:bold;margin:0;line-height:1.3;">
-          ${approver?.full_name || 'Unknown'}${approver?.job_title ? ` – ${approver.job_title}` : ''}
+        <p style="font-size:10px;font-weight:bold;margin:0;line-height:1.3;white-space:normal;word-wrap:break-word;overflow-wrap:break-word;">
+          ${approver?.full_name || 'Unknown'}${approver?.job_title ? ` –\n${approver.job_title}` : ''}
         </p>
         <p style="font-size:9px;color:#666;font-weight:bold;text-transform:uppercase;margin:0;">– ${actionLabel}</p>
         <p style="font-size:10px;margin:2px 0 0;"><strong>Date:</strong> ${dateStr}</p>
@@ -174,7 +174,7 @@ export async function generateMemoPdf(data: MemoData): Promise<void> {
         <div style="background:#c00;color:#fff;text-align:center;padding:8px;font-weight:bold;font-size:14px;letter-spacing:3px;text-transform:uppercase;">
           Approvals
         </div>
-        <table style="width:100%;border-collapse:collapse;">${rows.join('')}</table>
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed;">${rows.join('')}</table>
       </div>`;
   }
 
