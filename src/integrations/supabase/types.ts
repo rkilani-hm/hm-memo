@@ -180,6 +180,53 @@ export type Database = {
           },
         ]
       }
+      cross_department_rules: {
+        Row: {
+          access_level: string
+          created_at: string
+          id: string
+          is_active: boolean
+          memo_type_filter: Database["public"]["Enums"]["memo_type"][]
+          name: string
+          scope: string
+          source_department_ids: string[]
+          updated_at: string
+          viewer_department_id: string
+        }
+        Insert: {
+          access_level?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          memo_type_filter?: Database["public"]["Enums"]["memo_type"][]
+          name: string
+          scope?: string
+          source_department_ids?: string[]
+          updated_at?: string
+          viewer_department_id: string
+        }
+        Update: {
+          access_level?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          memo_type_filter?: Database["public"]["Enums"]["memo_type"][]
+          name?: string
+          scope?: string
+          source_department_ids?: string[]
+          updated_at?: string
+          viewer_department_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cross_department_rules_viewer_department_id_fkey"
+            columns: ["viewer_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delegate_assignments: {
         Row: {
           assigned_by_user_id: string
@@ -303,6 +350,50 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memo_versions: {
+        Row: {
+          changed_by_user_id: string
+          changes: Json
+          created_at: string
+          id: string
+          ip_address: string | null
+          memo_id: string
+          previous_values: Json
+          user_agent: string | null
+          version_number: number
+        }
+        Insert: {
+          changed_by_user_id: string
+          changes?: Json
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          memo_id: string
+          previous_values?: Json
+          user_agent?: string | null
+          version_number: number
+        }
+        Update: {
+          changed_by_user_id?: string
+          changes?: Json
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          memo_id?: string
+          previous_values?: Json
+          user_agent?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memo_versions_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "memos"
             referencedColumns: ["id"]
           },
         ]
@@ -552,6 +643,10 @@ export type Database = {
     }
     Functions: {
       get_next_transmittal_no: { Args: { dept_id: string }; Returns: string }
+      has_cross_dept_access: {
+        Args: { _memo_id: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -569,6 +664,10 @@ export type Database = {
       }
       is_memo_owner: {
         Args: { _memo_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_same_department: {
+        Args: { _dept_id: string; _user_id: string }
         Returns: boolean
       }
     }
