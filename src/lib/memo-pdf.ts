@@ -205,7 +205,7 @@ export async function generateMemoPdf(data: MemoData): Promise<void> {
     
     <!-- HEADER -->
     <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:20px 24px 16px;">
-      <img src="${logoDataUrl}" style="height:70px;object-fit:contain;" />
+      <img src="${logoDataUrl}" style="height:100px;object-fit:contain;" />
       <div style="text-align:right;">
         <h1 style="font-size:24px;font-weight:bold;letter-spacing:2px;margin:0;">INTERNAL MEMO</h1>
         <div style="height:3px;background:#c00;margin-top:4px;"></div>
