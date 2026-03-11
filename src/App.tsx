@@ -45,6 +45,8 @@ const App = () => (
               <Route path="/admin/delegates" element={<DelegateManagement />} />
               <Route path="/admin/audit-log" element={<AuditLog />} />
               <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
+              <Route path="/admin/cross-dept-rules" element={<CrossDeptRules />} />
+              <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

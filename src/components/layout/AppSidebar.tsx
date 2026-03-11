@@ -44,6 +44,7 @@ const AppSidebar = () => {
     { title: 'Departments', icon: Building2, path: '/admin/departments' },
     { title: 'Workflows', icon: Settings, path: '/admin/workflows' },
     { title: 'Delegates', icon: Shield, path: '/admin/delegates' },
+    { title: 'Cross-Dept Rules', icon: ShieldCheck, path: '/admin/cross-dept-rules' },
     { title: 'Audit Log', icon: ScrollText, path: '/admin/audit-log' },
     { title: 'Audit Analytics', icon: BarChart3, path: '/admin/audit-dashboard' },
   ];
