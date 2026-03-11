@@ -223,7 +223,7 @@ export async function generateMemoPdf(data: MemoData): Promise<void> {
         <td style="width:50%;padding:0;vertical-align:top;">
           <table style="width:100%;border-collapse:collapse;">
             <tr>
-              <td style="background:#c00;color:#fff;padding:8px 12px;font-size:10px;font-weight:bold;width:120px;border:none;">TRANSMITTAL NO:</td>
+              <td style="background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;width:120px;border:1px solid #333;">TRANSMITTAL NO:</td>
               <td style="padding:8px 12px;font-weight:bold;font-family:monospace;border:none;">${memo.transmittal_no}</td>
             </tr>
             <tr>
