@@ -33,7 +33,9 @@ import {
 } from '@/components/ui/table';
 import { Plus, Pencil, Trash2, ShieldCheck } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Constants } from '@/integrations/supabase/types';
+import { Constants, type Database } from '@/integrations/supabase/types';
+
+type MemoType = Database['public']['Enums']['memo_type'];
 
 const MEMO_TYPES = Constants.public.Enums.memo_type;
 
