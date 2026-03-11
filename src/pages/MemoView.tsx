@@ -380,15 +380,15 @@ const MemoView = () => {
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
 
-  // Load saved print preferences from profile
+  const myProfile = user ? getProfile(user.id) : null;
   const savedPrintPrefs: Partial<PrintPreferences> = {
-    duplexMode: ((profile as any)?.print_duplex_mode as any) || 'long_edge',
-    blankBackPages: (profile as any)?.print_blank_back_pages ?? true,
-    watermark: (profile as any)?.print_watermark ?? false,
-    includeAttachments: (profile as any)?.print_include_attachments ?? false,
-    colorMode: ((profile as any)?.print_color_mode as any) || 'color',
-    pageNumberStyle: ((profile as any)?.print_page_number_style as any) || 'bottom_center',
-    confidentialityLine: (profile as any)?.print_confidentiality_line || null,
+    duplexMode: ((myProfile as any)?.print_duplex_mode as any) || 'long_edge',
+    blankBackPages: (myProfile as any)?.print_blank_back_pages ?? true,
+    watermark: (myProfile as any)?.print_watermark ?? false,
+    includeAttachments: (myProfile as any)?.print_include_attachments ?? false,
+    colorMode: ((myProfile as any)?.print_color_mode as any) || 'color',
+    pageNumberStyle: ((myProfile as any)?.print_page_number_style as any) || 'bottom_center',
+    confidentialityLine: (myProfile as any)?.print_confidentiality_line || null,
   };
 
   const getLogoDataUrl = async () => {
