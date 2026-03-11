@@ -818,6 +818,16 @@ const MemoView = () => {
         </div>
       </div>
 
+      {/* Workflow Progress Tracker */}
+      {approvalSteps.length > 0 && (
+        <WorkflowTracker
+          steps={approvalSteps as any}
+          profiles={profiles}
+          memoStatus={memo.status}
+          currentStep={memo.current_step}
+        />
+      )}
+
       {/* Delegate Manual Registration Panel */}
       {memo && user && (() => {
         // Find pending steps for principals this user is a delegate for
