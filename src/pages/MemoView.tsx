@@ -504,6 +504,12 @@ const MemoView = () => {
               </Button>
             </>
           )}
+          {memo.status === 'draft' && memo.from_user_id === user?.id && (
+            <Button variant="outline" onClick={() => navigate(`/memos/${memo.id}/edit`)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Draft
+            </Button>
+          )}
           <Button variant="outline" onClick={handleOpenPrintPreview} disabled={pdfGenerating}>
             <FileDown className="h-4 w-4 mr-2" />
             {pdfGenerating ? 'Generating...' : 'Print / Export PDF'}
