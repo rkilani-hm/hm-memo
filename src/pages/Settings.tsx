@@ -37,6 +37,14 @@ const Settings = () => {
   const [uploading, setUploading] = useState(false);
   const [departmentName, setDepartmentName] = useState('');
 
+  // Print preferences
+  const [printDuplexMode, setPrintDuplexMode] = useState('long_edge');
+  const [printBlankBackPages, setPrintBlankBackPages] = useState(true);
+  const [printWatermark, setPrintWatermark] = useState(false);
+  const [printIncludeAttachments, setPrintIncludeAttachments] = useState(false);
+  const [printColorMode, setPrintColorMode] = useState('color');
+  const [printPageNumberStyle, setPrintPageNumberStyle] = useState('bottom_center');
+  const [printConfidentialityLine, setPrintConfidentialityLine] = useState('');
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || '');
