@@ -13,20 +13,36 @@ Updated: now
 - Roles stored in `user_roles` table (admin, department_head, staff, approver)
 - `has_role()` security definer function for RLS
 - `is_delegate_for()` function for delegate checks
+- `is_same_department()` function for dept-level access
+- `has_cross_dept_access()` function for cross-dept rules
 - Auto-profile creation via trigger on auth.users insert
 - Transmittal numbers: `HM/{DEPT}-IM/{SEQ}/{YEAR}` via `get_next_transmittal_no()`
 - 7 departments seeded with fixed UUIDs
 - Storage buckets: `attachments` (private), `signatures` (private)
 - Auto-logout after 30 min inactivity
 
-## v3 Features
-- delegate_assignments table: delegate_user_id, principal_user_id, is_active
-- approval_steps: signing_method, registered_by_user_id, date_of_physical_signing, scan_attachment_url, registration_notes
-- audit_log: ip_address, ip_geolocation_city/country, user_agent_raw, device_type, browser, os, on_behalf_of_user_id/name, signing_method, action_detail, transmittal_no
-- Admin pages: /admin/delegates, /admin/audit-log
-- ManualRegistrationPanel component for delegate paper signing
-- AuditTrailTab component for per-memo audit timeline
-- collectDeviceInfo() in src/lib/device-info.ts
+## Permission Model (5-step evaluation)
+1. Admin → full access
+2. Same department → view all, edit drafts, manage draft attachments, see audit
+3. Explicitly assigned (workflow/copies-to/recipient)
+4. Cross-department rule match
+5. Delegate → inherited from principal
+6. No access
+
+## Cross-Department Rules
+- Table: `cross_department_rules` (viewer_department_id, source_department_ids[], memo_type_filter[], access_level, scope)
+- 4 seeded defaults: Finance→payments, GM→all, Legal head→action+request, HR→announcements
+- Admin UI: /admin/cross-dept-rules
+
+## Version History
+- Table: `memo_versions` (memo_id, version_number, changed_by_user_id, changes, previous_values, ip_address)
+- Displayed in MemoView under "Version History" tab
+
+## Memo List Sections
+- My Department (same dept memos)
+- Assigned to Me (workflow/recipient from other depts)
+- Cross-Department Visibility (via rules)
+- Visibility badges: 🏢 Dept Only, 🏢+FIN Dept+Finance, 🌐 Company-Wide, 👥 Custom
 
 ## Department Codes
 - IT, FIN, BDCR, OFM, LEG, HR, GM
