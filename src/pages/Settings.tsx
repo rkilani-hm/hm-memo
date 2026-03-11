@@ -95,6 +95,13 @@ const Settings = () => {
           signature_type: signatureType,
           signature_image_url: signatureUrl,
           initials_image_url: initialsImageUrl,
+          print_duplex_mode: printDuplexMode,
+          print_blank_back_pages: printBlankBackPages,
+          print_watermark: printWatermark,
+          print_include_attachments: printIncludeAttachments,
+          print_color_mode: printColorMode,
+          print_page_number_style: printPageNumberStyle,
+          print_confidentiality_line: printConfidentialityLine || null,
         } as any)
         .eq('user_id', user.id);
 
