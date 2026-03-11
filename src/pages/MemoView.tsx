@@ -507,7 +507,7 @@ const MemoView = () => {
         <div className="border border-foreground/30 bg-card print-border">
           {/* HEADER */}
           <div className="flex items-end justify-between px-6 pt-6 pb-4">
-            <img src={alHamraLogo} alt="Al Hamra Logo" className="h-20 w-auto object-contain" />
+            <img src={alHamraLogo} alt="Al Hamra Logo" className="h-28 w-auto object-contain" />
             <div className="text-right">
               <h2 className="text-3xl font-bold tracking-wide text-foreground">INTERNAL MEMO</h2>
               <div className="h-0.5 bg-destructive mt-1" />
