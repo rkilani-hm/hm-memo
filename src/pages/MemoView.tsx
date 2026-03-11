@@ -28,6 +28,7 @@ import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import SignaturePad from '@/components/memo/SignaturePad';
 import SignedImage from '@/components/memo/SignedImage';
 import AuditTrailTab from '@/components/memo/AuditTrailTab';
+import VersionHistory from '@/components/memo/VersionHistory';
 import ManualRegistrationPanel from '@/components/memo/ManualRegistrationPanel';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 
