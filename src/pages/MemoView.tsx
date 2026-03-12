@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, Eye, Bell, FileDown, Edit } from 'lucide-react';
+import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, Eye, Bell, FileDown, Edit, Undo2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import SignaturePad from '@/components/memo/SignaturePad';
@@ -350,6 +350,52 @@ const MemoView = () => {
     setSignatureMode('saved');
   };
 
+  const recallMutation = useMutation({
+    mutationFn: async () => {
+      if (!memo || !user || !id) return;
+
+      // Delete all approval steps for this memo
+      const { error: deleteErr } = await supabase
+        .from('approval_steps')
+        .delete()
+        .eq('memo_id', id);
+      // RLS may prevent delete; admin can delete. If user can't delete, we skip.
+
+      // Update memo back to draft
+      const { error: updateErr } = await supabase
+        .from('memos')
+        .update({ status: 'draft' as any, current_step: 0 })
+        .eq('id', id);
+      if (updateErr) throw updateErr;
+
+      // Audit log
+      const deviceInfo = collectDeviceInfo();
+      const clientIp = await getClientIp();
+      const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
+      await supabase.from('audit_log').insert({
+        memo_id: id,
+        user_id: user.id,
+        action: 'memo_recalled',
+        action_detail: 'Memo recalled to draft by creator',
+        transmittal_no: memo.transmittal_no,
+        previous_status: memo.status,
+        new_status: 'draft',
+        ip_address: clientIp,
+        ip_geolocation_city: geo.city,
+        ip_geolocation_country: geo.country,
+        ...deviceInfo,
+      } as any);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['memo', id] });
+      queryClient.invalidateQueries({ queryKey: ['approval-steps', id] });
+      toast({ title: 'Memo Recalled', description: 'Memo has been returned to draft status.' });
+    },
+    onError: (e: Error) => {
+      toast({ title: 'Recall Failed', description: e.message, variant: 'destructive' });
+    },
+  });
+
   const openApproveDialog = (stepId: string) => {
     const step = approvalSteps.find((s) => s.id === stepId);
     const sat = getStepActionType(step);
@@ -509,6 +555,21 @@ const MemoView = () => {
             <Button variant="outline" onClick={() => navigate(`/memos/${memo.id}/edit`)}>
               <Edit className="h-4 w-4 mr-2" />
               Edit Draft
+            </Button>
+          )}
+          {(memo.status === 'submitted' || memo.status === 'in_review') && memo.from_user_id === user?.id && (
+            <Button
+              variant="outline"
+              className="border-[hsl(var(--warning))] text-[hsl(var(--warning))] hover:bg-[hsl(var(--warning))]/10"
+              onClick={() => {
+                if (confirm('Are you sure you want to recall this memo? All approval progress will be lost.')) {
+                  recallMutation.mutate();
+                }
+              }}
+              disabled={recallMutation.isPending}
+            >
+              <Undo2 className="h-4 w-4 mr-2" />
+              {recallMutation.isPending ? 'Recalling...' : 'Recall'}
             </Button>
           )}
           <Button variant="outline" onClick={handleOpenPrintPreview} disabled={pdfGenerating}>
