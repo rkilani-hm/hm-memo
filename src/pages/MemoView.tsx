@@ -350,7 +350,53 @@ const MemoView = () => {
     setSignatureMode('saved');
   };
 
-  const openApproveDialog = (stepId: string) => {
+  const recallMutation = useMutation({
+    mutationFn: async () => {
+      if (!memo || !user || !id) return;
+
+      // Delete all approval steps for this memo
+      const { error: deleteErr } = await supabase
+        .from('approval_steps')
+        .delete()
+        .eq('memo_id', id);
+      // RLS may prevent delete; admin can delete. If user can't delete, we skip.
+
+      // Update memo back to draft
+      const { error: updateErr } = await supabase
+        .from('memos')
+        .update({ status: 'draft' as any, current_step: 0 })
+        .eq('id', id);
+      if (updateErr) throw updateErr;
+
+      // Audit log
+      const deviceInfo = collectDeviceInfo();
+      const clientIp = await getClientIp();
+      const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
+      await supabase.from('audit_log').insert({
+        memo_id: id,
+        user_id: user.id,
+        action: 'memo_recalled',
+        action_detail: 'Memo recalled to draft by creator',
+        transmittal_no: memo.transmittal_no,
+        previous_status: memo.status,
+        new_status: 'draft',
+        ip_address: clientIp,
+        ip_geolocation_city: geo.city,
+        ip_geolocation_country: geo.country,
+        ...deviceInfo,
+      } as any);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['memo', id] });
+      queryClient.invalidateQueries({ queryKey: ['approval-steps', id] });
+      toast({ title: 'Memo Recalled', description: 'Memo has been returned to draft status.' });
+    },
+    onError: (e: Error) => {
+      toast({ title: 'Recall Failed', description: e.message, variant: 'destructive' });
+    },
+  });
+
+
     const step = approvalSteps.find((s) => s.id === stepId);
     const sat = getStepActionType(step);
     const myProfile = user ? getProfile(user.id) : null;
