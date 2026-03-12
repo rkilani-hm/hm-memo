@@ -26,6 +26,7 @@ import {
   ScrollText,
   BarChart3,
   ShieldCheck,
+  HelpCircle,
 } from 'lucide-react';
 
 const AppSidebar = () => {
