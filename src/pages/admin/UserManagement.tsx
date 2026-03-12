@@ -272,41 +272,65 @@ const UserManagement = () => {
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
               ) : profiles.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No users yet</TableCell></TableRow>
-              ) : profiles.map((p) => (
-                <TableRow key={p.id} className={!p.is_active ? 'opacity-50' : ''}>
-                  <TableCell className="font-medium">
-                    {p.full_name}
-                    {!p.is_active && <Badge variant="outline" className="ml-2 text-xs">Inactive</Badge>}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{p.email}</TableCell>
-                  <TableCell>{departments.find(d => d.id === p.department_id)?.name || '—'}</TableCell>
-                  <TableCell>{p.job_title || '—'}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1 flex-wrap">
-                      {getUserRoles(p.user_id).map(role => (
-                        <Badge key={role} variant={roleBadgeVariant(role) as any} className="text-xs capitalize">
-                          {role.replace('_', ' ')}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => toggleActiveMutation.mutate({ userId: p.user_id, isActive: p.is_active })}
-                        title={p.is_active ? 'Deactivate user' : 'Reactivate user'}
-                      >
-                        {p.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-[hsl(var(--success))]" />}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              ) : (() => {
+                const deptMap = new Map(departments.map(d => [d.id, d.name]));
+                const sorted = [...profiles].sort((a, b) => {
+                  const dA = a.department_id ? (deptMap.get(a.department_id) || 'ZZZ') : 'ZZZ';
+                  const dB = b.department_id ? (deptMap.get(b.department_id) || 'ZZZ') : 'ZZZ';
+                  if (dA !== dB) return dA.localeCompare(dB);
+                  return a.full_name.localeCompare(b.full_name);
+                });
+                let lastDept = '';
+                return sorted.map((p) => {
+                  const deptName = p.department_id ? (deptMap.get(p.department_id) || 'Unassigned') : 'Unassigned';
+                  const showHeader = deptName !== lastDept;
+                  lastDept = deptName;
+                  return (
+                    <>
+                      {showHeader && (
+                        <TableRow key={`dept-${deptName}`}>
+                          <TableCell colSpan={6} className="bg-muted/50 font-semibold text-sm text-primary py-2">
+                            {deptName}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      <TableRow key={p.id} className={!p.is_active ? 'opacity-50' : ''}>
+                        <TableCell className="font-medium pl-8">
+                          {p.full_name}
+                          {!p.is_active && <Badge variant="outline" className="ml-2 text-xs">Inactive</Badge>}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{p.email}</TableCell>
+                        <TableCell>{deptName !== 'Unassigned' ? deptName : '—'}</TableCell>
+                        <TableCell>{p.job_title || '—'}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 flex-wrap">
+                            {getUserRoles(p.user_id).map(role => (
+                              <Badge key={role} variant={roleBadgeVariant(role) as any} className="text-xs capitalize">
+                                {role.replace('_', ' ')}
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleActiveMutation.mutate({ userId: p.user_id, isActive: p.is_active })}
+                              title={p.is_active ? 'Deactivate user' : 'Reactivate user'}
+                            >
+                              {p.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-[hsl(var(--success))]" />}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </>
+                  );
+                });
+              })()}
             </TableBody>
           </Table>
         </CardContent>
