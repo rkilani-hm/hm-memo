@@ -147,7 +147,7 @@ const MemoEdit = () => {
 
     setSubmitting(true);
     try {
-      const copiesArray = copiesTo.split(',').map((s) => s.trim()).filter(Boolean);
+      const copiesArray = copiesTo;
 
       const { error: updateError } = await supabase
         .from('memos')
