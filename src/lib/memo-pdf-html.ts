@@ -52,7 +52,7 @@ function buildApprovalStepHtml(
     sigArea = `<div style="height:50px;"></div>`;
   }
 
-  const actionLabel = sat === 'signature' ? 'SIGNATURE' : sat === 'initial' ? 'INITIALS' : sat === 'review' ? 'REVIEW' : 'ACKNOWLEDGED';
+  const actionLabel = sat === 'signature' ? 'APPROVE' : 'INITIALS';
   const dateStr = step.signed_at ? format(new Date(step.signed_at), 'dd/MM/yyyy') : '';
   const paperDate = isManual && (step as any).date_of_physical_signing
     ? `<p style="font-size:8px;color:#666;margin:0;">Paper signed: ${format(new Date((step as any).date_of_physical_signing), 'dd/MM/yyyy')}</p>`

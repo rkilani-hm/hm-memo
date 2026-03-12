@@ -332,14 +332,14 @@ const MemoCreate = () => {
                 maxLength={4}
               />
             </div>
-            <div className="col-span-2 md:col-span-1 space-y-1">
+            <div className="col-span-2 md:col-span-4 space-y-1">
               <Label className="text-xs font-bold uppercase text-muted-foreground">Copies To</Label>
-              <Input
-                value={copiesTo}
-                onChange={(e) => setCopiesTo(e.target.value)}
-                placeholder="Comma-separated..."
-                className="h-8"
-                maxLength={500}
+              <UserMultiSelect
+                profiles={profiles}
+                selected={copiesTo}
+                onChange={setCopiesTo}
+                excludeUserIds={[]}
+                placeholder="Select users to copy..."
               />
             </div>
           </div>
