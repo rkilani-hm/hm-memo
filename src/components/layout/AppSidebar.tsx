@@ -38,6 +38,7 @@ const AppSidebar = () => {
     { title: 'My Memos', icon: FileText, path: '/memos' },
     { title: 'Create Memo', icon: FilePlus, path: '/memos/create' },
     { title: 'Pending Approvals', icon: CheckSquare, path: '/approvals' },
+    { title: 'Help & Guide', icon: HelpCircle, path: '/help' },
   ];
 
   const adminNavItems = [
