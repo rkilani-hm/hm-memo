@@ -59,6 +59,11 @@ const MemoList = () => {
     queryFn: fetchDepartments,
   });
 
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: fetchProfiles,
+  });
+
   const { data: memos = [], isLoading } = useQuery({
     queryKey: ['memos'],
     queryFn: async () => {
@@ -71,19 +76,45 @@ const MemoList = () => {
     },
   });
 
-  // Fetch approval steps to know assigned memos
-  const { data: myApprovalSteps = [] } = useQuery({
-    queryKey: ['my-approval-steps-all', user?.id],
+  // Fetch all approval steps for pending info
+  const { data: allApprovalSteps = [] } = useQuery({
+    queryKey: ['all-approval-steps'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_steps')
-        .select('memo_id')
-        .eq('approver_user_id', user!.id);
+        .select('memo_id, approver_user_id, status, step_order, parallel_group')
+        .order('step_order', { ascending: true });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
   });
+
+  // Fetch approval steps to know assigned memos
+  const myApprovalSteps = allApprovalSteps.filter(s => s.approver_user_id === user?.id);
+
+  // Build a map: memo_id -> pending approver name(s)
+  const pendingApproverMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    const grouped: Record<string, typeof allApprovalSteps> = {};
+    for (const s of allApprovalSteps) {
+      if (!grouped[s.memo_id]) grouped[s.memo_id] = [];
+      grouped[s.memo_id].push(s);
+    }
+    for (const [memoId, steps] of Object.entries(grouped)) {
+      const pending = steps.filter(s => s.status === 'pending');
+      if (pending.length === 0) continue;
+      const first = pending.reduce((a, b) => a.step_order < b.step_order ? a : b);
+      const active = first.parallel_group != null
+        ? pending.filter(s => s.parallel_group === first.parallel_group)
+        : [first];
+      const names = active.map(s => {
+        const p = allProfiles.find(pr => pr.user_id === s.approver_user_id);
+        return p?.full_name || 'Unknown';
+      });
+      map[memoId] = names.join(', ');
+    }
+    return map;
+  }, [allApprovalSteps, allProfiles]);
 
   // Fetch cross-dept rules to determine visibility badges
   const { data: crossDeptRules = [] } = useQuery({
