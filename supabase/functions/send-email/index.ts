@@ -78,7 +78,7 @@ serve(async (req) => {
     // The sender email — will be configured later by the admin.
     // For now, use the first user in the tenant or a shared mailbox.
     // Microsoft Graph sendMail requires a valid mailbox.
-    const senderEmail = Deno.env.get("O365_SENDER_EMAIL") || "";
+    const senderEmail = Deno.env.get("O365_SENDER_EMAIL") || "rkilani@alhamra.com.kw";
 
     const graphUrl = senderEmail
       ? `https://graph.microsoft.com/v1.0/users/${senderEmail}/sendMail`
