@@ -33,8 +33,6 @@ import {
   Save,
   Pen,
   Type,
-  Eye,
-  Bell,
   Link2,
   CalendarIcon,
 } from 'lucide-react';
