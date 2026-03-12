@@ -72,7 +72,7 @@ const sections = [
         </div>
         <div>
           <h4 className="font-semibold text-foreground mb-1">Step 3: Workflow</h4>
-          <p>Add approval steps by selecting approvers and their action type (Signature, Initial, Review, or Acknowledge). Drag to reorder. Use parallel groups for simultaneous approvals.</p>
+          <p>Add approval steps by selecting approvers and their action type (Approve or Initial). Drag to reorder. Use parallel groups for simultaneous approvals.</p>
         </div>
         <div>
           <h4 className="font-semibold text-foreground mb-1">Step 4: Save or Submit</h4>

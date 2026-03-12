@@ -209,8 +209,6 @@ serve(async (req) => {
     const actionTypeLabels: Record<string, string> = {
       signature: "approval (signature required)",
       initial: "endorsement (initials required)",
-      review: "review (comments requested)",
-      acknowledge: "acknowledgement",
     };
 
     for (const firstStep of firstSteps) {
