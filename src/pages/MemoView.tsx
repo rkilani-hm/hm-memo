@@ -1075,8 +1075,7 @@ const MemoView = () => {
                 actionMutation.isPending ||
                 !password.trim() ||
                 (needsSigningAsset && !signatureDataUrl) ||
-                (actionDialog?.action !== 'approved' && !comments.trim()) ||
-                (actionDialog?.action === 'approved' && actionDialog?.stepActionType === 'review' && !comments.trim())
+                (actionDialog?.action !== 'approved' && !comments.trim())
               }
               onClick={() => actionMutation.mutate()}
             >
