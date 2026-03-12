@@ -804,16 +804,6 @@ const MemoView = () => {
                           </div>
                         ) : sat === 'initial' && step.status === 'approved' ? (
                           <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
-                        ) : sat === 'review' && step.status === 'approved' ? (
-                          <div className="text-center">
-                            <Eye className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
-                            <p className="text-[10px] italic text-muted-foreground">Reviewed</p>
-                          </div>
-                        ) : sat === 'acknowledge' && step.status === 'approved' ? (
-                          <div className="text-center">
-                            <Bell className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
-                            <p className="text-[10px] italic text-muted-foreground">Acknowledged</p>
-                          </div>
                         ) : sat === 'signature' && step.status === 'approved' ? (
                           <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
                         ) : null}
@@ -825,7 +815,7 @@ const MemoView = () => {
                           {approver?.full_name || 'Unknown'}{approver?.job_title ? ` – ${approver.job_title}` : ''}
                         </p>
                         <p className="text-[10px] text-muted-foreground uppercase font-bold">
-                          – {sat === 'signature' ? 'SIGNATURE' : sat === 'initial' ? 'INITIALS' : sat === 'review' ? 'REVIEW' : 'ACKNOWLEDGED'}
+                          – {sat === 'signature' ? 'APPROVE' : 'INITIALS'}
                         </p>
                         <p className="text-xs mt-0.5">
                           <span className="font-bold">Date: </span>
