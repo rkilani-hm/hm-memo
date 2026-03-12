@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, XCircle, RotateCcw, Pen, Type, Eye, Bell, ChevronRight } from 'lucide-react';
+import { CheckCircle2, Clock, XCircle, RotateCcw, Pen, Type, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { format } from 'date-fns';

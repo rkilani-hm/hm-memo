@@ -352,7 +352,7 @@ const WorkflowBuilder = ({
                 {/* Action Type */}
                 <div className="space-y-1">
                   <Label className="text-xs">Action Type</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {(Object.keys(ACTION_TYPE_META) as StepActionType[]).map((type) => {
                       const m = ACTION_TYPE_META[type];
                       const isSelected = step.action_type === type;
