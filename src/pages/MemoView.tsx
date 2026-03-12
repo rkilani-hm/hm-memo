@@ -696,7 +696,12 @@ const MemoView = () => {
           {/* COPIES TO */}
           <div className="grid grid-cols-[140px_1fr] border-b border-foreground/30">
             <div className="px-3 py-2 text-xs font-bold border-r border-foreground/30">COPIES TO:</div>
-            <div className="px-3 py-2 text-sm">{memo.copies_to?.join(', ') || ''}</div>
+            <div className="px-3 py-2 text-sm">
+              {memo.copies_to?.map((uid: string) => {
+                const p = getProfile(uid);
+                return p ? p.full_name : uid;
+              }).join(', ') || ''}
+            </div>
           </div>
 
           {/* ACTION REQUIRED / COMMENTS */}
