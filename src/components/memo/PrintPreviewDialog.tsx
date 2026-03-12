@@ -86,7 +86,7 @@ const PrintPreviewDialog = ({ open, onClose, htmlContent, onPrint, savedPreferen
                 }}
               >
                 <iframe
-                  ref={iframeRef}
+                  srcDoc={previewHtml}
                   className="w-full border-0"
                   style={{ minHeight: '267mm', pointerEvents: 'none' }}
                   title="Print Preview"
