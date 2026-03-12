@@ -46,10 +46,6 @@ function buildApprovalStepHtml(
       </div>`;
   } else if (sat === 'initial' && step.status === 'approved') {
     sigArea = `<div style="text-align:center;padding:12px 0;font-size:18px;font-weight:bold;font-style:italic;color:#1B3A5C;">${approver?.initials || '✓'}</div>`;
-  } else if (sat === 'review' && step.status === 'approved') {
-    sigArea = `<div style="text-align:center;padding:12px 0;font-size:10px;font-style:italic;color:#666;">Reviewed</div>`;
-  } else if (sat === 'acknowledge' && step.status === 'approved') {
-    sigArea = `<div style="text-align:center;padding:12px 0;font-size:10px;font-style:italic;color:#666;">Acknowledged</div>`;
   } else if (step.status === 'approved') {
     sigArea = `<div style="text-align:center;padding:12px 0;font-size:10px;font-style:italic;color:#666;">[Digitally Approved]</div>`;
   } else {
