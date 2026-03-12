@@ -396,7 +396,7 @@ const MemoView = () => {
     },
   });
 
-
+  const openApproveDialog = (stepId: string) => {
     const step = approvalSteps.find((s) => s.id === stepId);
     const sat = getStepActionType(step);
     const myProfile = user ? getProfile(user.id) : null;
