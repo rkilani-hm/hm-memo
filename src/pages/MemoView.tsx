@@ -1051,7 +1051,7 @@ const MemoView = () => {
             <div className="space-y-2">
               <Label>
                 Comments{' '}
-                {(actionDialog?.action !== 'approved' || actionDialog?.stepActionType === 'review') && (
+                {actionDialog?.action !== 'approved' && (
                   <span className="text-destructive">*</span>
                 )}
               </Label>
