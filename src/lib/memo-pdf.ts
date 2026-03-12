@@ -14,6 +14,7 @@ export interface MemoData {
   approvalSteps: Tables<'approval_steps'>[];
   attachments: Tables<'memo_attachments'>[];
   profiles: Profile[];
+  departments?: Tables<'departments'>[];
   logoDataUrl: string;
 }
 

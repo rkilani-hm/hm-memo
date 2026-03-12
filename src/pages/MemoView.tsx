@@ -469,7 +469,7 @@ const MemoView = () => {
       const logoDataUrl = await getLogoDataUrl();
       await generateMemoPdf({
         memo, fromProfile, toProfile, department: dept,
-        approvalSteps, attachments, profiles, logoDataUrl,
+        approvalSteps, attachments, profiles, departments, logoDataUrl,
       }, prefs);
     } catch (error: any) {
       toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
