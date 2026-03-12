@@ -32,15 +32,11 @@ interface WorkflowTrackerProps {
 const stepActionIcons: Record<StepActionType, React.ReactNode> = {
   signature: <Pen className="h-3 w-3" />,
   initial: <Type className="h-3 w-3" />,
-  review: <Eye className="h-3 w-3" />,
-  acknowledge: <Bell className="h-3 w-3" />,
 };
 
 const stepActionLabels: Record<StepActionType, string> = {
-  signature: 'Signature',
+  signature: 'Approve',
   initial: 'Initial',
-  review: 'Review',
-  acknowledge: 'Acknowledge',
 };
 
 const WorkflowTracker = ({ steps, profiles, memoStatus, currentStep }: WorkflowTrackerProps) => {
