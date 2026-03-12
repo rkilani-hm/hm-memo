@@ -20,6 +20,7 @@ import AuditLog from "@/pages/admin/AuditLog";
 import AuditDashboard from "@/pages/admin/AuditDashboard";
 import CrossDeptRules from "@/pages/admin/CrossDeptRules";
 import Settings from "@/pages/Settings";
+import HelpGuide from "@/pages/HelpGuide";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
