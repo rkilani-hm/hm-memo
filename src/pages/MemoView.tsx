@@ -1060,9 +1060,7 @@ const MemoView = () => {
                 onChange={(e) => setComments(e.target.value)}
                 placeholder={
                   actionDialog?.action === 'approved'
-                    ? actionDialog?.stepActionType === 'review'
-                      ? 'Provide your review comments...'
-                      : 'Optional comments...'
+                    ? 'Optional comments...'
                     : 'Provide reason or feedback...'
                 }
                 rows={3}
