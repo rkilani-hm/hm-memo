@@ -95,7 +95,7 @@ const MemoEdit = () => {
       setMemoTypes((memo.memo_types || []) as MemoType[]);
       setContinuationPages(memo.continuation_pages || 0);
       setInitials(memo.initials || '');
-      setCopiesTo((memo.copies_to || []).join(', '));
+      setCopiesTo(memo.copies_to || []);
       setLoaded(true);
     }
   }, [memo, loaded]);
