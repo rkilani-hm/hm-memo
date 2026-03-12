@@ -22,6 +22,7 @@ import TransmittedForGrid from '@/components/memo/TransmittedForGrid';
 import RichTextEditor from '@/components/memo/RichTextEditor';
 import FileUpload from '@/components/memo/FileUpload';
 import WorkflowBuilder from '@/components/memo/WorkflowBuilder';
+import UserMultiSelect from '@/components/memo/UserMultiSelect';
 import type { WorkflowStepDef } from '@/components/memo/WorkflowBuilder';
 import type { FileAttachment } from '@/components/memo/FileUpload';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
