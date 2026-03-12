@@ -114,10 +114,7 @@ const MemoCreate = () => {
 
       const transmittalNo = await getNextTransmittalNo(deptId);
 
-      const copiesArray = copiesTo
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const copiesArray = copiesTo;
 
       const { data: memo, error: memoError } = await supabase
         .from('memos')
