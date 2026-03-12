@@ -43,7 +43,7 @@ const MemoEdit = () => {
   const [memoTypes, setMemoTypes] = useState<MemoType[]>([]);
   const [continuationPages, setContinuationPages] = useState(0);
   const [initials, setInitials] = useState('');
-  const [copiesTo, setCopiesTo] = useState('');
+  const [copiesTo, setCopiesTo] = useState<string[]>([]);
   const [files, setFiles] = useState<FileAttachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
