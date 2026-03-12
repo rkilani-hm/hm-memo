@@ -557,6 +557,21 @@ const MemoView = () => {
               Edit Draft
             </Button>
           )}
+          {(memo.status === 'submitted' || memo.status === 'in_review') && memo.from_user_id === user?.id && (
+            <Button
+              variant="outline"
+              className="border-[hsl(var(--warning))] text-[hsl(var(--warning))] hover:bg-[hsl(var(--warning))]/10"
+              onClick={() => {
+                if (confirm('Are you sure you want to recall this memo? All approval progress will be lost.')) {
+                  recallMutation.mutate();
+                }
+              }}
+              disabled={recallMutation.isPending}
+            >
+              <Undo2 className="h-4 w-4 mr-2" />
+              {recallMutation.isPending ? 'Recalling...' : 'Recall'}
+            </Button>
+          )}
           <Button variant="outline" onClick={handleOpenPrintPreview} disabled={pdfGenerating}>
             <FileDown className="h-4 w-4 mr-2" />
             {pdfGenerating ? 'Generating...' : 'Print / Export PDF'}
