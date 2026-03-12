@@ -199,7 +199,6 @@ const MemoView = () => {
           signatureUrl = signatureDataUrl;
         }
       }
-      // review and acknowledge don't need signatures
 
       // Update approval step
       const { error: stepError } = await supabase
