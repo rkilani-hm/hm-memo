@@ -212,6 +212,7 @@ const MemoList = () => {
             <TableHead>Subject</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Waiting For</TableHead>
             <TableHead>Visibility</TableHead>
             <TableHead>Date</TableHead>
           </TableRow>
@@ -219,6 +220,8 @@ const MemoList = () => {
         <TableBody>
           {list.map(memo => {
             const vis = getVisibilityBadge(memo);
+            const pendingName = pendingApproverMap[memo.id];
+            const showWaiting = memo.status !== 'draft' && memo.status !== 'approved' && memo.status !== 'rejected' && pendingName;
             return (
               <TableRow
                 key={memo.id}
@@ -243,6 +246,16 @@ const MemoList = () => {
                   <Badge className={`${statusColors[memo.status] || ''} capitalize`}>
                     {memo.status.replace('_', ' ')}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  {showWaiting ? (
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-[hsl(var(--warning))] shrink-0" />
+                      <span className="text-xs text-foreground font-medium truncate max-w-[140px]">{pendingName}</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Tooltip>
