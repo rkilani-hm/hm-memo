@@ -450,7 +450,7 @@ const MemoView = () => {
       const logoDataUrl = await getLogoDataUrl();
       const memoData = {
         memo, fromProfile, toProfile, department: dept,
-        approvalSteps, attachments, profiles, logoDataUrl,
+        approvalSteps, attachments, profiles, departments, logoDataUrl,
       };
       const prepared = await prepareMemoData(memoData);
       const html = buildMemoHtml(memoData, prepared, { ...DEFAULT_PRINT_PREFERENCES, ...savedPrintPrefs });
