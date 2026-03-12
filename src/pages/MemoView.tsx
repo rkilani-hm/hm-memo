@@ -36,7 +36,7 @@ import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 
 
 type ActionType = 'approved' | 'rejected' | 'rework';
-type StepActionType = 'signature' | 'initial' | 'review' | 'acknowledge';
+type StepActionType = 'signature' | 'initial';
 
 const statusIcons: Record<string, React.ReactNode> = {
   approved: <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))]" />,
