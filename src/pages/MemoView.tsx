@@ -414,7 +414,6 @@ const MemoView = () => {
         setSignatureDataUrl(null);
       }
     }
-    // review & acknowledge don't need signing assets
 
     setActionDialog({ stepId, action: 'approved', stepActionType: sat });
   };
