@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -30,18 +30,14 @@ const PrintPreviewDialog = ({ open, onClose, htmlContent, onPrint, savedPreferen
     ...savedPreferences,
   });
   const [zoom, setZoom] = useState(70);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  useEffect(() => {
-    if (open && iframeRef.current && htmlContent) {
-      const doc = iframeRef.current.contentDocument;
-      if (doc) {
-        doc.open();
-        doc.write(htmlContent);
-        doc.close();
-      }
-    }
-  }, [open, htmlContent]);
+  // Strip the full-page @page margins and print styles for preview rendering
+  const previewHtml = htmlContent
+    ? htmlContent
+        .replace(/@page\s*\{[^}]*\}/g, '')
+        .replace(/@page\s*:left\s*\{[^}]*\}/g, '')
+        .replace(/@page\s*:right\s*\{[^}]*\}/g, '')
+        .replace(/@page\s*\{[^}]*size:[^}]*\}/g, '')
+    : '';
 
   const handlePrint = () => {
     onPrint(prefs);
@@ -90,7 +86,7 @@ const PrintPreviewDialog = ({ open, onClose, htmlContent, onPrint, savedPreferen
                 }}
               >
                 <iframe
-                  ref={iframeRef}
+                  srcDoc={previewHtml}
                   className="w-full border-0"
                   style={{ minHeight: '267mm', pointerEvents: 'none' }}
                   title="Print Preview"
