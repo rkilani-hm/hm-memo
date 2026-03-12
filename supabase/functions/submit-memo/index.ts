@@ -209,8 +209,6 @@ serve(async (req) => {
     const actionTypeLabels: Record<string, string> = {
       signature: "approval (signature required)",
       initial: "endorsement (initials required)",
-      review: "review (comments requested)",
-      acknowledge: "acknowledgement",
     };
 
     for (const firstStep of firstSteps) {
@@ -273,7 +271,67 @@ serve(async (req) => {
       }
     }
 
-    // Resolve IP geolocation (non-blocking)
+    // Notify copies_to users via email
+    const copiesToUsers: string[] = memo.copies_to || [];
+    if (copiesToUsers.length > 0) {
+      for (const ccUserId of copiesToUsers) {
+        const { data: ccProfile } = await adminClient
+          .from("profiles")
+          .select("full_name, email")
+          .eq("user_id", ccUserId)
+          .single();
+
+        if (ccProfile) {
+          // In-app notification
+          await adminClient.from("notifications").insert({
+            user_id: ccUserId,
+            memo_id,
+            type: "cc_notification",
+            message: `You have been copied on memo ${memo.transmittal_no} — "${memo.subject}".`,
+          });
+
+          // Email notification
+          try {
+            const appUrl = Deno.env.get("APP_URL") || "https://hm-memo.lovable.app";
+            const ccEmailBody = `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #1B3A5C; padding: 20px; text-align: center;">
+                  <h2 style="color: #C8952E; margin: 0;">Al Hamra Real Estate</h2>
+                  <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System</p>
+                </div>
+                <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
+                  <p>Dear <strong>${ccProfile.full_name}</strong>,</p>
+                  <p>You have been copied on the following memo:</p>
+                  <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                    <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; width: 140px;">Transmittal No</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memo.transmittal_no}</td></tr>
+                    <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memo.subject}</td></tr>
+                    <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">From</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${senderProfile?.full_name || "Unknown"}</td></tr>
+                  </table>
+                  <a href="${appUrl}/memos/${memo_id}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">View Memo</a>
+                </div>
+                <div style="padding: 12px; text-align: center; font-size: 11px; color: #6b7280;">
+                  This is an automated notification from the Al Hamra Memo System.
+                </div>
+              </div>
+            `;
+
+            await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+              method: "POST",
+              headers: { Authorization: authHeader, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                to: [ccProfile.email],
+                subject: `[CC] Memo ${memo.transmittal_no} — ${memo.subject}`,
+                body: ccEmailBody,
+                isHtml: true,
+              }),
+            });
+          } catch (emailErr) {
+            console.warn("CC email notification failed (non-blocking):", emailErr);
+          }
+        }
+      }
+    }
+
     const geo = await resolveIpGeolocation(clientIp);
 
     // Audit log with IP + geolocation

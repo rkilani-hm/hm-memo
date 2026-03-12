@@ -33,15 +33,13 @@ import {
   Save,
   Pen,
   Type,
-  Eye,
-  Bell,
   Link2,
   CalendarIcon,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
 
-export type StepActionType = 'signature' | 'initial' | 'review' | 'acknowledge';
+export type StepActionType = 'signature' | 'initial';
 
 export interface WorkflowStepDef {
   approver_user_id: string;
@@ -64,10 +62,8 @@ interface WorkflowBuilderProps {
 }
 
 const ACTION_TYPE_META: Record<StepActionType, { label: string; icon: React.ReactNode; desc: string }> = {
-  signature: { label: 'Signature', icon: <Pen className="h-3.5 w-3.5" />, desc: 'Full approval with signature image' },
+  signature: { label: 'Approve', icon: <Pen className="h-3.5 w-3.5" />, desc: 'Full approval with signature image' },
   initial: { label: 'Initial', icon: <Type className="h-3.5 w-3.5" />, desc: 'Quick endorsement with initials stamp' },
-  review: { label: 'Review', icon: <Eye className="h-3.5 w-3.5" />, desc: 'Advisory comments, no blocking power' },
-  acknowledge: { label: 'Acknowledge', icon: <Bell className="h-3.5 w-3.5" />, desc: 'Read receipt confirmation' },
 };
 
 const WorkflowBuilder = ({
@@ -356,7 +352,7 @@ const WorkflowBuilder = ({
                 {/* Action Type */}
                 <div className="space-y-1">
                   <Label className="text-xs">Action Type</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {(Object.keys(ACTION_TYPE_META) as StepActionType[]).map((type) => {
                       const m = ACTION_TYPE_META[type];
                       const isSelected = step.action_type === type;

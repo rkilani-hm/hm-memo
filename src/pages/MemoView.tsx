@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, Eye, Bell, FileDown, Edit, Undo2 } from 'lucide-react';
+import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, FileDown, Edit, Undo2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import SignaturePad from '@/components/memo/SignaturePad';
@@ -36,7 +36,7 @@ import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 
 
 type ActionType = 'approved' | 'rejected' | 'rework';
-type StepActionType = 'signature' | 'initial' | 'review' | 'acknowledge';
+type StepActionType = 'signature' | 'initial';
 
 const statusIcons: Record<string, React.ReactNode> = {
   approved: <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))]" />,
@@ -60,15 +60,11 @@ const actionColor: Record<ActionType, string> = {
 const stepActionIcons: Record<StepActionType, React.ReactNode> = {
   signature: <Pen className="h-3 w-3" />,
   initial: <Type className="h-3 w-3" />,
-  review: <Eye className="h-3 w-3" />,
-  acknowledge: <Bell className="h-3 w-3" />,
 };
 
 const stepActionLabels: Record<StepActionType, string> = {
-  signature: 'Signature',
+  signature: 'Approve',
   initial: 'Initial',
-  review: 'Review',
-  acknowledge: 'Acknowledge',
 };
 
 const MemoView = () => {
@@ -203,7 +199,6 @@ const MemoView = () => {
           signatureUrl = signatureDataUrl;
         }
       }
-      // review and acknowledge don't need signatures
 
       // Update approval step
       const { error: stepError } = await supabase
@@ -419,7 +414,6 @@ const MemoView = () => {
         setSignatureDataUrl(null);
       }
     }
-    // review & acknowledge don't need signing assets
 
     setActionDialog({ stepId, action: 'approved', stepActionType: sat });
   };
@@ -700,7 +694,12 @@ const MemoView = () => {
           {/* COPIES TO */}
           <div className="grid grid-cols-[140px_1fr] border-b border-foreground/30">
             <div className="px-3 py-2 text-xs font-bold border-r border-foreground/30">COPIES TO:</div>
-            <div className="px-3 py-2 text-sm">{memo.copies_to?.join(', ') || ''}</div>
+            <div className="px-3 py-2 text-sm">
+              {memo.copies_to?.map((uid: string) => {
+                const p = getProfile(uid);
+                return p ? p.full_name : uid;
+              }).join(', ') || ''}
+            </div>
           </div>
 
           {/* ACTION REQUIRED / COMMENTS */}
@@ -803,16 +802,6 @@ const MemoView = () => {
                           </div>
                         ) : sat === 'initial' && step.status === 'approved' ? (
                           <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
-                        ) : sat === 'review' && step.status === 'approved' ? (
-                          <div className="text-center">
-                            <Eye className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
-                            <p className="text-[10px] italic text-muted-foreground">Reviewed</p>
-                          </div>
-                        ) : sat === 'acknowledge' && step.status === 'approved' ? (
-                          <div className="text-center">
-                            <Bell className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
-                            <p className="text-[10px] italic text-muted-foreground">Acknowledged</p>
-                          </div>
                         ) : sat === 'signature' && step.status === 'approved' ? (
                           <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
                         ) : null}
@@ -824,7 +813,7 @@ const MemoView = () => {
                           {approver?.full_name || 'Unknown'}{approver?.job_title ? ` – ${approver.job_title}` : ''}
                         </p>
                         <p className="text-[10px] text-muted-foreground uppercase font-bold">
-                          – {sat === 'signature' ? 'SIGNATURE' : sat === 'initial' ? 'INITIALS' : sat === 'review' ? 'REVIEW' : 'ACKNOWLEDGED'}
+                          – {sat === 'signature' ? 'APPROVE' : 'INITIALS'}
                         </p>
                         <p className="text-xs mt-0.5">
                           <span className="font-bold">Date: </span>
@@ -1062,7 +1051,7 @@ const MemoView = () => {
             <div className="space-y-2">
               <Label>
                 Comments{' '}
-                {(actionDialog?.action !== 'approved' || actionDialog?.stepActionType === 'review') && (
+                {actionDialog?.action !== 'approved' && (
                   <span className="text-destructive">*</span>
                 )}
               </Label>
@@ -1071,9 +1060,7 @@ const MemoView = () => {
                 onChange={(e) => setComments(e.target.value)}
                 placeholder={
                   actionDialog?.action === 'approved'
-                    ? actionDialog?.stepActionType === 'review'
-                      ? 'Provide your review comments...'
-                      : 'Optional comments...'
+                    ? 'Optional comments...'
                     : 'Provide reason or feedback...'
                 }
                 rows={3}
@@ -1088,8 +1075,7 @@ const MemoView = () => {
                 actionMutation.isPending ||
                 !password.trim() ||
                 (needsSigningAsset && !signatureDataUrl) ||
-                (actionDialog?.action !== 'approved' && !comments.trim()) ||
-                (actionDialog?.action === 'approved' && actionDialog?.stepActionType === 'review' && !comments.trim())
+                (actionDialog?.action !== 'approved' && !comments.trim())
               }
               onClick={() => actionMutation.mutate()}
             >

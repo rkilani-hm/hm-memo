@@ -22,6 +22,7 @@ import TransmittedForGrid from '@/components/memo/TransmittedForGrid';
 import RichTextEditor from '@/components/memo/RichTextEditor';
 import FileUpload from '@/components/memo/FileUpload';
 import WorkflowBuilder from '@/components/memo/WorkflowBuilder';
+import UserMultiSelect from '@/components/memo/UserMultiSelect';
 import type { WorkflowStepDef } from '@/components/memo/WorkflowBuilder';
 import type { FileAttachment } from '@/components/memo/FileUpload';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
@@ -42,7 +43,7 @@ const MemoEdit = () => {
   const [memoTypes, setMemoTypes] = useState<MemoType[]>([]);
   const [continuationPages, setContinuationPages] = useState(0);
   const [initials, setInitials] = useState('');
-  const [copiesTo, setCopiesTo] = useState('');
+  const [copiesTo, setCopiesTo] = useState<string[]>([]);
   const [files, setFiles] = useState<FileAttachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
@@ -94,7 +95,7 @@ const MemoEdit = () => {
       setMemoTypes((memo.memo_types || []) as MemoType[]);
       setContinuationPages(memo.continuation_pages || 0);
       setInitials(memo.initials || '');
-      setCopiesTo((memo.copies_to || []).join(', '));
+      setCopiesTo(memo.copies_to || []);
       setLoaded(true);
     }
   }, [memo, loaded]);
@@ -146,7 +147,7 @@ const MemoEdit = () => {
 
     setSubmitting(true);
     try {
-      const copiesArray = copiesTo.split(',').map((s) => s.trim()).filter(Boolean);
+      const copiesArray = copiesTo;
 
       const { error: updateError } = await supabase
         .from('memos')
@@ -361,14 +362,14 @@ const MemoEdit = () => {
                 maxLength={4}
               />
             </div>
-            <div className="col-span-2 md:col-span-1 space-y-1">
+            <div className="col-span-2 md:col-span-4 space-y-1">
               <Label className="text-xs font-bold uppercase text-muted-foreground">Copies To</Label>
-              <Input
-                value={copiesTo}
-                onChange={(e) => setCopiesTo(e.target.value)}
-                placeholder="Comma-separated..."
-                className="h-8"
-                maxLength={500}
+              <UserMultiSelect
+                profiles={profiles}
+                selected={copiesTo}
+                onChange={setCopiesTo}
+                excludeUserIds={[]}
+                placeholder="Select users to copy..."
               />
             </div>
           </div>

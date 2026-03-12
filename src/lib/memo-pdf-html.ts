@@ -46,17 +46,13 @@ function buildApprovalStepHtml(
       </div>`;
   } else if (sat === 'initial' && step.status === 'approved') {
     sigArea = `<div style="text-align:center;padding:12px 0;font-size:18px;font-weight:bold;font-style:italic;color:#1B3A5C;">${approver?.initials || '✓'}</div>`;
-  } else if (sat === 'review' && step.status === 'approved') {
-    sigArea = `<div style="text-align:center;padding:12px 0;font-size:10px;font-style:italic;color:#666;">Reviewed</div>`;
-  } else if (sat === 'acknowledge' && step.status === 'approved') {
-    sigArea = `<div style="text-align:center;padding:12px 0;font-size:10px;font-style:italic;color:#666;">Acknowledged</div>`;
   } else if (step.status === 'approved') {
     sigArea = `<div style="text-align:center;padding:12px 0;font-size:10px;font-style:italic;color:#666;">[Digitally Approved]</div>`;
   } else {
     sigArea = `<div style="height:50px;"></div>`;
   }
 
-  const actionLabel = sat === 'signature' ? 'SIGNATURE' : sat === 'initial' ? 'INITIALS' : sat === 'review' ? 'REVIEW' : 'ACKNOWLEDGED';
+  const actionLabel = sat === 'signature' ? 'APPROVE' : 'INITIALS';
   const dateStr = step.signed_at ? format(new Date(step.signed_at), 'dd/MM/yyyy') : '';
   const paperDate = isManual && (step as any).date_of_physical_signing
     ? `<p style="font-size:8px;color:#666;margin:0;">Paper signed: ${format(new Date((step as any).date_of_physical_signing), 'dd/MM/yyyy')}</p>`
