@@ -64,10 +64,8 @@ interface WorkflowBuilderProps {
 }
 
 const ACTION_TYPE_META: Record<StepActionType, { label: string; icon: React.ReactNode; desc: string }> = {
-  signature: { label: 'Signature', icon: <Pen className="h-3.5 w-3.5" />, desc: 'Full approval with signature image' },
+  signature: { label: 'Approve', icon: <Pen className="h-3.5 w-3.5" />, desc: 'Full approval with signature image' },
   initial: { label: 'Initial', icon: <Type className="h-3.5 w-3.5" />, desc: 'Quick endorsement with initials stamp' },
-  review: { label: 'Review', icon: <Eye className="h-3.5 w-3.5" />, desc: 'Advisory comments, no blocking power' },
-  acknowledge: { label: 'Acknowledge', icon: <Bell className="h-3.5 w-3.5" />, desc: 'Read receipt confirmation' },
 };
 
 const WorkflowBuilder = ({
