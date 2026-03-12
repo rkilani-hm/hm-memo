@@ -41,7 +41,7 @@ import {
 import { format } from 'date-fns';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
 
-export type StepActionType = 'signature' | 'initial' | 'review' | 'acknowledge';
+export type StepActionType = 'signature' | 'initial';
 
 export interface WorkflowStepDef {
   approver_user_id: string;
