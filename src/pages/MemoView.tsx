@@ -573,6 +573,44 @@ const MemoView = () => {
         </div>
       </div>
 
+      {/* Pending Approval Banner */}
+      {memo.status !== 'draft' && memo.status !== 'approved' && memo.status !== 'rejected' && (() => {
+        const pendingSteps = approvalSteps.filter(s => s.status === 'pending');
+        if (pendingSteps.length === 0) return null;
+        // Find the first pending step (active one)
+        const firstPending = pendingSteps.reduce((a, b) => a.step_order < b.step_order ? a : b);
+        // Get all steps in the same parallel group if applicable
+        const activeSteps = firstPending.parallel_group != null
+          ? pendingSteps.filter(s => s.parallel_group === firstPending.parallel_group)
+          : [firstPending];
+        const names = activeSteps.map(s => {
+          const p = getProfile(s.approver_user_id);
+          return p?.full_name || 'Unknown';
+        });
+        const remainingCount = pendingSteps.length - activeSteps.length;
+        return (
+          <div className="no-print max-w-4xl mx-auto mb-4">
+            <div className="rounded-lg border border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/5 p-4 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[hsl(var(--warning))]/15 flex items-center justify-center shrink-0">
+                <Clock className="h-4 w-4 text-[hsl(var(--warning))]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">
+                  Waiting for: <span className="text-primary">{names.join(', ')}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Step {firstPending.step_order} of {approvalSteps.length}
+                  {remainingCount > 0 && ` • ${remainingCount} more step${remainingCount > 1 ? 's' : ''} after this`}
+                </p>
+              </div>
+              <Badge variant="outline" className="border-[hsl(var(--warning))] text-[hsl(var(--warning))] text-xs">
+                In Progress
+              </Badge>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Printable Area */}
       <div className="print-area max-w-4xl mx-auto">
         <div className="no-print flex justify-end mb-2">
