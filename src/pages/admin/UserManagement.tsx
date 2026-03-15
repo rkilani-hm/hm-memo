@@ -133,6 +133,21 @@ const UserManagement = () => {
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
+  const forceResetMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ force_password_reset: true })
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles-all'] });
+      toast({ title: 'Password reset required', description: 'User will be forced to reset password at next login.' });
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
   const resetForm = () => {
     setOpen(false);
     setEditUserId(null);
