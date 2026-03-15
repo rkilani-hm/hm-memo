@@ -329,17 +329,42 @@ const UserManagement = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleActiveMutation.mutate({ userId: p.user_id, isActive: p.is_active })}
-                              title={p.is_active ? 'Deactivate user' : 'Reactivate user'}
-                            >
-                              {p.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-[hsl(var(--success))]" />}
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Edit user</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => forceResetMutation.mutate(p.user_id)}
+                                  title="Force password reset"
+                                  disabled={p.force_password_reset}
+                                >
+                                  <KeyRound className={`h-4 w-4 ${p.force_password_reset ? 'text-warning' : 'text-muted-foreground'}`} />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {p.force_password_reset ? 'Reset already pending' : 'Force password reset'}
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => toggleActiveMutation.mutate({ userId: p.user_id, isActive: p.is_active })}
+                                >
+                                  {p.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-[hsl(var(--success))]" />}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{p.is_active ? 'Deactivate user' : 'Reactivate user'}</TooltipContent>
+                            </Tooltip>
                           </div>
                         </TableCell>
                       </TableRow>
