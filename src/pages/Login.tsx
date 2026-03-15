@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +15,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { signIn, user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   if (user) {
     return <Navigate to="/" replace />;
@@ -29,7 +31,26 @@ const Login = () => {
         description: error.message,
         variant: 'destructive',
       });
+      setLoading(false);
+      return;
     }
+
+    // Check if force_password_reset is set
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (currentUser) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('force_password_reset')
+        .eq('user_id', currentUser.id)
+        .single();
+
+      if (profile?.force_password_reset) {
+        setLoading(false);
+        navigate('/force-password-reset');
+        return;
+      }
+    }
+
     setLoading(false);
   };
 

@@ -5,7 +5,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { SidebarProvider } from '@/components/ui/sidebar';
 
 const AppLayout = () => {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -20,6 +20,10 @@ const AppLayout = () => {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (profile?.force_password_reset) {
+    return <Navigate to="/force-password-reset" replace />;
   }
 
   return (

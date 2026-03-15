@@ -8,6 +8,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/Login";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
+import ForcePasswordReset from "@/pages/ForcePasswordReset";
 import Dashboard from "@/pages/Dashboard";
 import MemoCreate from "@/pages/MemoCreate";
 import MemoEdit from "@/pages/MemoEdit";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/force-password-reset" element={<ForcePasswordReset />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/memos" element={<MemoList />} />

@@ -12,7 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, Pencil, UserX, UserCheck } from 'lucide-react';
+import { UserPlus, Pencil, UserX, UserCheck, KeyRound } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Constants } from '@/integrations/supabase/types';
 
 type AppRole = 'admin' | 'department_head' | 'staff' | 'approver';
@@ -128,6 +129,21 @@ const UserManagement = () => {
       queryClient.invalidateQueries({ queryKey: ['profiles-all'] });
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       toast({ title: isActive ? 'User deactivated' : 'User reactivated' });
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const forceResetMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ force_password_reset: true })
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles-all'] });
+      toast({ title: 'Password reset required', description: 'User will be forced to reset password at next login.' });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -313,17 +329,42 @@ const UserManagement = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleActiveMutation.mutate({ userId: p.user_id, isActive: p.is_active })}
-                              title={p.is_active ? 'Deactivate user' : 'Reactivate user'}
-                            >
-                              {p.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-[hsl(var(--success))]" />}
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Edit user</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => forceResetMutation.mutate(p.user_id)}
+                                  title="Force password reset"
+                                  disabled={p.force_password_reset}
+                                >
+                                  <KeyRound className={`h-4 w-4 ${p.force_password_reset ? 'text-warning' : 'text-muted-foreground'}`} />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {p.force_password_reset ? 'Reset already pending' : 'Force password reset'}
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => toggleActiveMutation.mutate({ userId: p.user_id, isActive: p.is_active })}
+                                >
+                                  {p.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-[hsl(var(--success))]" />}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{p.is_active ? 'Deactivate user' : 'Reactivate user'}</TooltipContent>
+                            </Tooltip>
                           </div>
                         </TableCell>
                       </TableRow>
