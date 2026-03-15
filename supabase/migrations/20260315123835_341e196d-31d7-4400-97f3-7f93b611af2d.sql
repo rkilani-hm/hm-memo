@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN force_password_reset boolean NOT NULL DEFAULT false;
