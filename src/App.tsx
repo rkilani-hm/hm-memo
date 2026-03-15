@@ -8,6 +8,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/Login";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
+import ForcePasswordReset from "@/pages/ForcePasswordReset";
 import Dashboard from "@/pages/Dashboard";
 import MemoCreate from "@/pages/MemoCreate";
 import MemoEdit from "@/pages/MemoEdit";
