@@ -450,11 +450,38 @@ const MemoEdit = () => {
           <Save className="h-4 w-4 mr-2" />
           Update Draft
         </Button>
-        <Button onClick={() => saveMemo('submitted')} disabled={submitting}>
+        <Button
+          onClick={() => {
+            if (wasAlreadySubmitted) {
+              setShowResetWarning(true);
+            } else {
+              saveMemo('submitted');
+            }
+          }}
+          disabled={submitting}
+        >
           <Send className="h-4 w-4 mr-2" />
           {submitting ? 'Submitting...' : 'Submit Memo'}
         </Button>
       </div>
+
+      {/* Workflow Reset Warning Dialog */}
+      <AlertDialog open={showResetWarning} onOpenChange={setShowResetWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Approval Workflow?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This memo has already been submitted for approval. Re-submitting will <strong>reset the entire approval workflow</strong> — all existing approvals, signatures, and comments will be cleared and the process will start over from the beginning.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => saveMemo('submitted')}>
+              Yes, Reset & Resubmit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
