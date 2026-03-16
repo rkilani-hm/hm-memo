@@ -83,7 +83,7 @@ const MemoList = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_steps')
-        .select('memo_id, approver_user_id, status, step_order, parallel_group')
+        .select('id, memo_id, approver_user_id, status, step_order, parallel_group, action_type, signed_at, signing_method')
         .order('step_order', { ascending: true });
       if (error) throw error;
       return data || [];
