@@ -101,9 +101,10 @@ const MemoEdit = () => {
     }
   }, [memo, loaded]);
 
+  const editableStatuses = ['draft', 'submitted', 'in_review', 'rejected', 'rework'];
   const isEditable = memo && (
-    memo.status === 'draft' ||
-    ((memo.status === 'submitted' || memo.status === 'in_review') && (memo.from_user_id === user?.id || isAdmin))
+    editableStatuses.includes(memo.status) &&
+    (memo.from_user_id === user?.id || isAdmin)
   );
 
   // Redirect if not editable
