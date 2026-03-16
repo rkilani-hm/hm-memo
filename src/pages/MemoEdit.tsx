@@ -63,8 +63,9 @@ const MemoEdit = () => {
   // Workflow builder state
   const [workflowMode, setWorkflowMode] = useState<'preset' | 'dynamic'>('preset');
   const [customSteps, setCustomSteps] = useState<WorkflowStepDef[]>([]);
+  const [showResetWarning, setShowResetWarning] = useState(false);
 
-  // Fetch memo
+  const wasAlreadySubmitted = memo && ['submitted', 'in_review', 'rejected', 'rework'].includes(memo.status);
   const { data: memo, isLoading: memoLoading } = useQuery({
     queryKey: ['memo', id],
     queryFn: async () => {
