@@ -31,7 +31,8 @@ import { Save, Send, ArrowLeft } from 'lucide-react';
 
 const MemoEdit = () => {
   const { id } = useParams<{ id: string }>();
-  const { user, profile } = useAuth();
+  const { user, profile, hasRole } = useAuth();
+  const isAdmin = hasRole('admin');
   const navigate = useNavigate();
   const { toast } = useToast();
 
