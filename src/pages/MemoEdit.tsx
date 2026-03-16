@@ -241,7 +241,7 @@ const MemoEdit = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Edit Draft Memo</h1>
+          <h1 className="text-2xl font-bold text-foreground">{memo?.status === 'draft' ? 'Edit Draft Memo' : 'Edit Memo'}</h1>
           <p className="text-sm text-muted-foreground">{memo.transmittal_no}</p>
         </div>
       </div>
