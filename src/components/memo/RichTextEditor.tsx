@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -72,6 +73,13 @@ const RichTextEditor = ({ content, onChange, placeholder }: RichTextEditorProps)
       },
     },
   });
+
+  // Sync external content changes (e.g. async memo load) into the editor
+  useEffect(() => {
+    if (editor && content && editor.getHTML() !== content) {
+      editor.commands.setContent(content, { emitUpdate: false });
+    }
+  }, [editor, content]);
 
   if (!editor) return null;
 
