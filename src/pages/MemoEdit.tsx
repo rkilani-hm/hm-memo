@@ -155,6 +155,13 @@ const MemoEdit = () => {
     try {
       const copiesArray = copiesTo;
 
+      // If editing a submitted/in_review memo, reset approval steps first
+      const wasSubmitted = memo.status === 'submitted' || memo.status === 'in_review';
+      if (wasSubmitted) {
+        // Delete existing approval steps
+        await supabase.from('approval_steps').delete().eq('memo_id', memo.id);
+      }
+
       const { error: updateError } = await supabase
         .from('memos')
         .update({
@@ -167,6 +174,7 @@ const MemoEdit = () => {
           continuation_pages: continuationPages,
           initials: initials.trim() || null,
           copies_to: copiesArray.length > 0 ? copiesArray : null,
+          current_step: status === 'draft' ? 0 : memo.current_step,
         })
         .eq('id', memo.id);
 
