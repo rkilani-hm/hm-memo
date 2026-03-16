@@ -101,13 +101,18 @@ const MemoEdit = () => {
     }
   }, [memo, loaded]);
 
-  // Redirect if not draft
+  const isEditable = memo && (
+    memo.status === 'draft' ||
+    ((memo.status === 'submitted' || memo.status === 'in_review') && (memo.from_user_id === user?.id || isAdmin))
+  );
+
+  // Redirect if not editable
   useEffect(() => {
-    if (memo && memo.status !== 'draft') {
-      toast({ title: 'Cannot Edit', description: 'Only draft memos can be edited.', variant: 'destructive' });
+    if (memo && !isEditable) {
+      toast({ title: 'Cannot Edit', description: 'This memo cannot be edited in its current state.', variant: 'destructive' });
       navigate(`/memos/${id}`);
     }
-  }, [memo]);
+  }, [memo, isEditable]);
 
   const currentDate = memo ? format(new Date(memo.date), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy');
 
