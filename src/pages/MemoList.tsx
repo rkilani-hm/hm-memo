@@ -32,7 +32,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { FilePlus, Search, ChevronDown, Building2, UserCheck, Globe2, Clock } from 'lucide-react';
+import { FilePlus, Search, ChevronDown, ChevronRight, Building2, UserCheck, Globe2, Clock, CheckCircle2, XCircle, RotateCcw, Pen, Type } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState, useMemo } from 'react';
 
