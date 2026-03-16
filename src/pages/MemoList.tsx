@@ -201,7 +201,29 @@ const MemoList = () => {
       return matchesSearch && matchesStatus;
     });
 
+  const stepStatusIcon = (status: string) => {
+    if (status === 'approved') return <CheckCircle2 className="h-3.5 w-3.5 text-[hsl(var(--success))]" />;
+    if (status === 'rejected') return <XCircle className="h-3.5 w-3.5 text-destructive" />;
+    if (status === 'rework') return <RotateCcw className="h-3.5 w-3.5 text-accent" />;
+    return <Clock className="h-3.5 w-3.5 text-muted-foreground" />;
+  };
+
+  const stepStatusColor: Record<string, string> = {
+    approved: 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]',
+    rejected: 'bg-destructive/10 text-destructive',
+    rework: 'bg-accent/10 text-accent',
+    pending: 'bg-muted text-muted-foreground',
+    skipped: 'bg-muted text-muted-foreground',
+  };
+
+  const actionTypeIcon = (type: string) => {
+    if (type === 'initial') return <Type className="h-3 w-3" />;
+    return <Pen className="h-3 w-3" />;
+  };
+
   const MemoTable = ({ memos: list }: { memos: typeof memos }) => {
+    const [expandedMemoId, setExpandedMemoId] = useState<string | null>(null);
+
     if (list.length === 0) {
       return <p className="text-sm text-muted-foreground py-4 px-4">No memos in this section.</p>;
     }
@@ -209,6 +231,7 @@ const MemoList = () => {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-8"></TableHead>
             <TableHead>Transmittal No.</TableHead>
             <TableHead>Subject</TableHead>
             <TableHead>Type</TableHead>
@@ -223,55 +246,129 @@ const MemoList = () => {
             const vis = getVisibilityBadge(memo);
             const pendingName = pendingApproverMap[memo.id];
             const showWaiting = memo.status !== 'draft' && memo.status !== 'approved' && memo.status !== 'rejected' && pendingName;
+            const isExpanded = expandedMemoId === memo.id;
+            const memoSteps = allApprovalSteps.filter(s => s.memo_id === memo.id).sort((a, b) => a.step_order - b.step_order);
+            const hasSteps = memoSteps.length > 0;
+
             return (
-              <TableRow
-                key={memo.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => navigate(`/memos/${memo.id}`)}
-              >
-                <TableCell className="font-mono text-sm font-medium">{memo.transmittal_no}</TableCell>
-                <TableCell className="max-w-[250px] truncate">{memo.subject}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {memo.memo_types.slice(0, 2).map(type => (
-                      <Badge key={type} variant="secondary" className="text-xs capitalize">
-                        {type.replace('_', ' ')}
-                      </Badge>
-                    ))}
-                    {memo.memo_types.length > 2 && (
-                      <Badge variant="secondary" className="text-xs">+{memo.memo_types.length - 2}</Badge>
+              <React.Fragment key={memo.id}>
+                <TableRow
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => navigate(`/memos/${memo.id}`)}
+                >
+                  <TableCell className="px-2">
+                    {hasSteps && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedMemoId(isExpanded ? null : memo.id);
+                        }}
+                        className="p-1 rounded hover:bg-muted transition-colors"
+                      >
+                        {isExpanded
+                          ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        }
+                      </button>
                     )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className={`${statusColors[memo.status] || ''} capitalize`}>
-                    {memo.status.replace('_', ' ')}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {showWaiting ? (
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5 text-[hsl(var(--warning))] shrink-0" />
-                      <span className="text-xs text-foreground font-medium truncate max-w-[140px]">{pendingName}</span>
+                  </TableCell>
+                  <TableCell className="font-mono text-sm font-medium">{memo.transmittal_no}</TableCell>
+                  <TableCell className="max-w-[250px] truncate">{memo.subject}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {memo.memo_types.slice(0, 2).map(type => (
+                        <Badge key={type} variant="secondary" className="text-xs capitalize">
+                          {type.replace('_', ' ')}
+                        </Badge>
+                      ))}
+                      {memo.memo_types.length > 2 && (
+                        <Badge variant="secondary" className="text-xs">+{memo.memo_types.length - 2}</Badge>
+                      )}
                     </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant={vis.variant} className="text-xs cursor-help">
-                        {vis.label}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent><p className="text-xs">{vis.tooltip}</p></TooltipContent>
-                  </Tooltip>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {format(new Date(memo.created_at), 'dd/MM/yyyy')}
-                </TableCell>
-              </TableRow>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={`${statusColors[memo.status] || ''} capitalize`}>
+                      {memo.status.replace('_', ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {showWaiting ? (
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 text-[hsl(var(--warning))] shrink-0" />
+                        <span className="text-xs text-foreground font-medium truncate max-w-[140px]">{pendingName}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant={vis.variant} className="text-xs cursor-help">
+                          {vis.label}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent><p className="text-xs">{vis.tooltip}</p></TooltipContent>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {format(new Date(memo.created_at), 'dd/MM/yyyy')}
+                  </TableCell>
+                </TableRow>
+
+                {/* Expandable workflow steps row */}
+                {isExpanded && hasSteps && (
+                  <TableRow className="bg-muted/20 hover:bg-muted/20">
+                    <TableCell colSpan={8} className="py-3 px-6">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          Workflow Steps
+                        </span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {memoSteps.filter(s => s.status === 'approved' || s.status === 'skipped').length}/{memoSteps.length} completed
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {memoSteps.map((step, idx) => {
+                          const approver = allProfiles.find(p => p.user_id === step.approver_user_id);
+                          const firstPending = memoSteps.find(s => s.status === 'pending');
+                          const isActive = memo.status !== 'rejected' && memo.status !== 'approved' && step.status === 'pending' && firstPending?.id === step.id;
+
+                          return (
+                            <div
+                              key={step.id || idx}
+                              className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
+                                isActive ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-card'
+                              }`}
+                            >
+                              {stepStatusIcon(step.status)}
+                              <div className="flex flex-col">
+                                <span className={`font-medium ${isActive ? 'text-primary' : 'text-foreground'}`}>
+                                  {approver?.full_name || 'Unknown'}
+                                </span>
+                                <span className="text-muted-foreground flex items-center gap-1">
+                                  {actionTypeIcon((step as any).action_type || 'signature')}
+                                  <Badge className={`${stepStatusColor[step.status] || ''} capitalize text-[9px] px-1 py-0 h-3.5`}>
+                                    {step.status}
+                                  </Badge>
+                                  {step.signed_at && (
+                                    <span className="ml-1">
+                                      {format(new Date(step.signed_at), 'dd/MM HH:mm')}
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                              {idx < memoSteps.length - 1 && (
+                                <ChevronRight className="h-3 w-3 text-muted-foreground/50 ml-1" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
             );
           })}
         </TableBody>
