@@ -101,9 +101,10 @@ const MemoEdit = () => {
     }
   }, [memo, loaded]);
 
+  const editableStatuses = ['draft', 'submitted', 'in_review', 'rejected', 'rework'];
   const isEditable = memo && (
-    memo.status === 'draft' ||
-    ((memo.status === 'submitted' || memo.status === 'in_review') && (memo.from_user_id === user?.id || isAdmin))
+    editableStatuses.includes(memo.status) &&
+    (memo.from_user_id === user?.id || isAdmin)
   );
 
   // Redirect if not editable
@@ -156,7 +157,7 @@ const MemoEdit = () => {
       const copiesArray = copiesTo;
 
       // If editing a submitted/in_review memo, reset approval steps first
-      const wasSubmitted = memo.status === 'submitted' || memo.status === 'in_review';
+      const wasSubmitted = ['submitted', 'in_review', 'rejected', 'rework'].includes(memo.status);
       if (wasSubmitted) {
         // Delete existing approval steps
         await supabase.from('approval_steps').delete().eq('memo_id', memo.id);
