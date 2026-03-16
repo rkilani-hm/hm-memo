@@ -70,7 +70,8 @@ const stepActionLabels: Record<StepActionType, string> = {
 const MemoView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const isAdmin = hasRole('admin');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
