@@ -114,6 +114,7 @@ const MemoEdit = () => {
   }, [memo, loaded]);
 
   const editableStatuses = ['draft', 'submitted', 'in_review', 'rejected', 'rework'];
+  const wasAlreadySubmitted = memo && ['submitted', 'in_review', 'rejected', 'rework'].includes(memo.status);
   const isEditable = memo && (
     editableStatuses.includes(memo.status) &&
     (memo.from_user_id === user?.id || isAdmin)
