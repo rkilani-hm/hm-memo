@@ -102,6 +102,27 @@ const MemoCreate = () => {
       }
     }
 
+    // Validate at least one workflow step exists before submitting
+    if (status === 'submitted') {
+      if (workflowMode === 'dynamic' && customSteps.length === 0) {
+        toast({ title: 'Workflow Required', description: 'Please add at least one approval step before submitting.', variant: 'destructive' });
+        return;
+      }
+      if (workflowMode === 'preset' && !selectedWorkflowId) {
+        // Check if there are any auto-matchable templates for this department
+        const deptId = profiles.find(p => p.user_id === fromUserId)?.department_id || profile?.department_id;
+        const { data: templates } = await supabase
+          .from('workflow_templates')
+          .select('id')
+          .or(`department_id.eq.${deptId},department_id.is.null`)
+          .limit(1);
+        if (!templates || templates.length === 0) {
+          toast({ title: 'Workflow Required', description: 'No workflow template found. Please switch to Dynamic Workflow and add at least one approval step.', variant: 'destructive' });
+          return;
+        }
+      }
+    }
+
     setSubmitting(true);
     try {
       const selectedFromProfile = profiles.find(p => p.user_id === fromUserId);
