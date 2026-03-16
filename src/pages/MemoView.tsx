@@ -70,7 +70,8 @@ const stepActionLabels: Record<StepActionType, string> = {
 const MemoView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const isAdmin = hasRole('admin');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -545,10 +546,11 @@ const MemoView = () => {
               </Button>
             </>
           )}
-          {memo.status === 'draft' && memo.from_user_id === user?.id && (
+          {(memo.status === 'draft' || memo.status === 'submitted' || memo.status === 'in_review') && 
+           (memo.from_user_id === user?.id || isAdmin) && (
             <Button variant="outline" onClick={() => navigate(`/memos/${memo.id}/edit`)}>
               <Edit className="h-4 w-4 mr-2" />
-              Edit Draft
+              {memo.status === 'draft' ? 'Edit Draft' : 'Edit Memo'}
             </Button>
           )}
           {(memo.status === 'submitted' || memo.status === 'in_review') && memo.from_user_id === user?.id && (

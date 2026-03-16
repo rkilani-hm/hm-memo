@@ -31,7 +31,8 @@ import { Save, Send, ArrowLeft } from 'lucide-react';
 
 const MemoEdit = () => {
   const { id } = useParams<{ id: string }>();
-  const { user, profile } = useAuth();
+  const { user, profile, hasRole } = useAuth();
+  const isAdmin = hasRole('admin');
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -100,13 +101,18 @@ const MemoEdit = () => {
     }
   }, [memo, loaded]);
 
-  // Redirect if not draft
+  const isEditable = memo && (
+    memo.status === 'draft' ||
+    ((memo.status === 'submitted' || memo.status === 'in_review') && (memo.from_user_id === user?.id || isAdmin))
+  );
+
+  // Redirect if not editable
   useEffect(() => {
-    if (memo && memo.status !== 'draft') {
-      toast({ title: 'Cannot Edit', description: 'Only draft memos can be edited.', variant: 'destructive' });
+    if (memo && !isEditable) {
+      toast({ title: 'Cannot Edit', description: 'This memo cannot be edited in its current state.', variant: 'destructive' });
       navigate(`/memos/${id}`);
     }
-  }, [memo]);
+  }, [memo, isEditable]);
 
   const currentDate = memo ? format(new Date(memo.date), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy');
 
@@ -149,6 +155,13 @@ const MemoEdit = () => {
     try {
       const copiesArray = copiesTo;
 
+      // If editing a submitted/in_review memo, reset approval steps first
+      const wasSubmitted = memo.status === 'submitted' || memo.status === 'in_review';
+      if (wasSubmitted) {
+        // Delete existing approval steps
+        await supabase.from('approval_steps').delete().eq('memo_id', memo.id);
+      }
+
       const { error: updateError } = await supabase
         .from('memos')
         .update({
@@ -161,6 +174,7 @@ const MemoEdit = () => {
           continuation_pages: continuationPages,
           initials: initials.trim() || null,
           copies_to: copiesArray.length > 0 ? copiesArray : null,
+          current_step: status === 'draft' ? 0 : memo.current_step,
         })
         .eq('id', memo.id);
 
@@ -227,7 +241,7 @@ const MemoEdit = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Edit Draft Memo</h1>
+          <h1 className="text-2xl font-bold text-foreground">{memo?.status === 'draft' ? 'Edit Draft Memo' : 'Edit Memo'}</h1>
           <p className="text-sm text-muted-foreground">{memo.transmittal_no}</p>
         </div>
       </div>
