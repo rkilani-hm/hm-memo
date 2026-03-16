@@ -74,6 +74,13 @@ const RichTextEditor = ({ content, onChange, placeholder }: RichTextEditorProps)
     },
   });
 
+  // Sync external content changes (e.g. async memo load) into the editor
+  useEffect(() => {
+    if (editor && content && editor.getHTML() !== content) {
+      editor.commands.setContent(content, false);
+    }
+  }, [editor, content]);
+
   if (!editor) return null;
 
   return (
