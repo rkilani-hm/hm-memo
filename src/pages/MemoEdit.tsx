@@ -157,7 +157,7 @@ const MemoEdit = () => {
       const copiesArray = copiesTo;
 
       // If editing a submitted/in_review memo, reset approval steps first
-      const wasSubmitted = memo.status === 'submitted' || memo.status === 'in_review';
+      const wasSubmitted = ['submitted', 'in_review', 'rejected', 'rework'].includes(memo.status);
       if (wasSubmitted) {
         // Delete existing approval steps
         await supabase.from('approval_steps').delete().eq('memo_id', memo.id);
