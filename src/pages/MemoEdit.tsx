@@ -65,7 +65,8 @@ const MemoEdit = () => {
   const [customSteps, setCustomSteps] = useState<WorkflowStepDef[]>([]);
   const [showResetWarning, setShowResetWarning] = useState(false);
 
-  const wasAlreadySubmitted = memo && ['submitted', 'in_review', 'rejected', 'rework'].includes(memo.status);
+
+  // Fetch memo
   const { data: memo, isLoading: memoLoading } = useQuery({
     queryKey: ['memo', id],
     queryFn: async () => {
