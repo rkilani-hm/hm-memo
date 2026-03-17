@@ -14,6 +14,7 @@ interface WorkflowStep {
   is_required?: boolean;
   parallel_group?: number | null;
   deadline?: string | null;
+  stage_level?: string | null;
 }
 
 // Resolve IP to city/country via ip-api.com (non-blocking, best-effort)
@@ -181,6 +182,7 @@ serve(async (req) => {
       parallel_group: step.parallel_group ?? null,
       is_required: step.is_required !== false,
       deadline: step.deadline || null,
+      stage_level: step.stage_level || null,
     }));
 
     const { error: stepsErr } = await adminClient

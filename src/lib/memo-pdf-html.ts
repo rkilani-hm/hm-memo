@@ -91,26 +91,127 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     </span>`;
   }).join('');
 
-  // Approval steps HTML (rows of 3)
+  // Approval steps HTML
   let approvalsHtml = '';
   if (approvalSteps.length > 0) {
-    const rows: string[] = [];
-    for (let i = 0; i < approvalSteps.length; i += 3) {
-      const rowSteps = approvalSteps.slice(i, i + 3);
-      const cells = rowSteps.map(step => {
-        const approver = getProfile(profiles, step.approver_user_id);
-        return buildApprovalStepHtml(step, approver, sigDataUrls[step.id] || null, registeredByProfiles[step.id]);
-      }).join('');
-      const emptyCells = Array(3 - rowSteps.length).fill('<td style="border:1px solid #000;padding:8px;"></td>').join('');
-      rows.push(`<tr>${cells}${emptyCells}</tr>`);
+    // Check if steps have stage_level to use 3-column physical form layout
+    const hasStages = approvalSteps.some((s: any) => s.stage_level);
+    
+    if (hasStages) {
+      // 3-column layout: Finance Dept | GM/COO/CAO/CFO | CEO/Chairman
+      const financeSteps = approvalSteps.filter((s: any) => s.stage_level === 'L2a' || s.stage_level === 'L2b');
+      const executiveStep = approvalSteps.find((s: any) => s.stage_level === 'L3');
+      const ceoStep = approvalSteps.find((s: any) => s.stage_level === 'L4');
+      
+      // Finance column content
+      let financeContent = '';
+      const financeInitials = approvalSteps.filter((s: any) => s.stage_level === 'L2a');
+      const financeManager = approvalSteps.find((s: any) => s.stage_level === 'L2b');
+      
+      // Finance staff initials
+      for (const fi of financeInitials) {
+        const fiApprover = getProfile(profiles, fi.approver_user_id);
+        const fiSig = sigDataUrls[fi.id] || null;
+        if (fi.status === 'approved' && fiSig) {
+          financeContent += `<div style="text-align:center;margin:4px 0;"><img src="${fiSig}" style="height:30px;object-fit:contain;" /><br/><span style="font-size:8px;">${fiApprover?.full_name || ''}</span></div>`;
+        } else if (fi.status === 'approved') {
+          financeContent += `<div style="text-align:center;margin:4px 0;font-size:14px;font-weight:bold;font-style:italic;color:#1B3A5C;">${fiApprover?.initials || '✓'}</div>`;
+        }
+      }
+      
+      // Finance manager signature
+      if (financeManager) {
+        const fmApprover = getProfile(profiles, financeManager.approver_user_id);
+        const fmSig = sigDataUrls[financeManager.id] || null;
+        if (financeManager.status === 'approved' && fmSig) {
+          financeContent += `<div style="text-align:center;margin:8px 0;"><img src="${fmSig}" style="height:45px;object-fit:contain;" /></div>`;
+        }
+        financeContent += `<div style="border-top:1px solid #ccc;padding-top:4px;margin-top:4px;">
+          <p style="font-size:10px;font-weight:bold;margin:0;">${fmApprover?.full_name || 'Unknown'}</p>
+          ${fmApprover?.job_title ? `<p style="font-size:9px;margin:0;">${fmApprover.job_title}</p>` : ''}
+          <p style="font-size:9px;color:#666;font-weight:bold;text-transform:uppercase;margin:0;">– APPROVE</p>
+          <p style="font-size:10px;margin:2px 0 0;"><strong>Date:</strong> ${financeManager.signed_at ? format(new Date(financeManager.signed_at), 'dd/MM/yyyy') : ''}</p>
+        </div>`;
+      }
+
+      // Executive column
+      let executiveContent = '';
+      if (executiveStep) {
+        const exApprover = getProfile(profiles, executiveStep.approver_user_id);
+        const exSig = sigDataUrls[executiveStep.id] || null;
+        if (executiveStep.status === 'approved' && exSig) {
+          executiveContent += `<div style="text-align:center;padding:8px 0;"><img src="${exSig}" style="height:50px;object-fit:contain;" /></div>`;
+        } else if (executiveStep.status === 'approved') {
+          executiveContent += `<div style="text-align:center;padding:12px 0;font-size:10px;font-style:italic;color:#666;">[Digitally Approved]</div>`;
+        } else {
+          executiveContent += `<div style="height:50px;"></div>`;
+        }
+        executiveContent += `<div style="border-top:1px solid #ccc;padding-top:4px;margin-top:4px;">
+          <p style="font-size:10px;font-weight:bold;margin:0;">${exApprover?.full_name || 'Unknown'}</p>
+          ${exApprover?.job_title ? `<p style="font-size:9px;margin:0;">${exApprover.job_title}</p>` : ''}
+          <p style="font-size:9px;color:#666;font-weight:bold;text-transform:uppercase;margin:0;">– APPROVE</p>
+          <p style="font-size:10px;margin:2px 0 0;"><strong>Date:</strong> ${executiveStep.signed_at ? format(new Date(executiveStep.signed_at), 'dd/MM/yyyy') : ''}</p>
+        </div>`;
+      }
+
+      // CEO column
+      let ceoContent = '';
+      if (ceoStep) {
+        const ceoApprover = getProfile(profiles, ceoStep.approver_user_id);
+        const ceoSig = sigDataUrls[ceoStep.id] || null;
+        if (ceoStep.status === 'approved' && ceoSig) {
+          ceoContent += `<div style="text-align:center;padding:8px 0;"><img src="${ceoSig}" style="height:50px;object-fit:contain;" /></div>`;
+        } else if (ceoStep.status === 'approved') {
+          ceoContent += `<div style="text-align:center;padding:12px 0;font-size:10px;font-style:italic;color:#666;">[Digitally Approved]</div>`;
+        } else {
+          ceoContent += `<div style="height:50px;"></div>`;
+        }
+        ceoContent += `<div style="border-top:1px solid #ccc;padding-top:4px;margin-top:4px;">
+          <p style="font-size:10px;font-weight:bold;margin:0;">${ceoApprover?.full_name || 'Unknown'}</p>
+          ${ceoApprover?.job_title ? `<p style="font-size:9px;margin:0;">${ceoApprover.job_title}</p>` : ''}
+          <p style="font-size:9px;color:#666;font-weight:bold;text-transform:uppercase;margin:0;">– APPROVE</p>
+          <p style="font-size:10px;margin:2px 0 0;"><strong>Date:</strong> ${ceoStep.signed_at ? format(new Date(ceoStep.signed_at), 'dd/MM/yyyy') : ''}</p>
+        </div>`;
+      }
+
+      approvalsHtml = `
+        <div style="margin:16px 0;page-break-inside:avoid;">
+          <div style="background:#c00;color:#fff;text-align:center;padding:8px;font-weight:bold;font-size:14px;letter-spacing:3px;text-transform:uppercase;">
+            Approvals
+          </div>
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+            <tr>
+              <td style="border:1px solid #000;padding:6px 8px;font-weight:bold;font-size:11px;text-align:center;background:#f5f5f5;">Finance Dept.</td>
+              <td style="border:1px solid #000;padding:6px 8px;font-weight:bold;font-size:11px;text-align:center;background:#f5f5f5;">GM / COO / CAO / CFO</td>
+              <td style="border:1px solid #000;padding:6px 8px;font-weight:bold;font-size:11px;text-align:center;background:#f5f5f5;">CEO / Chairman</td>
+            </tr>
+            <tr>
+              <td style="border:1px solid #000;padding:8px;vertical-align:top;min-height:120px;">${financeContent || '<div style="height:80px;"></div>'}</td>
+              <td style="border:1px solid #000;padding:8px;vertical-align:top;min-height:120px;">${executiveContent || '<div style="height:80px;"></div>'}</td>
+              <td style="border:1px solid #000;padding:8px;vertical-align:top;min-height:120px;">${ceoContent || '<div style="height:80px;"></div>'}</td>
+            </tr>
+          </table>
+        </div>`;
+    } else {
+      // Fallback: generic rows-of-3 layout (existing behavior)
+      const rows: string[] = [];
+      for (let i = 0; i < approvalSteps.length; i += 3) {
+        const rowSteps = approvalSteps.slice(i, i + 3);
+        const cells = rowSteps.map(step => {
+          const approver = getProfile(profiles, step.approver_user_id);
+          return buildApprovalStepHtml(step, approver, sigDataUrls[step.id] || null, registeredByProfiles[step.id]);
+        }).join('');
+        const emptyCells = Array(3 - rowSteps.length).fill('<td style="border:1px solid #000;padding:8px;"></td>').join('');
+        rows.push(`<tr>${cells}${emptyCells}</tr>`);
+      }
+      approvalsHtml = `
+        <div style="margin:16px 0;page-break-inside:avoid;">
+          <div style="background:#c00;color:#fff;text-align:center;padding:8px;font-weight:bold;font-size:14px;letter-spacing:3px;text-transform:uppercase;">
+            Approvals
+          </div>
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">${rows.join('')}</table>
+        </div>`;
     }
-    approvalsHtml = `
-      <div style="margin:16px 0;page-break-inside:avoid;">
-        <div style="background:#c00;color:#fff;text-align:center;padding:8px;font-weight:bold;font-size:14px;letter-spacing:3px;text-transform:uppercase;">
-          Approvals
-        </div>
-        <table style="width:100%;border-collapse:collapse;table-layout:fixed;">${rows.join('')}</table>
-      </div>`;
   }
 
   // Comments
@@ -358,10 +459,16 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
       ${approvalsHtml}
     </div>
 
-    <!-- Footer -->
-    <div class="memo-footer" style="padding:8px 16px;font-size:8px;color:#999;border-top:1px solid #ddd;page-break-inside:avoid;">
-      <p>HRA 09/00/T/I/01 &nbsp;&bull;&nbsp; Version 1.3 &nbsp;&bull;&nbsp; For Internal Use</p>
-      ${confidentialityHtml}
+    <!-- Footer with QR code -->
+    <div class="memo-footer" style="padding:8px 16px;font-size:8px;color:#999;border-top:1px solid #ddd;page-break-inside:avoid;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <p>HRA 09/00/T/I/01 &nbsp;&bull;&nbsp; Version 1.3 &nbsp;&bull;&nbsp; For Internal Use</p>
+        ${confidentialityHtml}
+      </div>
+      <div style="text-align:right;">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(`https://hm-memo.lovable.app/memos/${memo.id}`)}" style="width:60px;height:60px;" />
+        <p style="font-size:6px;margin-top:2px;">Scan to verify</p>
+      </div>
     </div>
   </div>
 

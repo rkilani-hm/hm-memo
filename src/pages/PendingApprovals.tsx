@@ -38,7 +38,7 @@ import {
   Clock,
   FileText,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 
 type ActionType = 'approved' | 'rejected' | 'rework';
 
@@ -312,6 +312,7 @@ const PendingApprovals = () => {
                   <TableHead>From</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Days Pending</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -333,6 +334,20 @@ const PendingApprovals = () => {
                       <TableCell>{dept?.name || '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {format(new Date(memo.created_at), 'dd/MM/yyyy')}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const days = differenceInDays(new Date(), new Date(step.created_at));
+                          return (
+                            <Badge className={`text-xs ${
+                              days >= 5 ? 'bg-destructive/10 text-destructive' :
+                              days >= 2 ? 'bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]' :
+                              'bg-muted text-muted-foreground'
+                            }`}>
+                              {days}d
+                            </Badge>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">

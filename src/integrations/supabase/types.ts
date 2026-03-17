@@ -33,6 +33,7 @@ export type Database = {
           signature_image_url: string | null
           signed_at: string | null
           signing_method: string | null
+          stage_level: string | null
           status: Database["public"]["Enums"]["approval_status"]
           step_order: number
           updated_at: string
@@ -55,6 +56,7 @@ export type Database = {
           signature_image_url?: string | null
           signed_at?: string | null
           signing_method?: string | null
+          stage_level?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           step_order: number
           updated_at?: string
@@ -77,6 +79,7 @@ export type Database = {
           signature_image_url?: string | null
           signed_at?: string | null
           signing_method?: string | null
+          stage_level?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           step_order?: number
           updated_at?: string
@@ -412,6 +415,7 @@ export type Database = {
           initials: string | null
           memo_types: Database["public"]["Enums"]["memo_type"][]
           reviewer_user_id: string | null
+          revision_count: number
           status: Database["public"]["Enums"]["memo_status"]
           subject: string
           to_user_id: string | null
@@ -431,6 +435,7 @@ export type Database = {
           initials?: string | null
           memo_types?: Database["public"]["Enums"]["memo_type"][]
           reviewer_user_id?: string | null
+          revision_count?: number
           status?: Database["public"]["Enums"]["memo_status"]
           subject: string
           to_user_id?: string | null
@@ -450,6 +455,7 @@ export type Database = {
           initials?: string | null
           memo_types?: Database["public"]["Enums"]["memo_type"][]
           reviewer_user_id?: string | null
+          revision_count?: number
           status?: Database["public"]["Enums"]["memo_status"]
           subject?: string
           to_user_id?: string | null
