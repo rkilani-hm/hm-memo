@@ -63,9 +63,12 @@ const PrintPreviewDialog = ({ open, onClose, htmlContent, onPrint, savedPreferen
         </Alert>
 
         <div className="flex gap-4 flex-1 min-h-0">
-          {/* Preview area */}
-          <div className="flex-1 border border-border rounded-lg overflow-auto bg-muted/30 p-4">
-            <div className="text-xs text-muted-foreground text-center mb-2 font-medium">
+          {/* Preview area — simulates Chrome print preview */}
+          <div
+            className="flex-1 rounded-lg overflow-auto p-6 flex flex-col items-center"
+            style={{ background: '#525659' }}
+          >
+            <div className="text-xs text-white/60 text-center mb-3 font-medium">
               Front Page
             </div>
             <div
@@ -73,43 +76,51 @@ const PrintPreviewDialog = ({ open, onClose, htmlContent, onPrint, savedPreferen
                 transform: `scale(${zoom / 100})`,
                 transformOrigin: 'top center',
                 width: `${100 / (zoom / 100)}%`,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
               }}
             >
               <div
-                className="bg-white shadow-lg mx-auto"
+                className="a4-page-frame"
                 style={{
                   width: '210mm',
                   minHeight: '297mm',
-                  padding: '15mm',
-                  border: '1px dashed hsl(var(--border))',
+                  background: 'white',
+                  padding: '20mm 15mm',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
                   position: 'relative',
                 }}
               >
                 <iframe
                   srcDoc={previewHtml}
                   className="w-full border-0"
-                  style={{ minHeight: '267mm', pointerEvents: 'none' }}
+                  style={{ minHeight: '257mm', pointerEvents: 'none' }}
                   title="Print Preview"
                 />
               </div>
+
+              {prefs.blankBackPages && (
+                <>
+                  <div className="text-xs text-white/60 text-center mt-6 mb-3 font-medium">
+                    Back Page (Blank)
+                  </div>
+                  <div
+                    style={{
+                      width: '210mm',
+                      height: '297mm',
+                      background: 'white',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <span style={{ color: '#ccc', fontSize: '18px', fontWeight: 300 }}>Blank</span>
+                  </div>
+                </>
+              )}
             </div>
-            {prefs.blankBackPages && (
-              <>
-                <div className="text-xs text-muted-foreground text-center mt-6 mb-2 font-medium">
-                  Back Page (Blank)
-                </div>
-                <div
-                  className="bg-white shadow-lg mx-auto flex items-center justify-center"
-                  style={{
-                    width: `calc(210mm * ${zoom / 100})`,
-                    height: `calc(297mm * ${zoom / 100})`,
-                    border: '1px dashed hsl(var(--border))',
-                  }}
-                >
-                  <span className="text-muted-foreground/30 text-lg font-light">Blank</span>
-                </div>
-              </>
-            )}
           </div>
 
           {/* Settings sidebar */}
