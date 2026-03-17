@@ -1170,6 +1170,42 @@ const MemoView = () => {
         onPrint={handlePrintFromPreview}
         savedPreferences={savedPrintPrefs}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Delete Memo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-foreground">
+              Are you sure you want to permanently delete memo <strong>{memo.transmittal_no}</strong>?
+            </p>
+            <p className="text-sm text-muted-foreground">
+              This will remove the memo and all associated data including approval steps, attachments, version history, notifications, and audit logs. This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                deleteMutation.mutate();
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete Permanently'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
