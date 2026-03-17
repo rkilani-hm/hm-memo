@@ -14,6 +14,7 @@ interface WorkflowStep {
   is_required?: boolean;
   parallel_group?: number | null;
   deadline?: string | null;
+  stage_level?: string | null;
 }
 
 // Resolve IP to city/country via ip-api.com (non-blocking, best-effort)
