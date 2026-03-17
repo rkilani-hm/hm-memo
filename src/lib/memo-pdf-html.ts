@@ -273,10 +273,10 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   </style>
 </head>
 <body>
-  <div style="max-width:700px;margin:0 auto;border:1px solid #333;">
+  <div class="memo-print-container" style="max-width:700px;margin:0 auto;border:0.5pt solid #333;">
     
     <!-- HEADER -->
-    <div class="memo-header-table" style="display:flex;align-items:flex-end;justify-content:space-between;padding:20px 24px 16px;">
+    <div class="memo-header memo-header-table" style="display:flex;align-items:flex-end;justify-content:space-between;padding:20px 24px 16px;">
       <img src="${logoDataUrl}" style="height:100px;object-fit:contain;" />
       <div style="text-align:right;">
         <h1 style="font-size:24px;font-weight:bold;letter-spacing:2px;margin:0;">INTERNAL MEMO</h1>
