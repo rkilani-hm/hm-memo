@@ -138,6 +138,16 @@ const MemoCreate = () => {
 
       const copiesArray = copiesTo;
 
+      // Derive initials from reviewer
+      const reviewerProfile = reviewerUserId ? profiles.find(p => p.user_id === reviewerUserId) : null;
+      const derivedInitials = reviewerProfile
+        ? (() => {
+            const parts = reviewerProfile.full_name.trim().split(' ');
+            if (parts.length === 1) return parts[0][0].toUpperCase();
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+          })()
+        : null;
+
       const { data: memo, error: memoError } = await supabase
         .from('memos')
         .insert({
@@ -150,9 +160,10 @@ const MemoCreate = () => {
           status: status === 'draft' ? 'draft' : 'submitted',
           memo_types: memoTypes,
           continuation_pages: continuationPages,
-          initials: initials.trim() || null,
+          initials: derivedInitials || '--',
           copies_to: copiesArray.length > 0 ? copiesArray : null,
-        })
+          reviewer_user_id: reviewerUserId || null,
+        } as any)
         .select()
         .single();
 
