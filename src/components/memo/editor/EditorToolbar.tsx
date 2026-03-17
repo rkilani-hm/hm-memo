@@ -1,5 +1,18 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Editor } from '@tiptap/react';
+import type {} from '@tiptap/starter-kit';
+import type {} from '@tiptap/extension-underline';
+import type {} from '@tiptap/extension-text-style';
+import type {} from '@tiptap/extension-font-family';
+import type {} from '@tiptap/extension-color';
+import type {} from '@tiptap/extension-highlight';
+import type {} from '@tiptap/extension-text-align';
+import type {} from '@tiptap/extension-link';
+import type {} from '@tiptap/extension-image';
+import type {} from '@tiptap/extension-task-list';
+import type {} from '@tiptap/extension-subscript';
+import type {} from '@tiptap/extension-superscript';
+import type {} from '@tiptap/extension-table';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';

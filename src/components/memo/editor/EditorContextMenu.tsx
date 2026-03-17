@@ -1,4 +1,8 @@
 import { Editor } from '@tiptap/react';
+import type {} from '@tiptap/starter-kit';
+import type {} from '@tiptap/extension-underline';
+import type {} from '@tiptap/extension-link';
+import type {} from '@tiptap/extension-table';
 import {
   ContextMenu,
   ContextMenuContent,
