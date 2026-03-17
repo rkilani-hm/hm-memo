@@ -459,10 +459,16 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
       ${approvalsHtml}
     </div>
 
-    <!-- Footer -->
-    <div class="memo-footer" style="padding:8px 16px;font-size:8px;color:#999;border-top:1px solid #ddd;page-break-inside:avoid;">
-      <p>HRA 09/00/T/I/01 &nbsp;&bull;&nbsp; Version 1.3 &nbsp;&bull;&nbsp; For Internal Use</p>
-      ${confidentialityHtml}
+    <!-- Footer with QR code -->
+    <div class="memo-footer" style="padding:8px 16px;font-size:8px;color:#999;border-top:1px solid #ddd;page-break-inside:avoid;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <p>HRA 09/00/T/I/01 &nbsp;&bull;&nbsp; Version 1.3 &nbsp;&bull;&nbsp; For Internal Use</p>
+        ${confidentialityHtml}
+      </div>
+      <div style="text-align:right;">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(`https://hm-memo.lovable.app/memos/${memo.id}`)}" style="width:60px;height:60px;" />
+        <p style="font-size:6px;margin-top:2px;">Scan to verify</p>
+      </div>
     </div>
   </div>
 
