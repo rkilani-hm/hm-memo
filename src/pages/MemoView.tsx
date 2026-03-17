@@ -599,11 +599,7 @@ const MemoView = () => {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => {
-                if (confirm(`Are you sure you want to permanently delete memo ${memo.transmittal_no}? This action cannot be undone.`)) {
-                  deleteMutation.mutate();
-                }
-              }}
+              onClick={() => setDeleteDialogOpen(true)}
               disabled={deleteMutation.isPending}
             >
               <Trash2 className="h-4 w-4 mr-2" />
