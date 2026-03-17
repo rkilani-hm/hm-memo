@@ -59,7 +59,7 @@ function buildApprovalStepHtml(
     : '';
 
   return `
-    <td style="border:1px solid #333;padding:8px;vertical-align:top;min-width:140px;width:33%;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;">
+    <td style="border:0.5pt solid #333;padding:8px;vertical-align:top;min-width:140px;width:33%;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;">
       ${sigArea}
       <div style="border-top:1px solid #ccc;padding-top:4px;margin-top:4px;">
         <p style="font-size:10px;font-weight:bold;margin:0;line-height:1.3;white-space:normal;word-wrap:break-word;overflow-wrap:break-word;">
