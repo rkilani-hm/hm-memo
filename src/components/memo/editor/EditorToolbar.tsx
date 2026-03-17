@@ -412,13 +412,13 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
         icon={<Type className="h-3.5 w-3.5" />}
         title="Font Color"
         currentColor={editor.getAttributes('textStyle').color}
-        onSelect={(color) => editor.chain().focus().setColor(color).run()}
+        onSelect={(color) => cmd(editor).setColor(color).run()}
       />
       <ColorPickerPopover
         icon={<Highlighter className="h-3.5 w-3.5" />}
         title="Highlight Color"
         currentColor={editor.getAttributes('highlight').color}
-        onSelect={(color) => editor.chain().focus().toggleHighlight({ color }).run()}
+        onSelect={(color) => cmd(editor).toggleHighlight({ color }).run()}
       />
 
       <Separator orientation="vertical" className="h-5 mx-0.5" />
