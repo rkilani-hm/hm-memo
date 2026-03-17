@@ -109,6 +109,7 @@ const MemoEdit = () => {
       setMemoTypes((memo.memo_types || []) as MemoType[]);
       setContinuationPages(memo.continuation_pages || 0);
       setInitials(memo.initials || '');
+      setReviewerUserId((memo as any).reviewer_user_id || '');
       setCopiesTo(memo.copies_to || []);
       setLoaded(true);
     }
