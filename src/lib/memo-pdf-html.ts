@@ -295,12 +295,12 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
         <td style="width:50%;padding:0;vertical-align:top;">
           <table style="width:100%;border-collapse:collapse;">
             <tr>
-              <td style="background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;width:120px;border:1px solid #333;">TRANSMITTAL NO:</td>
+              <td style="background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;width:120px;border:1px solid #000;">TRANSMITTAL NO:</td>
               <td style="padding:8px 12px;font-weight:bold;font-family:monospace;border:none;">${memo.transmittal_no}</td>
             </tr>
             <tr>
-              <td style="background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;border-top:1px solid #333;border-left:1px solid #333;border-bottom:none;border-right:none;">DATE:</td>
-              <td style="padding:8px 12px;border-top:1px solid #333;border-left:none;border-bottom:none;border-right:none;">${format(new Date(memo.date), "do MMMM yyyy")}</td>
+              <td style="background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;border-top:1px solid #000;border-left:1px solid #000;border-bottom:none;border-right:none;">DATE:</td>
+              <td style="padding:8px 12px;border-top:1px solid #000;border-left:none;border-bottom:none;border-right:none;">${format(new Date(memo.date), "do MMMM yyyy")}</td>
             </tr>
           </table>
         </td>
