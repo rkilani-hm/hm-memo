@@ -250,7 +250,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     <!-- DESCRIPTION -->
     <div style="border-top:1px solid #333;padding:12px 16px;">
       <p style="font-size:10px;font-weight:bold;text-transform:uppercase;margin-bottom:8px;">Description:</p>
-      <div style="font-size:11px;line-height:1.6;">${memo.description || '<p>No description.</p>'}</div>
+      <div class="memo-body" style="font-size:11px;line-height:1.6;">${memo.description || '<p>No description.</p>'}</div>
 
       <!-- Sender Signature -->
       <div class="memo-signature-block" style="text-align:right;margin-top:32px;margin-bottom:16px;page-break-inside:avoid;">
