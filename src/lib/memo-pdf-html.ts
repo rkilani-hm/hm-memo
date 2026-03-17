@@ -273,7 +273,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   </style>
 </head>
 <body>
-  <div class="memo-print-container" style="max-width:700px;margin:0 auto;border:0.5pt solid #333;">
+  <div class="memo-print-container" style="max-width:700px;margin:0 auto;border:1px solid #000;">
     
     <!-- HEADER -->
     <div class="memo-header memo-header-table" style="display:flex;align-items:flex-end;justify-content:space-between;padding:20px 24px 16px;">
