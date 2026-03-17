@@ -737,7 +737,7 @@ const MemoView = () => {
           <div className="border-b border-foreground/30 px-4 py-3">
             <p className="text-xs font-bold uppercase mb-2">Description:</p>
             <div
-              className="prose prose-sm max-w-none text-foreground"
+              className="prose prose-sm max-w-none text-foreground memo-body-preview"
               dangerouslySetInnerHTML={{ __html: memo.description || '<p>No description.</p>' }}
             />
 
