@@ -490,7 +490,7 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
 
       {/* Insert */}
       <TablePickerPopover editor={editor} />
-      <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal Rule">
+      <ToolbarButton onClick={() => cmd(editor).setHorizontalRule().run()} title="Horizontal Rule">
         <Minus className="h-3.5 w-3.5" />
       </ToolbarButton>
       <LinkPopover editor={editor} />
