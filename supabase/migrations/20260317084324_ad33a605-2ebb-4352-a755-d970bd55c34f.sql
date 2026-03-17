@@ -1,0 +1,1 @@
+ALTER TABLE public.memos ADD COLUMN reviewer_user_id uuid;

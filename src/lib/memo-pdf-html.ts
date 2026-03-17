@@ -259,7 +259,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
       <div class="memo-footer-counts" style="border-top:1px solid #ccc;padding-top:8px;text-align:center;font-size:10px;display:flex;justify-content:center;gap:24px;page-break-inside:avoid;">
         <span>No. of Continuation Pages: <strong>${String(memo.continuation_pages || 0).padStart(2, '0')}</strong></span>
         <span>No. of Attachments: <strong>${String(attachments.length).padStart(2, '0')}</strong></span>
-        <span style="font-weight:bold;">${memo.initials || ''}</span>
+        <span style="font-weight:bold;">${memo.initials || '--'}</span>
       </div>
     </div>
 

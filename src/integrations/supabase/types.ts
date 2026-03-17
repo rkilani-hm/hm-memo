@@ -411,6 +411,7 @@ export type Database = {
           id: string
           initials: string | null
           memo_types: Database["public"]["Enums"]["memo_type"][]
+          reviewer_user_id: string | null
           status: Database["public"]["Enums"]["memo_status"]
           subject: string
           to_user_id: string | null
@@ -429,6 +430,7 @@ export type Database = {
           id?: string
           initials?: string | null
           memo_types?: Database["public"]["Enums"]["memo_type"][]
+          reviewer_user_id?: string | null
           status?: Database["public"]["Enums"]["memo_status"]
           subject: string
           to_user_id?: string | null
@@ -447,6 +449,7 @@ export type Database = {
           id?: string
           initials?: string | null
           memo_types?: Database["public"]["Enums"]["memo_type"][]
+          reviewer_user_id?: string | null
           status?: Database["public"]["Enums"]["memo_status"]
           subject?: string
           to_user_id?: string | null

@@ -41,7 +41,8 @@ const MemoCreate = () => {
   const [description, setDescription] = useState('');
   const [memoTypes, setMemoTypes] = useState<MemoType[]>([]);
   const [continuationPages, setContinuationPages] = useState(0);
-  const [initials, setInitials] = useState(profile?.initials || '');
+  const [reviewerUserId, setReviewerUserId] = useState('');
+  const [initials, setInitials] = useState('');
   const [copiesTo, setCopiesTo] = useState<string[]>([]);
   const [files, setFiles] = useState<FileAttachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -137,6 +138,16 @@ const MemoCreate = () => {
 
       const copiesArray = copiesTo;
 
+      // Derive initials from reviewer
+      const reviewerProfile = reviewerUserId ? profiles.find(p => p.user_id === reviewerUserId) : null;
+      const derivedInitials = reviewerProfile
+        ? (() => {
+            const parts = reviewerProfile.full_name.trim().split(' ');
+            if (parts.length === 1) return parts[0][0].toUpperCase();
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+          })()
+        : null;
+
       const { data: memo, error: memoError } = await supabase
         .from('memos')
         .insert({
@@ -149,9 +160,10 @@ const MemoCreate = () => {
           status: status === 'draft' ? 'draft' : 'submitted',
           memo_types: memoTypes,
           continuation_pages: continuationPages,
-          initials: initials.trim() || null,
+          initials: derivedInitials || '--',
           copies_to: copiesArray.length > 0 ? copiesArray : null,
-        })
+          reviewer_user_id: reviewerUserId || null,
+        } as any)
         .select()
         .single();
 
@@ -344,13 +356,32 @@ const MemoCreate = () => {
               <Input type="text" value={files.length} disabled className="h-8 bg-muted" />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">Reviewer</Label>
+              <Select value={reviewerUserId} onValueChange={setReviewerUserId}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select reviewer..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.user_id} value={p.user_id}>
+                      {p.full_name} — {p.job_title || 'No title'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs font-bold uppercase text-muted-foreground">Initials</Label>
               <Input
-                value={initials}
-                onChange={(e) => setInitials(e.target.value.slice(0, 4))}
-                placeholder="e.g. MK"
-                className="h-8"
-                maxLength={4}
+                value={(() => {
+                  const rp = profiles.find(p => p.user_id === reviewerUserId);
+                  if (!rp) return '--';
+                  const parts = rp.full_name.trim().split(' ');
+                  if (parts.length === 1) return parts[0][0].toUpperCase();
+                  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                })()}
+                disabled
+                className="h-8 bg-muted font-bold"
               />
             </div>
             <div className="col-span-2 md:col-span-4 space-y-1">

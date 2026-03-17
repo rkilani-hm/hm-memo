@@ -764,7 +764,16 @@ const MemoView = () => {
             <div className="flex items-center justify-center gap-8 text-xs mt-4 pt-2 border-t border-foreground/20">
               <span>No. of Continuation Pages: <strong>{String(memo.continuation_pages || 0).padStart(2, '0')}</strong></span>
               <span>No. of Attachments: <strong>{String(attachments.length).padStart(2, '0')}</strong></span>
-              <span className="font-bold">{memo.initials || ''}</span>
+              <span className="font-bold">{(() => {
+                if (memo.initials) return memo.initials;
+                const reviewerId = (memo as any).reviewer_user_id;
+                if (!reviewerId) return '--';
+                const rp = profiles.find(p => p.user_id === reviewerId);
+                if (!rp) return '--';
+                const parts = rp.full_name.trim().split(' ');
+                if (parts.length === 1) return parts[0][0].toUpperCase();
+                return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+              })()}</span>
             </div>
           </div>
 
