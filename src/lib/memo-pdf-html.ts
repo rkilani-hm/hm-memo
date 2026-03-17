@@ -356,11 +356,11 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     <!-- ACTION REQUIRED / COMMENTS -->
     <table class="memo-action-comments" style="width:100%;border-collapse:collapse;page-break-inside:avoid;">
       <tr>
-        <td style="width:120px;border:1px solid #333;padding:6px 12px;font-size:10px;font-weight:bold;vertical-align:top;">
+        <td style="width:120px;border:1px solid #000;padding:6px 12px;font-size:10px;font-weight:bold;vertical-align:top;">
           <p>ACTION REQUIRED:</p>
           <p style="margin-top:4px;">COMMENTS IF ANY:</p>
         </td>
-        <td style="border:1px solid #333;padding:6px 12px;">${commentsHtml}</td>
+        <td style="border:1px solid #000;padding:6px 12px;">${commentsHtml}</td>
       </tr>
     </table>
 
