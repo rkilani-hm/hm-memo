@@ -593,6 +593,21 @@ const MemoView = () => {
               {recallMutation.isPending ? 'Recalling...' : 'Recall'}
             </Button>
           )}
+          {isAdmin && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (confirm(`Are you sure you want to permanently delete memo ${memo.transmittal_no}? This action cannot be undone.`)) {
+                  deleteMutation.mutate();
+                }
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          )}
           <Button variant="outline" onClick={handleOpenPrintPreview} disabled={pdfGenerating}>
             <FileDown className="h-4 w-4 mr-2" />
             {pdfGenerating ? 'Generating...' : 'Print / Export PDF'}
