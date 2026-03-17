@@ -404,10 +404,11 @@ const Settings = () => {
                       width={500}
                       height={150}
                       className="w-full cursor-crosshair"
-                      onMouseDown={sigDraw.startDraw}
-                      onMouseMove={sigDraw.draw}
-                      onMouseUp={sigDraw.endDraw}
-                      onMouseLeave={sigDraw.endDraw}
+                      style={{ touchAction: 'none' }}
+                      onMouseDown={sigDraw.onMouseDown}
+                      onMouseMove={sigDraw.onMouseMove}
+                      onMouseUp={sigDraw.onMouseUp}
+                      onMouseLeave={sigDraw.onMouseUp}
                     />
                   </div>
                   <div className="flex gap-2">
