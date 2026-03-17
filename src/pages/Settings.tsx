@@ -273,6 +273,7 @@ const Settings = () => {
     return () => { cleanupSig(); cleanupIni(); };
   }, [sigDraw, iniDraw]);
 
+  const saveDrawnSignature = async () => {
     const canvas = sigCanvasRef.current;
     if (!canvas || !user) return;
     setUploading(true);
