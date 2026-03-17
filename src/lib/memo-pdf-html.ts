@@ -365,12 +365,12 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     </table>
 
     <!-- APPROVALS -->
-    <div class="memo-approvals">
+    <div class="memo-approvals memo-approvals-section">
       ${approvalsHtml}
     </div>
 
     <!-- Footer -->
-    <div style="padding:8px 16px;font-size:8px;color:#999;border-top:1px solid #ddd;page-break-inside:avoid;">
+    <div class="memo-footer" style="padding:8px 16px;font-size:8px;color:#999;border-top:0.5pt solid #ddd;page-break-inside:avoid;">
       <p>HRA 09/00/T/I/01 &nbsp;&bull;&nbsp; Version 1.3 &nbsp;&bull;&nbsp; For Internal Use</p>
       ${confidentialityHtml}
     </div>
