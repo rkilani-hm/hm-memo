@@ -85,6 +85,8 @@ const MemoView = () => {
   const [signatureMode, setSignatureMode] = useState<'saved' | 'draw'>('saved');
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   const { data: memo, isLoading: memoLoading } = useQuery({
     queryKey: ['memo', id],
