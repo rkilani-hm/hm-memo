@@ -476,13 +476,13 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
       {/* Lists */}
-      <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Bullet List">
+      <ToolbarButton onClick={() => cmd(editor).toggleBulletList().run()} active={editor.isActive('bulletList')} title="Bullet List">
         <List className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} title="Numbered List">
+      <ToolbarButton onClick={() => cmd(editor).toggleOrderedList().run()} active={editor.isActive('orderedList')} title="Numbered List">
         <ListOrdered className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive('taskList')} title="Task List">
+      <ToolbarButton onClick={() => cmd(editor).toggleTaskList().run()} active={editor.isActive('taskList')} title="Task List">
         <CheckSquare className="h-3.5 w-3.5" />
       </ToolbarButton>
 
