@@ -178,6 +178,16 @@ const MemoEdit = () => {
         await supabase.from('approval_steps').delete().eq('memo_id', memo.id);
       }
 
+      // Derive initials from reviewer
+      const reviewerProfile = reviewerUserId ? profiles.find(p => p.user_id === reviewerUserId) : null;
+      const derivedInitials = reviewerProfile
+        ? (() => {
+            const parts = reviewerProfile.full_name.trim().split(' ');
+            if (parts.length === 1) return parts[0][0].toUpperCase();
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+          })()
+        : '--';
+
       const { error: updateError } = await supabase
         .from('memos')
         .update({
@@ -188,10 +198,11 @@ const MemoEdit = () => {
           status: status === 'draft' ? 'draft' : 'submitted',
           memo_types: memoTypes,
           continuation_pages: continuationPages,
-          initials: initials.trim() || null,
+          initials: derivedInitials,
           copies_to: copiesArray.length > 0 ? copiesArray : null,
           current_step: status === 'draft' ? 0 : memo.current_step,
-        })
+          reviewer_user_id: reviewerUserId || null,
+        } as any)
         .eq('id', memo.id);
 
       if (updateError) throw updateError;
