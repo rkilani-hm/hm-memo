@@ -41,7 +41,8 @@ const MemoCreate = () => {
   const [description, setDescription] = useState('');
   const [memoTypes, setMemoTypes] = useState<MemoType[]>([]);
   const [continuationPages, setContinuationPages] = useState(0);
-  const [initials, setInitials] = useState(profile?.initials || '');
+  const [reviewerUserId, setReviewerUserId] = useState('');
+  const [initials, setInitials] = useState('');
   const [copiesTo, setCopiesTo] = useState<string[]>([]);
   const [files, setFiles] = useState<FileAttachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
