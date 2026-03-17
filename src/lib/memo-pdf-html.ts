@@ -59,7 +59,7 @@ function buildApprovalStepHtml(
     : '';
 
   return `
-    <td style="border:0.5pt solid #333;padding:8px;vertical-align:top;min-width:140px;width:33%;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;">
+    <td style="border:1px solid #000;padding:8px;vertical-align:top;min-width:140px;width:33%;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;">
       ${sigArea}
       <div style="border-top:1px solid #ccc;padding-top:4px;margin-top:4px;">
         <p style="font-size:10px;font-weight:bold;margin:0;line-height:1.3;white-space:normal;word-wrap:break-word;overflow-wrap:break-word;">
@@ -101,7 +101,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
         const approver = getProfile(profiles, step.approver_user_id);
         return buildApprovalStepHtml(step, approver, sigDataUrls[step.id] || null, registeredByProfiles[step.id]);
       }).join('');
-      const emptyCells = Array(3 - rowSteps.length).fill('<td style="border:0.5pt solid #333;padding:8px;"></td>').join('');
+      const emptyCells = Array(3 - rowSteps.length).fill('<td style="border:1px solid #000;padding:8px;"></td>').join('');
       rows.push(`<tr>${cells}${emptyCells}</tr>`);
     }
     approvalsHtml = `
@@ -246,7 +246,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
        TABLE STYLING — single-border discipline
     ============================================= */
     table { border-collapse: collapse; }
-    .header-table td { border: 0.5pt solid #333; }
+    .header-table td { border: 1px solid #000; }
 
     /* Memo body (description) tables — user-inserted via rich text editor */
     .memo-body table {
@@ -257,7 +257,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     }
     .memo-body table td,
     .memo-body table th {
-      border: 0.5pt solid #000000 !important;
+      border: 1px solid #000 !important;
       padding: 5pt 8pt !important;
       vertical-align: top !important;
     }
@@ -268,12 +268,12 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     .memo-layout-table td,
     .memo-layout-table th {
       border-collapse: collapse !important;
-      border: 0.5pt solid #333 !important;
+      border: 1px solid #000 !important;
     }
   </style>
 </head>
 <body>
-  <div class="memo-print-container" style="max-width:700px;margin:0 auto;border:0.5pt solid #333;">
+  <div class="memo-print-container" style="max-width:700px;margin:0 auto;border:1px solid #000;">
     
     <!-- HEADER -->
     <div class="memo-header memo-header-table" style="display:flex;align-items:flex-end;justify-content:space-between;padding:20px 24px 16px;">
@@ -295,12 +295,12 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
         <td style="width:50%;padding:0;vertical-align:top;">
           <table style="width:100%;border-collapse:collapse;">
             <tr>
-              <td style="background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;width:120px;border:1px solid #333;">TRANSMITTAL NO:</td>
+              <td style="background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;width:120px;border:1px solid #000;">TRANSMITTAL NO:</td>
               <td style="padding:8px 12px;font-weight:bold;font-family:monospace;border:none;">${memo.transmittal_no}</td>
             </tr>
             <tr>
-              <td style="background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;border-top:1px solid #333;border-left:1px solid #333;border-bottom:none;border-right:none;">DATE:</td>
-              <td style="padding:8px 12px;border-top:1px solid #333;border-left:none;border-bottom:none;border-right:none;">${format(new Date(memo.date), "do MMMM yyyy")}</td>
+              <td style="background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;border-top:1px solid #000;border-left:1px solid #000;border-bottom:none;border-right:none;">DATE:</td>
+              <td style="padding:8px 12px;border-top:1px solid #000;border-left:none;border-bottom:none;border-right:none;">${format(new Date(memo.date), "do MMMM yyyy")}</td>
             </tr>
           </table>
         </td>
@@ -348,19 +348,19 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     <!-- COPIES TO -->
     <table class="memo-copies-to" style="width:100%;border-collapse:collapse;page-break-inside:avoid;">
       <tr>
-        <td style="width:120px;border:1px solid #333;padding:6px 12px;font-size:10px;font-weight:bold;">COPIES TO:</td>
-        <td style="border:1px solid #333;padding:6px 12px;font-size:11px;">${(memo.copies_to || []).map(id => { const p = profiles.find(pr => pr.user_id === id); if (!p) return id; const d = (data.departments || []).find(dept => dept.id === p.department_id); return p.full_name + (d ? ' – ' + d.name : ''); }).join(', ')}</td>
+        <td style="width:120px;border:1px solid #000;padding:6px 12px;font-size:10px;font-weight:bold;">COPIES TO:</td>
+        <td style="border:1px solid #000;padding:6px 12px;font-size:11px;">${(memo.copies_to || []).map(id => { const p = profiles.find(pr => pr.user_id === id); if (!p) return id; const d = (data.departments || []).find(dept => dept.id === p.department_id); return p.full_name + (d ? ' – ' + d.name : ''); }).join(', ')}</td>
       </tr>
     </table>
 
     <!-- ACTION REQUIRED / COMMENTS -->
     <table class="memo-action-comments" style="width:100%;border-collapse:collapse;page-break-inside:avoid;">
       <tr>
-        <td style="width:120px;border:1px solid #333;padding:6px 12px;font-size:10px;font-weight:bold;vertical-align:top;">
+        <td style="width:120px;border:1px solid #000;padding:6px 12px;font-size:10px;font-weight:bold;vertical-align:top;">
           <p>ACTION REQUIRED:</p>
           <p style="margin-top:4px;">COMMENTS IF ANY:</p>
         </td>
-        <td style="border:1px solid #333;padding:6px 12px;">${commentsHtml}</td>
+        <td style="border:1px solid #000;padding:6px 12px;">${commentsHtml}</td>
       </tr>
     </table>
 
@@ -370,7 +370,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     </div>
 
     <!-- Footer -->
-    <div class="memo-footer" style="padding:8px 16px;font-size:8px;color:#999;border-top:0.5pt solid #ddd;page-break-inside:avoid;">
+    <div class="memo-footer" style="padding:8px 16px;font-size:8px;color:#999;border-top:1px solid #ddd;page-break-inside:avoid;">
       <p>HRA 09/00/T/I/01 &nbsp;&bull;&nbsp; Version 1.3 &nbsp;&bull;&nbsp; For Internal Use</p>
       ${confidentialityHtml}
     </div>
