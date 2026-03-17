@@ -366,7 +366,7 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
       </Select>
 
       {/* Font Size */}
-      <Select value={getCurrentFontSize()} onValueChange={(v) => editor.chain().focus().setFontSize(`${v}px`).run()}>
+      <Select value={getCurrentFontSize()} onValueChange={(v) => cmd(editor).setFontSize(`${v}px`).run()}>
         <SelectTrigger className="h-7 w-[60px] text-xs border-0 bg-transparent shadow-none">
           <SelectValue />
         </SelectTrigger>
