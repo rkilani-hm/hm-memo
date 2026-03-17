@@ -352,7 +352,7 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
       {/* Font Family */}
-      <Select value={getCurrentFontFamily()} onValueChange={(v) => editor.chain().focus().setFontFamily(v).run()}>
+      <Select value={getCurrentFontFamily()} onValueChange={(v) => cmd(editor).setFontFamily(v).run()}>
         <SelectTrigger className="h-7 w-[120px] text-xs border-0 bg-transparent shadow-none">
           <SelectValue placeholder="Font" />
         </SelectTrigger>
