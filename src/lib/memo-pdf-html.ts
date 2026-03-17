@@ -161,38 +161,115 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Century Gothic', 'Arial', sans-serif; font-size: 12px; color: #1a1a1a; ${grayscaleCss} }
 
-    /* A4 portrait: 210mm × 297mm */
-    @page { size: A4 portrait; }
+    /* =============================================
+       PAGE SETUP — A4 portrait: 210mm × 297mm
+    ============================================= */
+    @page { size: A4 portrait; margin: 20mm 15mm 20mm 15mm; }
+    @page :first { margin-top: 10mm; }
     ${marginCss}
     ${pageNumberCss}
 
+    /* =============================================
+       GLOBAL PRINT RESET
+    ============================================= */
     @media print {
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+      }
+      body { margin: 0; padding: 0; background: white !important; }
+
+      /* Hide non-print UI elements */
+      nav, header, footer, aside,
+      .toolbar, .sidebar, .action-buttons,
+      .print-hide, .no-print,
+      button, .toast, .modal-backdrop,
+      .workflow-panel, .attachment-upload-area {
+        display: none !important;
+        visibility: hidden !important;
+      }
     }
 
-    /* Page break rules */
-    .memo-header-table { page-break-inside: avoid; }
-    .memo-subject     { page-break-inside: avoid; }
-    .memo-signature-block { page-break-inside: avoid; }
-    .memo-footer-counts { page-break-inside: avoid; }
-    .memo-copies-to   { page-break-inside: avoid; }
-    .memo-approvals   { page-break-inside: avoid; }
-    .memo-approval-card { page-break-inside: avoid; }
-    .memo-action-comments { page-break-inside: avoid; }
+    /* =============================================
+       SMART PAGE BREAK RULES
+    ============================================= */
+    /* Never break inside these structural blocks */
+    .memo-header-table,
+    .memo-subject,
+    .memo-signature-block,
+    .memo-footer-counts,
+    .memo-copies-to,
+    .memo-approvals,
+    .memo-approval-card,
+    .memo-action-comments,
+    .memo-attachments,
+    .memo-footer,
+    blockquote,
+    figure,
+    img {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+
+    /* Never break inside a table row */
+    tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+
+    /* Keep headings with following content */
+    h1, h2, h3, h4, h5, h6 {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+
+    /* Never break right after the memo header */
+    .memo-header {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+    }
 
     /* Orphan / Widow control */
-    p, div { orphans: 3; widows: 3; }
+    p { orphans: 3; widows: 3; }
 
-    /* Embedded table rows */
-    tr { page-break-inside: avoid; }
+    /* Repeat thead on every continuation page */
+    thead { display: table-header-group !important; }
+    tfoot { display: table-footer-group !important; }
+    tbody { display: table-row-group !important; }
 
+    /* =============================================
+       TABLE STYLING — single-border discipline
+    ============================================= */
     table { border-collapse: collapse; }
-    .header-table td { border: 1px solid #333; }
+    .header-table td { border: 0.5pt solid #333; }
 
     /* Memo body (description) tables — user-inserted via rich text editor */
-    .memo-body table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-    .memo-body table td, .memo-body table th { border: 1px solid #000; padding: 6px 10px; vertical-align: top; }
+    .memo-body table {
+      border-collapse: collapse !important;
+      border: none !important;
+      width: 100%;
+      margin: 12px 0;
+    }
+    .memo-body table td,
+    .memo-body table th {
+      border: 0.5pt solid #000000 !important;
+      padding: 5pt 8pt !important;
+      vertical-align: top !important;
+    }
     .memo-body table th { font-weight: bold; background-color: #f5f5f5; }
+
+    /* Structural layout tables (approvals, header etc.) — same single-border */
+    .memo-layout-table,
+    .memo-layout-table td,
+    .memo-layout-table th {
+      border-collapse: collapse !important;
+      border: 0.5pt solid #333 !important;
+    }
   </style>
 </head>
 <body>
