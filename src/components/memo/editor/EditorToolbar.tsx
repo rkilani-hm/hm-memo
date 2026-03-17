@@ -424,16 +424,16 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
       {/* Alignment */}
-      <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Align Left">
+      <ToolbarButton onClick={() => cmd(editor).setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Align Left">
         <AlignLeft className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Align Center">
+      <ToolbarButton onClick={() => cmd(editor).setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Align Center">
         <AlignCenter className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Align Right">
+      <ToolbarButton onClick={() => cmd(editor).setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Align Right">
         <AlignRight className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('justify').run()} active={editor.isActive({ textAlign: 'justify' })} title="Justify">
+      <ToolbarButton onClick={() => cmd(editor).setTextAlign('justify').run()} active={editor.isActive({ textAlign: 'justify' })} title="Justify">
         <AlignJustify className="h-3.5 w-3.5" />
       </ToolbarButton>
 
