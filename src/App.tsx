@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import GeoGate from "@/components/GeoGate";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/Login";
 import ForgotPassword from "@/pages/ForgotPassword";
@@ -34,33 +35,35 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/force-password-reset" element={<ForcePasswordReset />} />
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/memos" element={<MemoList />} />
-              <Route path="/memos/create" element={<MemoCreate />} />
-              <Route path="/memos/:id/edit" element={<MemoEdit />} />
-              <Route path="/memos/:id" element={<MemoView />} />
-              <Route path="/approvals" element={<PendingApprovals />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/help" element={<HelpGuide />} />
-              <Route path="/admin/users" element={<UserManagement />} />
-              <Route path="/admin/departments" element={<DepartmentManagement />} />
-              <Route path="/admin/workflows" element={<WorkflowManagement />} />
-              <Route path="/admin/delegates" element={<DelegateManagement />} />
-              <Route path="/admin/audit-log" element={<AuditLog />} />
-              <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
-              <Route path="/admin/cross-dept-rules" element={<CrossDeptRules />} />
-              <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
+        <GeoGate>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/force-password-reset" element={<ForcePasswordReset />} />
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/memos" element={<MemoList />} />
+                <Route path="/memos/create" element={<MemoCreate />} />
+                <Route path="/memos/:id/edit" element={<MemoEdit />} />
+                <Route path="/memos/:id" element={<MemoView />} />
+                <Route path="/approvals" element={<PendingApprovals />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/help" element={<HelpGuide />} />
+                <Route path="/admin/users" element={<UserManagement />} />
+                <Route path="/admin/departments" element={<DepartmentManagement />} />
+                <Route path="/admin/workflows" element={<WorkflowManagement />} />
+                <Route path="/admin/delegates" element={<DelegateManagement />} />
+                <Route path="/admin/audit-log" element={<AuditLog />} />
+                <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
+                <Route path="/admin/cross-dept-rules" element={<CrossDeptRules />} />
+                <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </GeoGate>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
