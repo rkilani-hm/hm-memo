@@ -466,10 +466,10 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
       {/* Indent */}
-      <ToolbarButton onClick={() => editor.chain().focus().indent().run()} title="Increase Indent (Ctrl+])">
+      <ToolbarButton onClick={() => cmd(editor).indent().run()} title="Increase Indent (Ctrl+])">
         <Indent className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().outdent().run()} title="Decrease Indent (Ctrl+[)">
+      <ToolbarButton onClick={() => cmd(editor).outdent().run()} title="Decrease Indent (Ctrl+[)">
         <Outdent className="h-3.5 w-3.5" />
       </ToolbarButton>
 
