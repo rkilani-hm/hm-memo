@@ -22,8 +22,6 @@ const Settings = () => {
   const { toast } = useToast();
   const sigCanvasRef = useRef<HTMLCanvasElement>(null);
   const iniCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [isSigDrawing, setIsSigDrawing] = useState(false);
-  const [isIniDrawing, setIsIniDrawing] = useState(false);
 
   const [fullName, setFullName] = useState('');
   const [initials, setInitials] = useState('');
