@@ -237,8 +237,8 @@ const Settings = () => {
     onMouseUp: () => { drawingRef.current[drawingKey] = false; },
   });
 
-  const sigDraw = createDrawHandlers(sigCanvasRef, setIsSigDrawing, isSigDrawing);
-  const iniDraw = createDrawHandlers(iniCanvasRef, setIsIniDrawing, isIniDrawing);
+  const sigDraw = createDrawHandlers(sigCanvasRef, 'sig');
+  const iniDraw = createDrawHandlers(iniCanvasRef, 'ini');
 
   const saveDrawnSignature = async () => {
     const canvas = sigCanvasRef.current;
