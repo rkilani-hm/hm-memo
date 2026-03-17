@@ -348,8 +348,8 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     <!-- COPIES TO -->
     <table class="memo-copies-to" style="width:100%;border-collapse:collapse;page-break-inside:avoid;">
       <tr>
-        <td style="width:120px;border:1px solid #333;padding:6px 12px;font-size:10px;font-weight:bold;">COPIES TO:</td>
-        <td style="border:1px solid #333;padding:6px 12px;font-size:11px;">${(memo.copies_to || []).map(id => { const p = profiles.find(pr => pr.user_id === id); if (!p) return id; const d = (data.departments || []).find(dept => dept.id === p.department_id); return p.full_name + (d ? ' – ' + d.name : ''); }).join(', ')}</td>
+        <td style="width:120px;border:1px solid #000;padding:6px 12px;font-size:10px;font-weight:bold;">COPIES TO:</td>
+        <td style="border:1px solid #000;padding:6px 12px;font-size:11px;">${(memo.copies_to || []).map(id => { const p = profiles.find(pr => pr.user_id === id); if (!p) return id; const d = (data.departments || []).find(dept => dept.id === p.department_id); return p.full_name + (d ? ' – ' + d.name : ''); }).join(', ')}</td>
       </tr>
     </table>
 
