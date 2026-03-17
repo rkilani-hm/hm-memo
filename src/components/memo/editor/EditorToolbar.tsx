@@ -316,20 +316,20 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
 
   const setHeading = (value: string) => {
     switch (value) {
-      case 'h1': editor.chain().focus().toggleHeading({ level: 1 }).run(); break;
-      case 'h2': editor.chain().focus().toggleHeading({ level: 2 }).run(); break;
-      case 'h3': editor.chain().focus().toggleHeading({ level: 3 }).run(); break;
-      case 'h4': editor.chain().focus().toggleHeading({ level: 4 }).run(); break;
-      case 'blockquote': editor.chain().focus().toggleBlockquote().run(); break;
-      case 'codeBlock': editor.chain().focus().toggleCodeBlock().run(); break;
-      default: editor.chain().focus().setParagraph().run(); break;
+      case 'h1': cmd(editor).toggleHeading({ level: 1 }).run(); break;
+      case 'h2': cmd(editor).toggleHeading({ level: 2 }).run(); break;
+      case 'h3': cmd(editor).toggleHeading({ level: 3 }).run(); break;
+      case 'h4': cmd(editor).toggleHeading({ level: 4 }).run(); break;
+      case 'blockquote': cmd(editor).toggleBlockquote().run(); break;
+      case 'codeBlock': cmd(editor).toggleCodeBlock().run(); break;
+      default: cmd(editor).setParagraph().run(); break;
     }
   };
 
   const handleImageInsert = () => {
     const url = prompt('Enter image URL:');
     if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
+      cmd(editor).setImage({ src: url }).run();
     }
   };
 
