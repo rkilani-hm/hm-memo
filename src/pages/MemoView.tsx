@@ -392,6 +392,31 @@ const MemoView = () => {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!memo || !user || !id) return;
+
+      // Delete related records first (approval_steps, attachments, versions, notifications, audit_log)
+      await supabase.from('approval_steps').delete().eq('memo_id', id);
+      await supabase.from('memo_attachments').delete().eq('memo_id', id);
+      await supabase.from('memo_versions').delete().eq('memo_id', id);
+      await supabase.from('notifications').delete().eq('memo_id', id);
+      await supabase.from('audit_log').delete().eq('memo_id', id);
+
+      // Delete the memo itself
+      const { error } = await supabase.from('memos').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['memos'] });
+      toast({ title: 'Memo Deleted', description: 'The memo has been permanently deleted.' });
+      navigate('/memos');
+    },
+    onError: (e: Error) => {
+      toast({ title: 'Delete Failed', description: e.message, variant: 'destructive' });
+    },
+  });
+
   const openApproveDialog = (stepId: string) => {
     const step = approvalSteps.find((s) => s.id === stepId);
     const sat = getStepActionType(step);
