@@ -50,7 +50,6 @@
     "@tiptap/extension-table-row": "2.1.13",
     "@tiptap/extension-underline": "2.1.13",
     "@tiptap/pm": "2.1.13",
-    "@tiptap/starter-kit": "^3.20.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
