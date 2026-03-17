@@ -356,13 +356,32 @@ const MemoCreate = () => {
               <Input type="text" value={files.length} disabled className="h-8 bg-muted" />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">Reviewer</Label>
+              <Select value={reviewerUserId} onValueChange={setReviewerUserId}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select reviewer..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.user_id} value={p.user_id}>
+                      {p.full_name} — {p.job_title || 'No title'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs font-bold uppercase text-muted-foreground">Initials</Label>
               <Input
-                value={initials}
-                onChange={(e) => setInitials(e.target.value.slice(0, 4))}
-                placeholder="e.g. MK"
-                className="h-8"
-                maxLength={4}
+                value={(() => {
+                  const rp = profiles.find(p => p.user_id === reviewerUserId);
+                  if (!rp) return '--';
+                  const parts = rp.full_name.trim().split(' ');
+                  if (parts.length === 1) return parts[0][0].toUpperCase();
+                  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                })()}
+                disabled
+                className="h-8 bg-muted font-bold"
               />
             </div>
             <div className="col-span-2 md:col-span-4 space-y-1">
