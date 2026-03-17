@@ -455,7 +455,7 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
               variant="ghost"
               size="sm"
               className="w-full justify-start h-7 text-xs"
-              onClick={() => editor.chain().focus().setLineHeight(lh.value).run()}
+              onClick={() => cmd(editor).setLineHeight(lh.value).run()}
             >
               {lh.label}
             </Button>
