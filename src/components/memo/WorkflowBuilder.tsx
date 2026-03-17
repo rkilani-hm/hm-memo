@@ -48,6 +48,7 @@ export interface WorkflowStepDef {
   is_required: boolean;
   parallel_group: number | null;
   deadline: string | null;
+  stage_level?: string | null;
 }
 
 interface WorkflowBuilderProps {
