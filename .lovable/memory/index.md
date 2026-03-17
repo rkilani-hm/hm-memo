@@ -21,6 +21,20 @@ Updated: now
 - Storage buckets: `attachments` (private), `signatures` (private)
 - Auto-logout after 30 min inactivity
 
+## 4-Level Approval Workflow (v8)
+- Implemented as workflow template (not hardcoded)
+- stage_level column on approval_steps: L1, L2a, L2b, L3, L4
+- revision_count column on memos: incremented on resubmit
+- L1: Department Manager (signature)
+- L2a: Finance Staff dual-initials (parallel_group)
+- L2b: Finance Manager (signature)
+- L3: Senior Executive - any one of GM/COO/CAO/CFO (signature)
+- L4: CEO/Chairman (signature, final)
+- WorkflowTracker shows stage labels, days pending, parallel group progress
+- PDF: 3-column approvals block (Finance | Executive | CEO) when stages present
+- PDF: QR code in footer for physical verification
+- PendingApprovals: Days Pending column with amber (2d) / red (5d) coloring
+
 ## Permission Model (5-step evaluation)
 1. Admin → full access
 2. Same department → view all, edit drafts, manage draft attachments, see audit
@@ -28,21 +42,6 @@ Updated: now
 4. Cross-department rule match
 5. Delegate → inherited from principal
 6. No access
-
-## Cross-Department Rules
-- Table: `cross_department_rules` (viewer_department_id, source_department_ids[], memo_type_filter[], access_level, scope)
-- 4 seeded defaults: Finance→payments, GM→all, Legal head→action+request, HR→announcements
-- Admin UI: /admin/cross-dept-rules
-
-## Version History
-- Table: `memo_versions` (memo_id, version_number, changed_by_user_id, changes, previous_values, ip_address)
-- Displayed in MemoView under "Version History" tab
-
-## Memo List Sections
-- My Department (same dept memos)
-- Assigned to Me (workflow/recipient from other depts)
-- Cross-Department Visibility (via rules)
-- Visibility badges: 🏢 Dept Only, 🏢+FIN Dept+Finance, 🌐 Company-Wide, 👥 Custom
 
 ## Department Codes
 - IT, FIN, BDCR, OFM, LEG, HR, GM
