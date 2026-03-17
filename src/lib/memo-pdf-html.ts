@@ -101,7 +101,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
         const approver = getProfile(profiles, step.approver_user_id);
         return buildApprovalStepHtml(step, approver, sigDataUrls[step.id] || null, registeredByProfiles[step.id]);
       }).join('');
-      const emptyCells = Array(3 - rowSteps.length).fill('<td style="border:0.5pt solid #333;padding:8px;"></td>').join('');
+      const emptyCells = Array(3 - rowSteps.length).fill('<td style="border:1px solid #000;padding:8px;"></td>').join('');
       rows.push(`<tr>${cells}${emptyCells}</tr>`);
     }
     approvalsHtml = `
