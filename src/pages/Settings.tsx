@@ -488,10 +488,11 @@ const Settings = () => {
                       width={300}
                       height={100}
                       className="w-full cursor-crosshair"
-                      onMouseDown={iniDraw.startDraw}
-                      onMouseMove={iniDraw.draw}
-                      onMouseUp={iniDraw.endDraw}
-                      onMouseLeave={iniDraw.endDraw}
+                      style={{ touchAction: 'none' }}
+                      onMouseDown={iniDraw.onMouseDown}
+                      onMouseMove={iniDraw.onMouseMove}
+                      onMouseUp={iniDraw.onMouseUp}
+                      onMouseLeave={iniDraw.onMouseUp}
                     />
                   </div>
                   <div className="flex gap-2">
