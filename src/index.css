@@ -279,15 +279,41 @@
 }
 
 @media print {
-  .memo-body-preview table,
-  .memo-body-preview table td,
-  .memo-body-preview table th {
-    border: 1px solid #000 !important;
+  /* Single-border discipline — use pt for print precision */
+  .memo-body-preview table {
     border-collapse: collapse !important;
+    border: none !important;
   }
   .memo-body-preview table td,
   .memo-body-preview table th {
-    padding: 6px 10px !important;
+    border: 0.5pt solid #000 !important;
+    padding: 5pt 8pt !important;
     vertical-align: top !important;
+  }
+
+  /* Smart page break rules */
+  table, figure, img, .memo-signature-block,
+  .memo-approvals, .memo-footer, blockquote {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  p { orphans: 3; widows: 3; }
+  thead { display: table-header-group !important; }
+  tfoot { display: table-footer-group !important; }
+
+  /* Remove shadows/decorations in print */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
 }
