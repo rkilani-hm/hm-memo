@@ -238,7 +238,41 @@ const Settings = () => {
   const sigDraw = createDrawHandlers(sigCanvasRef, 'sig');
   const iniDraw = createDrawHandlers(iniCanvasRef, 'ini');
 
-  const saveDrawnSignature = async () => {
+  // Touch event support for both canvases
+  useEffect(() => {
+    const addTouchListeners = (
+      canvas: HTMLCanvasElement | null,
+      handlers: ReturnType<typeof createDrawHandlers>
+    ) => {
+      if (!canvas) return () => {};
+      const onTouchStart = (e: TouchEvent) => {
+        e.preventDefault();
+        const t = e.touches[0];
+        handlers.startDraw(t.clientX, t.clientY);
+      };
+      const onTouchMove = (e: TouchEvent) => {
+        e.preventDefault();
+        const t = e.touches[0];
+        handlers.draw(t.clientX, t.clientY);
+      };
+      const onTouchEnd = (e: TouchEvent) => {
+        e.preventDefault();
+        handlers.endDraw();
+      };
+      canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+      canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+      canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+      return () => {
+        canvas.removeEventListener('touchstart', onTouchStart);
+        canvas.removeEventListener('touchmove', onTouchMove);
+        canvas.removeEventListener('touchend', onTouchEnd);
+      };
+    };
+    const cleanupSig = addTouchListeners(sigCanvasRef.current, sigDraw);
+    const cleanupIni = addTouchListeners(iniCanvasRef.current, iniDraw);
+    return () => { cleanupSig(); cleanupIni(); };
+  }, [sigDraw, iniDraw]);
+
     const canvas = sigCanvasRef.current;
     if (!canvas || !user) return;
     setUploading(true);
