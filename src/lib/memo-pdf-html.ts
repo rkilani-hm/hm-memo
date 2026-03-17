@@ -246,7 +246,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
        TABLE STYLING — single-border discipline
     ============================================= */
     table { border-collapse: collapse; }
-    .header-table td { border: 0.5pt solid #333; }
+    .header-table td { border: 1px solid #000; }
 
     /* Memo body (description) tables — user-inserted via rich text editor */
     .memo-body table {
@@ -257,7 +257,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     }
     .memo-body table td,
     .memo-body table th {
-      border: 0.5pt solid #000000 !important;
+      border: 1px solid #000 !important;
       padding: 5pt 8pt !important;
       vertical-align: top !important;
     }
@@ -268,7 +268,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     .memo-layout-table td,
     .memo-layout-table th {
       border-collapse: collapse !important;
-      border: 0.5pt solid #333 !important;
+      border: 1px solid #000 !important;
     }
   </style>
 </head>
