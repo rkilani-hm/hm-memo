@@ -245,8 +245,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     /* =============================================
        TABLE STYLING — single-border discipline
     ============================================= */
-    table { border-collapse: collapse; }
-    .header-table td { border: 1px solid #000; }
+    table { border-collapse: collapse !important; }
 
     /* Memo body (description) tables — user-inserted via rich text editor */
     .memo-body table {
