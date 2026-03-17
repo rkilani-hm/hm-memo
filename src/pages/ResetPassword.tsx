@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Lock, AlertTriangle, Clock, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle, Clock, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
 type ErrorType = 'expired' | 'invalid' | 'used' | 'network' | null;
 
@@ -19,19 +19,38 @@ const passwordRules = [
   { test: (p: string) => /[^A-Za-z0-9]/.test(p), label: 'At least one special character' },
 ];
 
-const getStrength = (password: string): { label: string; color: string; percent: number } => {
-  const passed = passwordRules.filter(r => r.test(password)).length;
-  if (passed <= 2) return { label: 'Weak', color: 'bg-red-500', percent: 33 };
-  if (passed <= 4) return { label: 'Fair', color: 'bg-yellow-500', percent: 66 };
-  return { label: 'Strong', color: 'bg-green-500', percent: 100 };
+const getStrength = (password: string): { label: string; colorClass: string; percent: number } => {
+  const passed = passwordRules.filter((r) => r.test(password)).length;
+  if (passed <= 2) return { label: 'Weak', colorClass: 'bg-destructive', percent: 33 };
+  if (passed <= 4) return { label: 'Fair', colorClass: 'bg-warning', percent: 66 };
+  return { label: 'Strong', colorClass: 'bg-success', percent: 100 };
 };
 
-const classifyError = (error: any): ErrorType => {
-  const msg = error?.message?.toLowerCase() || '';
-  if (msg.includes('expired') || msg.includes('invalid')) return 'expired';
-  if (msg.includes('already') || msg.includes('used')) return 'used';
-  if (msg.includes('network') || msg.includes('fetch')) return 'network';
+const classifyErrorMessage = (message?: string): ErrorType => {
+  const msg = (message || '').toLowerCase();
+
+  if (
+    msg.includes('otp_expired') ||
+    msg.includes('expired') ||
+    msg.includes('invalid or has expired')
+  ) {
+    return 'expired';
+  }
+
+  if (msg.includes('already used') || msg.includes('already been used') || msg.includes('used')) {
+    return 'used';
+  }
+
+  if (msg.includes('network') || msg.includes('fetch') || msg.includes('timeout')) {
+    return 'network';
+  }
+
   return 'invalid';
+};
+
+const clearAuthUrlArtifacts = () => {
+  const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+  window.history.replaceState({}, document.title, cleanUrl);
 };
 
 const ResetPassword = () => {
@@ -47,91 +66,136 @@ const ResetPassword = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let cancelled = false;
+    let isActive = true;
+
+    const setReady = () => {
+      if (!isActive) return;
+      setIsValidSession(true);
+      setErrorType(null);
+      setIsLoading(false);
+      clearAuthUrlArtifacts();
+    };
+
+    const setError = (type: ErrorType) => {
+      if (!isActive) return;
+      setIsValidSession(false);
+      setErrorType(type);
+      setIsLoading(false);
+    };
+
+    const waitForSession = async (attempts = 6, delayMs = 300): Promise<boolean> => {
+      for (let i = 0; i < attempts; i += 1) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) return true;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+      return false;
+    };
 
     const handlePasswordReset = async () => {
       try {
-        // Method 1: Handle PKCE code (?code=) — modern Supabase flow
         const searchParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+
         const code = searchParams.get('code');
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (!error && !cancelled) {
-            setIsValidSession(true);
-            setIsLoading(false);
-            return;
-          }
-          if (error && !cancelled) {
-            setErrorType(classifyError(error));
-            setIsLoading(false);
-            return;
-          }
-        }
+        const hashType = hashParams.get('type');
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
 
-        // Method 2: Handle hash fragment (#access_token&type=recovery) — implicit flow
-        const hash = window.location.hash;
-        if (hash && hash.includes('access_token')) {
-          const params = new URLSearchParams(hash.substring(1));
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
-          const type = params.get('type');
+        const rawUrlError =
+          hashParams.get('error_description') ||
+          searchParams.get('error_description') ||
+          hashParams.get('error_code') ||
+          searchParams.get('error_code') ||
+          hashParams.get('error') ||
+          searchParams.get('error') ||
+          '';
 
-          if (type === 'recovery' && accessToken && refreshToken) {
-            const { error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            if (!error && !cancelled) {
-              setIsValidSession(true);
-              setIsLoading(false);
-              return;
-            }
-            if (error && !cancelled) {
-              setErrorType(classifyError(error));
-              setIsLoading(false);
-              return;
-            }
-          }
-        }
+        const hasRecoveryMarker = Boolean(
+          code ||
+          hashType === 'recovery' ||
+          accessToken ||
+          hashParams.get('error') ||
+          searchParams.get('error'),
+        );
 
-        // Method 3: Check if there's already an active session (e.g., from onAuthStateChange)
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user && !cancelled) {
-          setIsValidSession(true);
-          setIsLoading(false);
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+
+        // Secure route: if user is already authenticated and this is not a recovery-link entry, block access
+        if (initialSession?.user && !hasRecoveryMarker) {
+          navigate('/', { replace: true });
           return;
         }
 
-        // Method 4: Wait briefly for onAuthStateChange to fire (Supabase may auto-detect recovery)
+        // Handle direct error redirects from verify endpoint (e.g. #error=access_denied&error_code=otp_expired)
+        if (rawUrlError) {
+          setError(classifyErrorMessage(rawUrlError));
+          return;
+        }
+
+        // If session is already there (SDK already processed URL), show form immediately
+        if (initialSession?.user && hasRecoveryMarker) {
+          setReady();
+          return;
+        }
+
+        if (!hasRecoveryMarker) {
+          setError('invalid');
+          return;
+        }
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if (cancelled) return;
-          if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
-            setIsValidSession(true);
-            setIsLoading(false);
+          if (!isActive) return;
+          if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session && hasRecoveryMarker)) {
+            setReady();
             subscription.unsubscribe();
           }
         });
 
-        // Timeout: if nothing fires within 3 seconds, show error
-        setTimeout(() => {
-          if (!cancelled) {
-            setIsLoading(false);
-            subscription.unsubscribe();
-          }
-        }, 3000);
-      } catch (err) {
-        if (!cancelled) {
-          setErrorType('network');
-          setIsLoading(false);
+        let tokenErrorMessage: string | null = null;
+
+        // PKCE flow
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) tokenErrorMessage = error.message;
         }
+
+        // Hash implicit flow
+        if (!code && hashType === 'recovery' && accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) tokenErrorMessage = error.message;
+        }
+
+        const hasSessionAfterExchange = await waitForSession();
+        subscription.unsubscribe();
+
+        if (hasSessionAfterExchange) {
+          setReady();
+          return;
+        }
+
+        if (tokenErrorMessage) {
+          setError(classifyErrorMessage(tokenErrorMessage));
+          return;
+        }
+
+        setError('invalid');
+      } catch {
+        setError('network');
       }
     };
 
     handlePasswordReset();
-    return () => { cancelled = true; };
-  }, []);
 
-  const allRulesPassed = passwordRules.every(r => r.test(password));
+    return () => {
+      isActive = false;
+    };
+  }, [navigate]);
+
+  const allRulesPassed = passwordRules.every((r) => r.test(password));
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
   const canSubmit = allRulesPassed && passwordsMatch && !loading;
   const strength = password.length > 0 ? getStrength(password) : null;
@@ -146,15 +210,14 @@ const ResetPassword = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      // Sign out to invalidate recovery session (one-time use)
       await supabase.auth.signOut();
       toast({ title: 'Password updated', description: 'Your password has been reset successfully. Please log in.' });
       navigate('/login');
     }
+
     setLoading(false);
   };
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-secondary/30">
@@ -168,13 +231,12 @@ const ResetPassword = () => {
     );
   }
 
-  // Error states
   if (!isValidSession) {
     const errorConfig = {
       expired: {
-        icon: <Clock className="h-12 w-12 mx-auto text-yellow-500" />,
+        icon: <Clock className="h-12 w-12 mx-auto text-warning" />,
         title: 'Link Expired',
-        message: 'This reset link has expired. Password reset links are valid for 1 hour.',
+        message: 'This reset link has expired or was already consumed. Please request a new one.',
       },
       used: {
         icon: <CheckCircle2 className="h-12 w-12 mx-auto text-muted-foreground" />,
@@ -189,7 +251,7 @@ const ResetPassword = () => {
       network: {
         icon: <XCircle className="h-12 w-12 mx-auto text-destructive" />,
         title: 'Connection Error',
-        message: 'Something went wrong verifying your link. Please check your connection and try again.',
+        message: 'Something went wrong verifying your link. Please try again.',
       },
     };
 
@@ -216,7 +278,6 @@ const ResetPassword = () => {
     );
   }
 
-  // Valid session — show reset form
   return (
     <div className="min-h-screen flex items-center justify-center bg-secondary/30">
       <Card className="w-full max-w-md mx-4 shadow-xl border-0">
@@ -247,25 +308,26 @@ const ResetPassword = () => {
                 </button>
               </div>
 
-              {/* Strength indicator */}
               {strength && (
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
-                        className={`h-full ${strength.color} rounded-full transition-all duration-300`}
+                        className={`h-full ${strength.colorClass} rounded-full transition-all duration-300`}
                         style={{ width: `${strength.percent}%` }}
                       />
                     </div>
                     <span className="text-xs font-medium text-muted-foreground">{strength.label}</span>
                   </div>
 
-                  {/* Password rules checklist */}
                   <ul className="space-y-0.5">
                     {passwordRules.map((rule, i) => {
                       const passed = rule.test(password);
                       return (
-                        <li key={i} className={`flex items-center gap-1.5 text-xs ${passed ? 'text-green-600' : 'text-muted-foreground'}`}>
+                        <li
+                          key={i}
+                          className={`flex items-center gap-1.5 text-xs ${passed ? 'text-success' : 'text-muted-foreground'}`}
+                        >
                           {passed ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
                           {rule.label}
                         </li>
