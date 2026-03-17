@@ -188,6 +188,10 @@ const MemoEdit = () => {
           })()
         : '--';
 
+      // Increment revision_count on resubmit
+      const isResubmit = wasSubmitted && status === 'submitted';
+      const currentRevision = (memo as any).revision_count || 0;
+
       const { error: updateError } = await supabase
         .from('memos')
         .update({
@@ -202,6 +206,7 @@ const MemoEdit = () => {
           copies_to: copiesArray.length > 0 ? copiesArray : null,
           current_step: status === 'draft' ? 0 : memo.current_step,
           reviewer_user_id: reviewerUserId || null,
+          ...(isResubmit ? { revision_count: currentRevision + 1 } : {}),
         } as any)
         .eq('id', memo.id);
 
