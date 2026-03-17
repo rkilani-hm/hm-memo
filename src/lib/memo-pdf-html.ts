@@ -245,8 +245,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     /* =============================================
        TABLE STYLING — single-border discipline
     ============================================= */
-    table { border-collapse: collapse; }
-    .header-table td { border: 1px solid #000; }
+    table { border-collapse: collapse !important; }
 
     /* Memo body (description) tables — user-inserted via rich text editor */
     .memo-body table {
@@ -273,10 +272,10 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   </style>
 </head>
 <body>
-  <div class="memo-print-container" style="max-width:700px;margin:0 auto;border:1px solid #000;">
+  <div class="memo-print-container" style="max-width:700px;margin:0 auto;">
     
-    <!-- HEADER -->
-    <div class="memo-header memo-header-table" style="display:flex;align-items:flex-end;justify-content:space-between;padding:20px 24px 16px;">
+    <!-- HEADER (logo + title) -->
+    <div class="memo-header" style="display:flex;align-items:flex-end;justify-content:space-between;padding:20px 24px 16px;">
       <img src="${logoDataUrl}" style="height:100px;object-fit:contain;" />
       <div style="text-align:right;">
         <h1 style="font-size:24px;font-weight:bold;letter-spacing:2px;margin:0;">INTERNAL MEMO</h1>
@@ -284,48 +283,42 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
       </div>
     </div>
 
-    <!-- TO / TRANSMITTAL / DATE / FROM -->
-    <table class="memo-header-table header-table" style="width:100%;border-collapse:collapse;">
+    <!-- UNIFIED HEADER TABLE: TO, FROM, TRANSMITTAL, DATE, SUBJECT — single table, no double borders -->
+    <table class="memo-header-table" style="width:100%;border-collapse:collapse;">
       <tr>
-        <td style="width:50%;padding:8px 12px;vertical-align:top;">
-          <p style="font-size:10px;color:#666;">TO:</p>
-          <p style="font-weight:bold;margin-top:4px;">${toProfile?.full_name || '—'}</p>
-          ${toProfile?.job_title ? `<p style="font-size:11px;">${toProfile.job_title}</p>` : ''}
+        <td style="width:50%;border:1px solid #000;padding:8px 12px;vertical-align:top;" rowspan="1">
+          <p style="font-size:10px;color:#666;margin:0;">TO:</p>
+          <p style="font-weight:bold;margin:4px 0 0;">${toProfile?.full_name || '—'}</p>
+          ${toProfile?.job_title ? `<p style="font-size:11px;margin:0;">${toProfile.job_title}</p>` : ''}
         </td>
-        <td style="width:50%;padding:0;vertical-align:top;">
-          <table style="width:100%;border-collapse:collapse;">
-            <tr>
-              <td style="background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;width:120px;border:1px solid #000;">TRANSMITTAL NO:</td>
-              <td style="padding:8px 12px;font-weight:bold;font-family:monospace;border:none;">${memo.transmittal_no}</td>
-            </tr>
-            <tr>
-              <td style="background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;border-top:1px solid #000;border-left:1px solid #000;border-bottom:none;border-right:none;">DATE:</td>
-              <td style="padding:8px 12px;border-top:1px solid #000;border-left:none;border-bottom:none;border-right:none;">${format(new Date(memo.date), "do MMMM yyyy")}</td>
-            </tr>
-          </table>
+        <td style="width:25%;border:1px solid #000;background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;vertical-align:middle;">TRANSMITTAL NO:</td>
+        <td style="width:25%;border:1px solid #000;padding:8px 12px;font-weight:bold;font-family:monospace;vertical-align:middle;">${memo.transmittal_no}</td>
+      </tr>
+      <tr>
+        <td style="border:1px solid #000;padding:8px 12px;vertical-align:top;">
+          <p style="font-size:10px;color:#666;margin:0;">FROM:</p>
+          <p style="font-weight:bold;margin:4px 0 0;">${fromProfile?.full_name || '—'}</p>
+          ${fromProfile?.job_title ? `<p style="font-size:11px;margin:0;">${fromProfile.job_title}</p>` : ''}
+          ${department ? `<p style="font-size:10px;color:#666;margin:0;">${department.name}</p>` : ''}
+        </td>
+        <td style="border:1px solid #000;background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;vertical-align:middle;">DATE:</td>
+        <td style="border:1px solid #000;padding:8px 12px;vertical-align:middle;">${format(new Date(memo.date), "do MMMM yyyy")}</td>
+      </tr>
+      <tr>
+        <td style="border:1px solid #000;padding:8px 16px;" colspan="3">
+          <p style="margin:0;"><strong>Subject:</strong> <strong>${memo.subject}</strong></p>
         </td>
       </tr>
       <tr>
-        <td style="padding:8px 12px;vertical-align:top;">
-          <p style="font-size:10px;color:#666;">FROM:</p>
-          <p style="font-weight:bold;margin-top:4px;">${fromProfile?.full_name || '—'}</p>
-          ${fromProfile?.job_title ? `<p style="font-size:11px;">${fromProfile.job_title}</p>` : ''}
-          ${department ? `<p style="font-size:10px;color:#666;">${department.name}</p>` : ''}
-        </td>
-        <td style="padding:8px 12px;vertical-align:top;">
-          <p style="font-size:10px;font-weight:bold;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Transmitted For</p>
+        <td style="border:1px solid #000;padding:8px 12px;" colspan="3">
+          <p style="font-size:10px;font-weight:bold;text-align:center;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">Transmitted For</p>
           <div style="display:flex;flex-wrap:wrap;">${transmittedForHtml}</div>
         </td>
       </tr>
     </table>
 
-    <!-- SUBJECT -->
-    <div class="memo-subject" style="border-top:1px solid #333;padding:8px 16px;">
-      <p><strong>Subject:</strong> <strong>${memo.subject}</strong></p>
-    </div>
-
     <!-- DESCRIPTION -->
-    <div style="border-top:1px solid #333;padding:12px 16px;">
+    <div style="padding:12px 16px;border-left:1px solid #000;border-right:1px solid #000;">
       <p style="font-size:10px;font-weight:bold;text-transform:uppercase;margin-bottom:8px;">Description:</p>
       <div class="memo-body" style="font-size:11px;line-height:1.6;">${memo.description || '<p>No description.</p>'}</div>
 
@@ -333,7 +326,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
       <div class="memo-signature-block" style="text-align:right;margin-top:32px;margin-bottom:16px;page-break-inside:avoid;">
         <div style="display:inline-block;text-align:center;">
           ${senderSigHtml}
-          <p style="font-weight:bold;font-size:11px;">${fromProfile?.full_name || '—'}, ${fromProfile?.job_title || ''}</p>
+          <p style="font-weight:bold;font-size:11px;margin:0;">${fromProfile?.full_name || '—'}, ${fromProfile?.job_title || ''}</p>
         </div>
       </div>
 
@@ -345,20 +338,16 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
       </div>
     </div>
 
-    <!-- COPIES TO -->
-    <table class="memo-copies-to" style="width:100%;border-collapse:collapse;page-break-inside:avoid;">
+    <!-- COPIES TO + ACTION/COMMENTS — single table to avoid double borders -->
+    <table class="memo-copies-action-table" style="width:100%;border-collapse:collapse;page-break-inside:avoid;">
       <tr>
         <td style="width:120px;border:1px solid #000;padding:6px 12px;font-size:10px;font-weight:bold;">COPIES TO:</td>
         <td style="border:1px solid #000;padding:6px 12px;font-size:11px;">${(memo.copies_to || []).map(id => { const p = profiles.find(pr => pr.user_id === id); if (!p) return id; const d = (data.departments || []).find(dept => dept.id === p.department_id); return p.full_name + (d ? ' – ' + d.name : ''); }).join(', ')}</td>
       </tr>
-    </table>
-
-    <!-- ACTION REQUIRED / COMMENTS -->
-    <table class="memo-action-comments" style="width:100%;border-collapse:collapse;page-break-inside:avoid;">
       <tr>
-        <td style="width:120px;border:1px solid #000;padding:6px 12px;font-size:10px;font-weight:bold;vertical-align:top;">
-          <p>ACTION REQUIRED:</p>
-          <p style="margin-top:4px;">COMMENTS IF ANY:</p>
+        <td style="border:1px solid #000;padding:6px 12px;font-size:10px;font-weight:bold;vertical-align:top;">
+          <p style="margin:0;">ACTION REQUIRED:</p>
+          <p style="margin:4px 0 0;">COMMENTS IF ANY:</p>
         </td>
         <td style="border:1px solid #000;padding:6px 12px;">${commentsHtml}</td>
       </tr>
