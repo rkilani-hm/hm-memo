@@ -312,6 +312,7 @@ const PendingApprovals = () => {
                   <TableHead>From</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Days Pending</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
