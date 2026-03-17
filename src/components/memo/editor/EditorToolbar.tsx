@@ -380,26 +380,26 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
       {/* Text Formatting */}
-      <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold (Ctrl+B)">
+      <ToolbarButton onClick={() => cmd(editor).toggleBold().run()} active={editor.isActive('bold')} title="Bold (Ctrl+B)">
         <Bold className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italic (Ctrl+I)">
+      <ToolbarButton onClick={() => cmd(editor).toggleItalic().run()} active={editor.isActive('italic')} title="Italic (Ctrl+I)">
         <Italic className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Underline (Ctrl+U)">
+      <ToolbarButton onClick={() => cmd(editor).toggleUnderline().run()} active={editor.isActive('underline')} title="Underline (Ctrl+U)">
         <UnderlineIcon className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough">
+      <ToolbarButton onClick={() => cmd(editor).toggleStrike().run()} active={editor.isActive('strike')} title="Strikethrough">
         <Strikethrough className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleSubscript().run()} active={editor.isActive('subscript')} title="Subscript">
+      <ToolbarButton onClick={() => cmd(editor).toggleSubscript().run()} active={editor.isActive('subscript')} title="Subscript">
         <Subscript className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleSuperscript().run()} active={editor.isActive('superscript')} title="Superscript">
+      <ToolbarButton onClick={() => cmd(editor).toggleSuperscript().run()} active={editor.isActive('superscript')} title="Superscript">
         <Superscript className="h-3.5 w-3.5" />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
+        onClick={() => cmd(editor).clearNodes().unsetAllMarks().run()}
         title="Clear Formatting"
       >
         <RemoveFormatting className="h-3.5 w-3.5" />
