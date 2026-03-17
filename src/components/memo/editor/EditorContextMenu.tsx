@@ -1,8 +1,4 @@
 import { Editor } from '@tiptap/react';
-import type {} from '@tiptap/starter-kit';
-import type {} from '@tiptap/extension-underline';
-import type {} from '@tiptap/extension-link';
-import type {} from '@tiptap/extension-table';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -14,6 +10,9 @@ import {
   Bold, Italic, UnderlineIcon, Link2, TableIcon, RemoveFormatting,
   Scissors, Copy, Clipboard,
 } from 'lucide-react';
+
+// TipTap 2.11.x type augmentation workaround
+const cmd = (editor: Editor) => (editor.chain().focus() as any);
 
 interface EditorContextMenuProps {
   editor: Editor;
@@ -33,19 +32,19 @@ const EditorContextMenu = ({ editor, children }: EditorContextMenuProps) => {
         <ContextMenuItem onClick={() => document.execCommand('copy')}>
           <Copy className="h-3.5 w-3.5 mr-2" /> Copy
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => navigator.clipboard.readText().then(t => editor.chain().focus().insertContent(t).run())}>
+        <ContextMenuItem onClick={() => navigator.clipboard.readText().then(t => cmd(editor).insertContent(t).run())}>
           <Clipboard className="h-3.5 w-3.5 mr-2" /> Paste
         </ContextMenuItem>
 
         <ContextMenuSeparator />
 
-        <ContextMenuItem onClick={() => editor.chain().focus().toggleBold().run()}>
+        <ContextMenuItem onClick={() => cmd(editor).toggleBold().run()}>
           <Bold className="h-3.5 w-3.5 mr-2" /> Bold
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => editor.chain().focus().toggleItalic().run()}>
+        <ContextMenuItem onClick={() => cmd(editor).toggleItalic().run()}>
           <Italic className="h-3.5 w-3.5 mr-2" /> Italic
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => editor.chain().focus().toggleUnderline().run()}>
+        <ContextMenuItem onClick={() => cmd(editor).toggleUnderline().run()}>
           <UnderlineIcon className="h-3.5 w-3.5 mr-2" /> Underline
         </ContextMenuItem>
 
@@ -53,17 +52,17 @@ const EditorContextMenu = ({ editor, children }: EditorContextMenuProps) => {
 
         <ContextMenuItem onClick={() => {
           const url = prompt('Enter link URL:');
-          if (url) editor.chain().focus().setLink({ href: url, target: '_blank' }).run();
+          if (url) cmd(editor).setLink({ href: url, target: '_blank' }).run();
         }}>
           <Link2 className="h-3.5 w-3.5 mr-2" /> Insert Link
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
+        <ContextMenuItem onClick={() => cmd(editor).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
           <TableIcon className="h-3.5 w-3.5 mr-2" /> Insert Table
         </ContextMenuItem>
 
         <ContextMenuSeparator />
 
-        <ContextMenuItem onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}>
+        <ContextMenuItem onClick={() => cmd(editor).clearNodes().unsetAllMarks().run()}>
           <RemoveFormatting className="h-3.5 w-3.5 mr-2" /> Remove Formatting
         </ContextMenuItem>
       </ContextMenuContent>

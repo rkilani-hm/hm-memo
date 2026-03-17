@@ -501,10 +501,10 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
       {/* History */}
-      <ToolbarButton onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
+      <ToolbarButton onClick={() => cmd(editor).undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
         <Undo className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo (Ctrl+Y)">
+      <ToolbarButton onClick={() => cmd(editor).redo().run()} disabled={!editor.can().redo()} title="Redo (Ctrl+Y)">
         <Redo className="h-3.5 w-3.5" />
       </ToolbarButton>
 
