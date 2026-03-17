@@ -167,45 +167,74 @@ const Settings = () => {
   };
 
   // Generic canvas drawing helpers
+  const drawingRef = useRef<{ sig: boolean; ini: boolean }>({ sig: false, ini: false });
+
+  const getCanvasPos = (canvas: HTMLCanvasElement, clientX: number, clientY: number) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  };
+
   const createDrawHandlers = (
     canvasRef: React.RefObject<HTMLCanvasElement>,
-    setDrawing: (v: boolean) => void,
-    isDrawing: boolean
+    drawingKey: 'sig' | 'ini'
   ) => ({
-    startDraw: (e: React.MouseEvent<HTMLCanvasElement>) => {
+    startDraw: (clientX: number, clientY: number) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      setDrawing(true);
+      drawingRef.current[drawingKey] = true;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
+      const pos = getCanvasPos(canvas, clientX, clientY);
       ctx.beginPath();
-      ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+      ctx.moveTo(pos.x, pos.y);
     },
-    draw: (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!isDrawing) return;
+    draw: (clientX: number, clientY: number) => {
+      if (!drawingRef.current[drawingKey]) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+      const pos = getCanvasPos(canvas, clientX, clientY);
+      ctx.lineTo(pos.x, pos.y);
       ctx.strokeStyle = 'hsl(213, 52%, 23%)';
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.stroke();
     },
-    endDraw: () => setDrawing(false),
+    endDraw: () => { drawingRef.current[drawingKey] = false; },
     clear: () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       ctx?.clearRect(0, 0, canvas.width, canvas.height);
     },
+    // Mouse event wrappers
+    onMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      drawingRef.current[drawingKey] = true;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const pos = getCanvasPos(canvas, e.clientX, e.clientY);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    },
+    onMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!drawingRef.current[drawingKey]) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const pos = getCanvasPos(canvas, e.clientX, e.clientY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.strokeStyle = 'hsl(213, 52%, 23%)';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    },
+    onMouseUp: () => { drawingRef.current[drawingKey] = false; },
   });
 
   const sigDraw = createDrawHandlers(sigCanvasRef, setIsSigDrawing, isSigDrawing);
