@@ -22,8 +22,6 @@ const Settings = () => {
   const { toast } = useToast();
   const sigCanvasRef = useRef<HTMLCanvasElement>(null);
   const iniCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [isSigDrawing, setIsSigDrawing] = useState(false);
-  const [isIniDrawing, setIsIniDrawing] = useState(false);
 
   const [fullName, setFullName] = useState('');
   const [initials, setInitials] = useState('');
@@ -167,49 +165,113 @@ const Settings = () => {
   };
 
   // Generic canvas drawing helpers
+  const drawingRef = useRef<{ sig: boolean; ini: boolean }>({ sig: false, ini: false });
+
+  const getCanvasPos = (canvas: HTMLCanvasElement, clientX: number, clientY: number) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  };
+
   const createDrawHandlers = (
     canvasRef: React.RefObject<HTMLCanvasElement>,
-    setDrawing: (v: boolean) => void,
-    isDrawing: boolean
+    drawingKey: 'sig' | 'ini'
   ) => ({
-    startDraw: (e: React.MouseEvent<HTMLCanvasElement>) => {
+    startDraw: (clientX: number, clientY: number) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      setDrawing(true);
+      drawingRef.current[drawingKey] = true;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
+      const pos = getCanvasPos(canvas, clientX, clientY);
       ctx.beginPath();
-      ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+      ctx.moveTo(pos.x, pos.y);
     },
-    draw: (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!isDrawing) return;
+    draw: (clientX: number, clientY: number) => {
+      if (!drawingRef.current[drawingKey]) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+      const pos = getCanvasPos(canvas, clientX, clientY);
+      ctx.lineTo(pos.x, pos.y);
       ctx.strokeStyle = 'hsl(213, 52%, 23%)';
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.stroke();
     },
-    endDraw: () => setDrawing(false),
+    endDraw: () => { drawingRef.current[drawingKey] = false; },
     clear: () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       ctx?.clearRect(0, 0, canvas.width, canvas.height);
     },
+    // Mouse event wrappers
+    onMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      drawingRef.current[drawingKey] = true;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const pos = getCanvasPos(canvas, e.clientX, e.clientY);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    },
+    onMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!drawingRef.current[drawingKey]) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const pos = getCanvasPos(canvas, e.clientX, e.clientY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.strokeStyle = 'hsl(213, 52%, 23%)';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    },
+    onMouseUp: () => { drawingRef.current[drawingKey] = false; },
   });
 
-  const sigDraw = createDrawHandlers(sigCanvasRef, setIsSigDrawing, isSigDrawing);
-  const iniDraw = createDrawHandlers(iniCanvasRef, setIsIniDrawing, isIniDrawing);
+  const sigDraw = createDrawHandlers(sigCanvasRef, 'sig');
+  const iniDraw = createDrawHandlers(iniCanvasRef, 'ini');
+
+  // Touch event support for both canvases
+  useEffect(() => {
+    const addTouchListeners = (
+      canvas: HTMLCanvasElement | null,
+      handlers: ReturnType<typeof createDrawHandlers>
+    ) => {
+      if (!canvas) return () => {};
+      const onTouchStart = (e: TouchEvent) => {
+        e.preventDefault();
+        const t = e.touches[0];
+        handlers.startDraw(t.clientX, t.clientY);
+      };
+      const onTouchMove = (e: TouchEvent) => {
+        e.preventDefault();
+        const t = e.touches[0];
+        handlers.draw(t.clientX, t.clientY);
+      };
+      const onTouchEnd = (e: TouchEvent) => {
+        e.preventDefault();
+        handlers.endDraw();
+      };
+      canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+      canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+      canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+      return () => {
+        canvas.removeEventListener('touchstart', onTouchStart);
+        canvas.removeEventListener('touchmove', onTouchMove);
+        canvas.removeEventListener('touchend', onTouchEnd);
+      };
+    };
+    const cleanupSig = addTouchListeners(sigCanvasRef.current, sigDraw);
+    const cleanupIni = addTouchListeners(iniCanvasRef.current, iniDraw);
+    return () => { cleanupSig(); cleanupIni(); };
+  }, [sigDraw, iniDraw]);
 
   const saveDrawnSignature = async () => {
     const canvas = sigCanvasRef.current;
@@ -375,10 +437,11 @@ const Settings = () => {
                       width={500}
                       height={150}
                       className="w-full cursor-crosshair"
-                      onMouseDown={sigDraw.startDraw}
-                      onMouseMove={sigDraw.draw}
-                      onMouseUp={sigDraw.endDraw}
-                      onMouseLeave={sigDraw.endDraw}
+                      style={{ touchAction: 'none' }}
+                      onMouseDown={sigDraw.onMouseDown}
+                      onMouseMove={sigDraw.onMouseMove}
+                      onMouseUp={sigDraw.onMouseUp}
+                      onMouseLeave={sigDraw.onMouseUp}
                     />
                   </div>
                   <div className="flex gap-2">
@@ -458,10 +521,11 @@ const Settings = () => {
                       width={300}
                       height={100}
                       className="w-full cursor-crosshair"
-                      onMouseDown={iniDraw.startDraw}
-                      onMouseMove={iniDraw.draw}
-                      onMouseUp={iniDraw.endDraw}
-                      onMouseLeave={iniDraw.endDraw}
+                      style={{ touchAction: 'none' }}
+                      onMouseDown={iniDraw.onMouseDown}
+                      onMouseMove={iniDraw.onMouseMove}
+                      onMouseUp={iniDraw.onMouseUp}
+                      onMouseLeave={iniDraw.onMouseUp}
                     />
                   </div>
                   <div className="flex gap-2">
