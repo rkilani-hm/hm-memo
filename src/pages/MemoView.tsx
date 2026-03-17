@@ -652,7 +652,12 @@ const MemoView = () => {
 
       {/* Printable Area */}
       <div className="print-area max-w-4xl mx-auto">
-        <div className="no-print flex justify-end mb-2">
+        <div className="no-print flex justify-end mb-2 gap-2">
+          {(memo as any).revision_count > 0 && (
+            <Badge variant="outline" className="text-xs">
+              Revision #{(memo as any).revision_count}
+            </Badge>
+          )}
           <Badge
             className={`capitalize ${
               memo.status === 'approved'
