@@ -19,18 +19,33 @@ const ResetPassword = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Listen for the PASSWORD_RECOVERY event from Supabase
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsRecovery(true);
-      }
-    });
-
-    // Also check hash for type=recovery
+    // Check hash for type=recovery (Supabase puts tokens in the hash fragment)
     const hash = window.location.hash;
     if (hash.includes('type=recovery')) {
       setIsRecovery(true);
     }
+
+    // Listen for the PASSWORD_RECOVERY event from Supabase
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecovery(true);
+      }
+      // Also detect recovery via token exchange (SIGNED_IN after clicking reset link)
+      if (event === 'SIGNED_IN' && session) {
+        // If we arrived here with recovery params, treat as recovery
+        const currentHash = window.location.hash;
+        if (currentHash.includes('type=recovery') || document.referrer.includes('/verify')) {
+          setIsRecovery(true);
+        }
+      }
+    });
+
+    // Also check if user already has a session from the recovery link
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && hash.includes('type=recovery')) {
+        setIsRecovery(true);
+      }
+    });
 
     return () => subscription.unsubscribe();
   }, []);
