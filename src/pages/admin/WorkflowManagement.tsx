@@ -242,7 +242,10 @@ const WorkflowManagement = () => {
                         <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Stage level" /></SelectTrigger>
                         <SelectContent>
                           {STAGE_LEVELS.map((sl) => (
-                            <SelectItem key={sl} value={sl} className="text-xs">{sl}</SelectItem>
+                            <SelectItem key={sl} value={sl} className="text-xs">
+                              <span className="font-medium">{sl}</span>
+                              <span className="text-muted-foreground ml-1">— {STAGE_LABELS[sl]}</span>
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
