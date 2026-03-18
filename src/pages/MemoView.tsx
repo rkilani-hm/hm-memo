@@ -211,6 +211,7 @@ const MemoView = () => {
           signed_at: new Date().toISOString(),
           password_verified: true,
           signature_image_url: signatureUrl,
+          signing_method: signatureUrl ? 'digital' : null,
         })
         .eq('id', stepId);
       if (stepError) throw stepError;
