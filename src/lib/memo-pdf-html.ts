@@ -2,6 +2,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import type { MemoData, PrintPreferences } from './memo-pdf';
+import type { PdfLayout, PdfSlotConfig } from '@/components/memo/PdfLayoutEditor';
 
 type Profile = Tables<'profiles'>;
 
