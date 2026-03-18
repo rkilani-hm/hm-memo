@@ -93,10 +93,10 @@ export async function prepareMemoData(data: MemoData): Promise<{
   return { sigDataUrls, registeredByProfiles, senderSigDataUrl };
 }
 
-export async function generateMemoPdf(data: MemoData, prefs?: Partial<PrintPreferences>): Promise<void> {
+export async function generateMemoPdf(data: MemoData, prefs?: Partial<PrintPreferences>, pdfLayout?: PdfLayout | null): Promise<void> {
   const preferences = { ...DEFAULT_PRINT_PREFERENCES, ...prefs };
   const prepared = await prepareMemoData(data);
-  const html = buildMemoHtml(data, prepared, preferences);
+  const html = buildMemoHtml(data, prepared, preferences, pdfLayout);
 
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
