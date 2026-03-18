@@ -2,6 +2,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import type { MemoData, PrintPreferences } from './memo-pdf';
+import type { PdfLayout, PdfSlotConfig } from '@/components/memo/PdfLayoutEditor';
 
 type Profile = Tables<'profiles'>;
 
@@ -135,13 +136,20 @@ function buildL1SignOffHtml(
     </div>`;
 }
 
-/** Build the staged approvals table (L2A/L2B, L3, L4, GM) */
+/** Build the staged approvals table using pdf_layout config */
 function buildStagedApprovalsHtml(
   approvalSteps: Tables<'approval_steps'>[],
   profiles: Profile[],
   sigDataUrls: Record<string, string | null>,
-  registeredByProfiles: Record<string, Profile | undefined>
+  registeredByProfiles: Record<string, Profile | undefined>,
+  pdfLayout?: PdfLayout | null
 ): string {
+  // If a pdf_layout is provided, use it
+  if (pdfLayout && pdfLayout.grid) {
+    return buildLayoutBasedApprovalsHtml(approvalSteps, profiles, sigDataUrls, registeredByProfiles, pdfLayout);
+  }
+
+  // Legacy: try stage-level based layout
   const l2a = findStepByStage(approvalSteps, 'l2a');
   const l2b = findStepByStage(approvalSteps, 'l2b');
   const l3 = findStepByStage(approvalSteps, 'l3');
@@ -150,7 +158,6 @@ function buildStagedApprovalsHtml(
 
   const hasAnyStaged = l2a || l2b || l3 || l4 || gm;
 
-  // If no staged steps exist, fall back to generic 3-column grid
   if (!hasAnyStaged) {
     return buildGenericApprovalsHtml(approvalSteps, profiles, sigDataUrls, registeredByProfiles);
   }
@@ -165,19 +172,16 @@ function buildStagedApprovalsHtml(
       ${l2bContent}
     </td>`;
 
-  // Middle top: L3
   const middleTopCell = `
     <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:110pt;">
       ${buildApprovalCellContent(l3, profiles, sigDataUrls, registeredByProfiles, 'INITIALS')}
     </td>`;
 
-  // Right top: L4
   const rightTopCell = `
     <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:110pt;">
       ${buildApprovalCellContent(l4, profiles, sigDataUrls, registeredByProfiles, 'APPROVE')}
     </td>`;
 
-  // Bottom row: GM left, empty middle, empty right
   const gmCell = `
     <td style="border:0.5pt solid #000;vertical-align:top;min-height:90pt;">
       ${buildApprovalCellContent(gm, profiles, sigDataUrls, registeredByProfiles, 'APPROVE')}
@@ -192,6 +196,68 @@ function buildStagedApprovalsHtml(
       <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
         <tr>${leftTopCell}${middleTopCell}${rightTopCell}</tr>
         <tr>${gmCell}${emptyCell}${emptyCell}</tr>
+      </table>
+    </div>`;
+}
+
+/** Build approvals table from configurable pdf_layout */
+function buildLayoutBasedApprovalsHtml(
+  allSteps: Tables<'approval_steps'>[],
+  profiles: Profile[],
+  sigDataUrls: Record<string, string | null>,
+  registeredByProfiles: Record<string, Profile | undefined>,
+  layout: PdfLayout
+): string {
+  // Map step_indices from the layout to actual approval_steps by step_order
+  // step_indices refer to 0-based indices in the workflow template's steps array
+  // approval_steps.step_order is 1-based, so step_index 0 = step_order 1
+  const stepsByOrder = new Map<number, Tables<'approval_steps'>>();
+  allSteps.forEach(s => stepsByOrder.set(s.step_order, s));
+
+  function getStepByIndex(idx: number): Tables<'approval_steps'> | undefined {
+    return stepsByOrder.get(idx + 1); // step_index is 0-based, step_order is 1-based
+  }
+
+  function renderCell(slot: PdfSlotConfig | null, minHeight: string): string {
+    if (!slot || slot.step_indices.length === 0) {
+      return `<td style="border:0.5pt solid #000;min-height:${minHeight};"></td>`;
+    }
+
+    if (slot.stacked && slot.step_indices.length > 1) {
+      // Multiple steps stacked with separator
+      const parts = slot.step_indices.map(si => {
+        const step = getStepByIndex(si);
+        const actionLabel = step?.action_type === 'initial' ? 'INITIALS' : 'APPROVE';
+        return buildApprovalCellContent(step, profiles, sigDataUrls, registeredByProfiles, actionLabel);
+      });
+      return `
+        <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:${minHeight};">
+          ${parts.join('<hr style="border:none;border-top:0.3pt solid #ccc;margin:2pt 6pt;" />')}
+        </td>`;
+    }
+
+    // Single step or multiple non-stacked (render first)
+    const step = getStepByIndex(slot.step_indices[0]);
+    const actionLabel = step?.action_type === 'initial' ? 'INITIALS' : 'APPROVE';
+    return `
+      <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:${minHeight};">
+        ${buildApprovalCellContent(step, profiles, sigDataUrls, registeredByProfiles, actionLabel)}
+      </td>`;
+  }
+
+  const rows = layout.grid.map((row, rowIdx) => {
+    const minH = rowIdx === 0 ? '110pt' : '90pt';
+    const cells = row.map(slot => renderCell(slot, minH)).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
+  return `
+    <div style="margin:16px 0;page-break-inside:avoid;">
+      <div style="background:#CC0000;color:#fff;text-align:center;padding:8px;font-weight:bold;font-size:11pt;letter-spacing:2px;text-transform:uppercase;">
+        Approvals
+      </div>
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+        ${rows}
       </table>
     </div>`;
 }
@@ -260,15 +326,27 @@ function buildGenericApprovalsHtml(
     </div>`;
 }
 
-export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: PrintPreferences): string {
+export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: PrintPreferences, pdfLayout?: PdfLayout | null): string {
   const { memo, fromProfile, toProfile, department, approvalSteps, attachments, profiles, logoDataUrl } = data;
   const { sigDataUrls, registeredByProfiles, senderSigDataUrl } = prepared;
 
-  // L1 step for the sign-off block
-  const l1Step = findStepByStage(approvalSteps, 'l1');
+  // Determine sign-off step
+  let signOffStep: Tables<'approval_steps'> | undefined;
+  let nonSignOffSteps: Tables<'approval_steps'>[];
+
+  if (pdfLayout && pdfLayout.signoff_step !== null) {
+    // Use the pdf_layout's signoff_step (0-based index → step_order 1-based)
+    const signoffOrder = pdfLayout.signoff_step + 1;
+    signOffStep = approvalSteps.find(s => s.step_order === signoffOrder);
+    nonSignOffSteps = approvalSteps.filter(s => s.step_order !== signoffOrder);
+  } else {
+    // Legacy: use L1 stage level
+    signOffStep = findStepByStage(approvalSteps, 'l1');
+    nonSignOffSteps = approvalSteps.filter((s) => !isL1Stage(s));
+  }
 
   // L1 sign-off block
-  const signOffHtml = buildL1SignOffHtml(l1Step, profiles, sigDataUrls, senderSigDataUrl, fromProfile);
+  const signOffHtml = buildL1SignOffHtml(signOffStep, profiles, sigDataUrls, senderSigDataUrl, fromProfile);
 
   // Transmitted for grid
   const transmittedForHtml = MEMO_TYPE_OPTIONS.map(opt => {
@@ -279,9 +357,8 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     </span>`;
   }).join('');
 
-  // Approvals HTML (excluding L1 which is the sign-off)
-  const nonL1Steps = approvalSteps.filter((s) => !isL1Stage(s));
-  const approvalsHtml = buildStagedApprovalsHtml(nonL1Steps, profiles, sigDataUrls, registeredByProfiles);
+  // Approvals HTML (excluding sign-off step)
+  const approvalsHtml = buildStagedApprovalsHtml(nonSignOffSteps, profiles, sigDataUrls, registeredByProfiles, pdfLayout);
 
   // Comments
   const commentsHtml = approvalSteps

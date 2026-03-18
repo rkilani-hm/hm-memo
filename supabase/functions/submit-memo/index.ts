@@ -197,10 +197,14 @@ serve(async (req) => {
       .insert(approvalSteps);
     if (stepsErr) throw stepsErr;
 
-    // Update memo status
+    // Update memo status + store workflow template id
     await adminClient
       .from("memos")
-      .update({ status: "in_review", current_step: 1 })
+      .update({
+        status: "in_review",
+        current_step: 1,
+        workflow_template_id: workflow?.id || null,
+      })
       .eq("id", memo_id);
 
     // Notify first approver(s) — could be parallel group

@@ -131,7 +131,23 @@ const MemoView = () => {
     queryFn: fetchDepartments,
   });
 
-  // Fetch delegate assignments for current user
+  // Fetch workflow template pdf_layout for this memo
+  const { data: workflowTemplate } = useQuery({
+    queryKey: ['memo-workflow-template', (memo as any)?.workflow_template_id],
+    queryFn: async () => {
+      const templateId = (memo as any)?.workflow_template_id;
+      if (!templateId) return null;
+      const { data, error } = await supabase
+        .from('workflow_templates')
+        .select('*')
+        .eq('id', templateId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!(memo as any)?.workflow_template_id,
+  });
+
   const { data: delegateAssignments = [] } = useQuery({
     queryKey: ['my-delegate-assignments', user?.id],
     queryFn: async () => {
@@ -489,6 +505,9 @@ const MemoView = () => {
     });
   };
 
+  // Extract pdf_layout from the workflow template
+  const pdfLayout = (workflowTemplate as any)?.pdf_layout || null;
+
   const handleOpenPrintPreview = async () => {
     if (!memo) return;
     setPdfGenerating(true);
@@ -499,7 +518,7 @@ const MemoView = () => {
         approvalSteps, attachments, profiles, departments, logoDataUrl,
       };
       const prepared = await prepareMemoData(memoData);
-      const html = buildMemoHtml(memoData, prepared, { ...DEFAULT_PRINT_PREFERENCES, ...savedPrintPrefs });
+      const html = buildMemoHtml(memoData, prepared, { ...DEFAULT_PRINT_PREFERENCES, ...savedPrintPrefs }, pdfLayout);
       setPreviewHtml(html);
       setPrintPreviewOpen(true);
     } catch (error: any) {
@@ -516,7 +535,7 @@ const MemoView = () => {
       await generateMemoPdf({
         memo, fromProfile, toProfile, department: dept,
         approvalSteps, attachments, profiles, departments, logoDataUrl,
-      }, prefs);
+      }, prefs, pdfLayout);
     } catch (error: any) {
       toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
     }

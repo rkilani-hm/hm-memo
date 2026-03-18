@@ -12,9 +12,10 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, GitBranch } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, GitBranch, LayoutGrid } from 'lucide-react';
 import { Constants } from '@/integrations/supabase/types';
 import type { Tables } from '@/integrations/supabase/types';
+import PdfLayoutEditor, { type PdfLayout, DEFAULT_PDF_LAYOUT } from '@/components/memo/PdfLayoutEditor';
 
 type MemoType = Tables<'memos'>['memo_types'][number];
 const MEMO_TYPES = Constants.public.Enums.memo_type as readonly string[];
@@ -47,6 +48,7 @@ const WorkflowManagement = () => {
   const [memoType, setMemoType] = useState('');
   const [isDefault, setIsDefault] = useState(false);
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
+  const [pdfLayout, setPdfLayout] = useState<PdfLayout>(DEFAULT_PDF_LAYOUT);
 
   const { data: workflows = [], isLoading } = useQuery({
     queryKey: ['workflow-templates'],
@@ -68,6 +70,7 @@ const WorkflowManagement = () => {
         memo_type: (memoType || null) as MemoType | null,
         is_default: isDefault,
         steps: steps as any,
+        pdf_layout: pdfLayout as any,
       };
       if (editId) {
         const { error } = await supabase.from('workflow_templates').update(payload).eq('id', editId);
@@ -104,6 +107,7 @@ const WorkflowManagement = () => {
     setMemoType('');
     setIsDefault(false);
     setSteps([]);
+    setPdfLayout(DEFAULT_PDF_LAYOUT);
   };
 
   const openEdit = (wf: typeof workflows[0]) => {
@@ -113,6 +117,8 @@ const WorkflowManagement = () => {
     setMemoType(wf.memo_type || '');
     setIsDefault(wf.is_default || false);
     setSteps(Array.isArray(wf.steps) ? (wf.steps as unknown as WorkflowStep[]) : []);
+    const wfLayout = (wf as any).pdf_layout;
+    setPdfLayout(wfLayout && typeof wfLayout === 'object' && wfLayout.grid ? wfLayout : DEFAULT_PDF_LAYOUT);
     setOpen(true);
   };
 
@@ -269,6 +275,18 @@ const WorkflowManagement = () => {
                 ))}
               </div>
 
+              {/* PDF Layout Editor */}
+              {steps.length > 0 && (
+                <div className="border-t pt-4">
+                  <PdfLayoutEditor
+                    steps={steps}
+                    layout={pdfLayout}
+                    onChange={setPdfLayout}
+                    profiles={profiles}
+                  />
+                </div>
+              )}
+
               <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={!name || saveMutation.isPending}>
                 {saveMutation.isPending ? 'Saving...' : 'Save Workflow'}
               </Button>
@@ -286,6 +304,7 @@ const WorkflowManagement = () => {
                 <TableHead>Department</TableHead>
                 <TableHead>Memo Type</TableHead>
                 <TableHead>Steps</TableHead>
+                <TableHead>Layout</TableHead>
                 <TableHead>Default</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
@@ -293,8 +312,8 @@ const WorkflowManagement = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
-              ) : workflows.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No workflows yet</TableCell></TableRow>
+             ) : workflows.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No workflows yet</TableCell></TableRow>
               ) : workflows.map((wf) => {
                 const wfSteps = Array.isArray(wf.steps) ? (wf.steps as unknown as WorkflowStep[]) : [];
                 return (
@@ -307,6 +326,15 @@ const WorkflowManagement = () => {
                         <GitBranch className="h-3 w-3 text-muted-foreground" />
                         <span className="text-sm">{wfSteps.length} step{wfSteps.length !== 1 ? 's' : ''}</span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const pl = (wf as any).pdf_layout;
+                        const hasLayout = pl && typeof pl === 'object' && pl.grid && pl.grid.some((r: any[]) => r?.some((c: any) => c !== null));
+                        return hasLayout
+                          ? <Badge variant="outline" className="gap-1"><LayoutGrid className="h-3 w-3" />Custom</Badge>
+                          : <span className="text-muted-foreground text-xs">Default</span>;
+                      })()}
                     </TableCell>
                     <TableCell>{wf.is_default ? <Badge variant="default">Default</Badge> : '—'}</TableCell>
                     <TableCell>

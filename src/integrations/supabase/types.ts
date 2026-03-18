@@ -421,6 +421,7 @@ export type Database = {
           to_user_id: string | null
           transmittal_no: string
           updated_at: string
+          workflow_template_id: string | null
         }
         Insert: {
           continuation_pages?: number | null
@@ -441,6 +442,7 @@ export type Database = {
           to_user_id?: string | null
           transmittal_no: string
           updated_at?: string
+          workflow_template_id?: string | null
         }
         Update: {
           continuation_pages?: number | null
@@ -461,6 +463,7 @@ export type Database = {
           to_user_id?: string | null
           transmittal_no?: string
           updated_at?: string
+          workflow_template_id?: string | null
         }
         Relationships: [
           {
@@ -468,6 +471,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memos_workflow_template_id_fkey"
+            columns: ["workflow_template_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -616,6 +626,7 @@ export type Database = {
           is_default: boolean | null
           memo_type: Database["public"]["Enums"]["memo_type"] | null
           name: string
+          pdf_layout: Json
           steps: Json
           updated_at: string
         }
@@ -626,6 +637,7 @@ export type Database = {
           is_default?: boolean | null
           memo_type?: Database["public"]["Enums"]["memo_type"] | null
           name: string
+          pdf_layout?: Json
           steps?: Json
           updated_at?: string
         }
@@ -636,6 +648,7 @@ export type Database = {
           is_default?: boolean | null
           memo_type?: Database["public"]["Enums"]["memo_type"] | null
           name?: string
+          pdf_layout?: Json
           steps?: Json
           updated_at?: string
         }
