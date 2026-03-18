@@ -337,6 +337,25 @@ const LinkPopover = ({ editor }: { editor: Editor }) => {
 };
 
 const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindReplace }: ToolbarProps) => {
+  const [formatPainter, setFormatPainter] = useState<StoredFormat | null>(null);
+
+  // When format painter is active, apply on next selection change (mouseup)
+  useEffect(() => {
+    if (!formatPainter) return;
+    const handleMouseUp = () => {
+      // Small delay to let selection settle
+      setTimeout(() => {
+        const { from, to } = editor.state.selection;
+        if (from !== to) {
+          applyFormat(editor, formatPainter);
+          setFormatPainter(null);
+        }
+      }, 10);
+    };
+    const editorEl = editor.view.dom;
+    editorEl.addEventListener('mouseup', handleMouseUp);
+    return () => editorEl.removeEventListener('mouseup', handleMouseUp);
+  }, [formatPainter, editor]);
   const getCurrentFontFamily = () => {
     const attrs = editor.getAttributes('textStyle');
     return attrs.fontFamily || '';
