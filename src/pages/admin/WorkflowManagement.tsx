@@ -70,6 +70,7 @@ const WorkflowManagement = () => {
         memo_type: (memoType || null) as MemoType | null,
         is_default: isDefault,
         steps: steps as any,
+        pdf_layout: pdfLayout as any,
       };
       if (editId) {
         const { error } = await supabase.from('workflow_templates').update(payload).eq('id', editId);
