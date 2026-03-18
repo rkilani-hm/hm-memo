@@ -23,11 +23,54 @@ import {
   Indent, Outdent,
   Table as TableIcon, Minus, Link2, ImageIcon, SmilePlus,
   Undo, Redo,
-  Maximize, Search,
+  Maximize, Search, Paintbrush,
   ChevronDown, Type, Palette, Highlighter,
   Rows3, Columns3, Trash2, Plus,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
 } from 'lucide-react';
+
+interface StoredFormat {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  strike: boolean;
+  subscript: boolean;
+  superscript: boolean;
+  color?: string;
+  backgroundColor?: string;
+  fontFamily?: string;
+  fontSize?: string;
+}
+
+const captureFormat = (editor: Editor): StoredFormat => ({
+  bold: editor.isActive('bold'),
+  italic: editor.isActive('italic'),
+  underline: editor.isActive('underline'),
+  strike: editor.isActive('strike'),
+  subscript: editor.isActive('subscript'),
+  superscript: editor.isActive('superscript'),
+  color: editor.getAttributes('textStyle').color,
+  backgroundColor: editor.getAttributes('highlight').color,
+  fontFamily: editor.getAttributes('textStyle').fontFamily,
+  fontSize: editor.getAttributes('textStyle').fontSize,
+});
+
+const applyFormat = (editor: Editor, fmt: StoredFormat) => {
+  let chain = editor.chain().focus() as any;
+  // Clear existing marks first
+  chain = chain.unsetAllMarks();
+  if (fmt.bold) chain = chain.setBold();
+  if (fmt.italic) chain = chain.setItalic();
+  if (fmt.underline) chain = chain.setUnderline();
+  if (fmt.strike) chain = chain.setStrike();
+  if (fmt.subscript) chain = chain.setSubscript();
+  if (fmt.superscript) chain = chain.setSuperscript();
+  if (fmt.color) chain = chain.setColor(fmt.color);
+  if (fmt.backgroundColor) chain = chain.setHighlight({ color: fmt.backgroundColor });
+  if (fmt.fontFamily) chain = chain.setFontFamily(fmt.fontFamily);
+  if (fmt.fontSize) chain = chain.setFontSize(fmt.fontSize);
+  chain.run();
+};
 
 const FONT_FAMILIES = [
   { label: 'Arial', value: 'Arial, sans-serif' },
@@ -294,6 +337,30 @@ const LinkPopover = ({ editor }: { editor: Editor }) => {
 };
 
 const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindReplace }: ToolbarProps) => {
+  const [formatPainter, setFormatPainter] = useState<StoredFormat | null>(null);
+
+  // When format painter is active, apply on next selection change (mouseup)
+  useEffect(() => {
+    if (!formatPainter) return;
+    const handleMouseUp = () => {
+      // Small delay to let selection settle
+      setTimeout(() => {
+        const { from, to } = editor.state.selection;
+        if (from !== to) {
+          applyFormat(editor, formatPainter);
+          setFormatPainter(null);
+        }
+      }, 10);
+    };
+    const editorEl = editor.view.dom;
+    editorEl.addEventListener('mouseup', handleMouseUp);
+    // Visual cursor feedback
+    editorEl.style.cursor = 'crosshair';
+    return () => {
+      editorEl.removeEventListener('mouseup', handleMouseUp);
+      editorEl.style.cursor = '';
+    };
+  }, [formatPainter, editor]);
   const getCurrentFontFamily = () => {
     const attrs = editor.getAttributes('textStyle');
     return attrs.fontFamily || '';
@@ -403,6 +470,19 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
         title="Clear Formatting"
       >
         <RemoveFormatting className="h-3.5 w-3.5" />
+      </ToolbarButton>
+      <ToolbarButton
+        onClick={() => {
+          if (formatPainter) {
+            setFormatPainter(null);
+          } else {
+            setFormatPainter(captureFormat(editor));
+          }
+        }}
+        active={!!formatPainter}
+        title="Format Painter – Click to copy formatting, then select text to apply. Click again to cancel."
+      >
+        <Paintbrush className="h-3.5 w-3.5" />
       </ToolbarButton>
 
       <Separator orientation="vertical" className="h-5 mx-0.5" />
