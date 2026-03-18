@@ -82,7 +82,21 @@ serve(async (req) => {
       });
     }
 
-    // Fetch the memo
+    // Verify access via user's RLS permissions (not just owner check)
+    const { data: memoAccess, error: accessErr } = await userClient
+      .from("memos")
+      .select("id")
+      .eq("id", memo_id)
+      .maybeSingle();
+
+    if (accessErr || !memoAccess) {
+      return new Response(JSON.stringify({ error: "Not authorized for this memo" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fetch full memo data with admin client
     const { data: memo, error: memoErr } = await adminClient
       .from("memos")
       .select("*")
@@ -91,13 +105,6 @@ serve(async (req) => {
     if (memoErr || !memo) {
       return new Response(JSON.stringify({ error: "Memo not found" }), {
         status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (memo.from_user_id !== user.id) {
-      return new Response(JSON.stringify({ error: "Not authorized for this memo" }), {
-        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
