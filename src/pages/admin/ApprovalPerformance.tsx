@@ -86,6 +86,11 @@ const ApprovalPerformance = () => {
 
   const slaHours = (slaSettings as any)?.sla_hours ?? 48;
 
+  if (!hasRole('admin')) {
+    navigate('/');
+    return null;
+  }
+
   const kpiData = useMemo(() => {
     const memoMap = new Map(memos.map(m => [m.id, m]));
     const profileMap = new Map(profiles.map(p => [p.user_id, p]));

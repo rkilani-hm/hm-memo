@@ -27,6 +27,7 @@ import {
   BarChart3,
   ShieldCheck,
   HelpCircle,
+  Bell,
 } from 'lucide-react';
 
 const AppSidebar = () => {
