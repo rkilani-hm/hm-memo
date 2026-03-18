@@ -268,8 +268,13 @@ const WorkflowTracker = ({ steps, profiles, memoStatus, currentStep }: WorkflowT
             </div>
           )}
         </div>
+      </div>
 
-        {/* Steps timeline */}
+      {/* Detailed Steps Timeline */}
+      <div className="rounded-lg border bg-card p-5">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
+          Step-by-Step Timeline
+        </h3>
         <div className="space-y-0">
           {steps.map((step, index) => {
             const approver = getProfile(step.approver_user_id);
