@@ -15,9 +15,26 @@ function getProfile(profiles: Profile[], userId: string) {
   return profiles.find((p) => p.user_id === userId);
 }
 
-/** Find an approval step by stage_level */
+/** Normalize stage labels from workflow data (L1/L2a/L2b/L3/L4/gm, 1/2a/2b/3/4/gm, etc.) */
+function normalizeStageLevel(stage: string | null | undefined): string {
+  const raw = String(stage ?? '').trim().toLowerCase().replace(/[\s_-]/g, '');
+  if (raw === '1' || raw === 'l1' || raw === 'stage1') return 'l1';
+  if (raw === '2a' || raw === 'l2a' || raw === 'stage2a') return 'l2a';
+  if (raw === '2b' || raw === 'l2b' || raw === 'stage2b') return 'l2b';
+  if (raw === '3' || raw === 'l3' || raw === 'stage3') return 'l3';
+  if (raw === '4' || raw === 'l4' || raw === 'stage4') return 'l4';
+  if (raw === 'gm' || raw === 'lgm') return 'gm';
+  return raw;
+}
+
+/** Find an approval step by normalized stage_level */
 function findStepByStage(steps: Tables<'approval_steps'>[], stage: string) {
-  return steps.find((s) => (s as any).stage_level === stage);
+  const target = normalizeStageLevel(stage);
+  return steps.find((s) => normalizeStageLevel((s as any).stage_level) === target);
+}
+
+function isL1Stage(step: Tables<'approval_steps'>) {
+  return normalizeStageLevel((step as any).stage_level) === 'l1';
 }
 
 /** Build the inner HTML content of one approval cell */
@@ -125,10 +142,10 @@ function buildStagedApprovalsHtml(
   sigDataUrls: Record<string, string | null>,
   registeredByProfiles: Record<string, Profile | undefined>
 ): string {
-  const l2a = findStepByStage(approvalSteps, '2a');
-  const l2b = findStepByStage(approvalSteps, '2b');
-  const l3 = findStepByStage(approvalSteps, '3');
-  const l4 = findStepByStage(approvalSteps, '4');
+  const l2a = findStepByStage(approvalSteps, 'l2a');
+  const l2b = findStepByStage(approvalSteps, 'l2b');
+  const l3 = findStepByStage(approvalSteps, 'l3');
+  const l4 = findStepByStage(approvalSteps, 'l4');
   const gm = findStepByStage(approvalSteps, 'gm');
 
   const hasAnyStaged = l2a || l2b || l3 || l4 || gm;
@@ -248,7 +265,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   const { sigDataUrls, registeredByProfiles, senderSigDataUrl } = prepared;
 
   // L1 step for the sign-off block
-  const l1Step = findStepByStage(approvalSteps, '1');
+  const l1Step = findStepByStage(approvalSteps, 'l1');
 
   // L1 sign-off block
   const signOffHtml = buildL1SignOffHtml(l1Step, profiles, sigDataUrls, senderSigDataUrl, fromProfile);
@@ -263,7 +280,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   }).join('');
 
   // Approvals HTML (excluding L1 which is the sign-off)
-  const nonL1Steps = approvalSteps.filter(s => (s as any).stage_level !== '1');
+  const nonL1Steps = approvalSteps.filter((s) => !isL1Stage(s));
   const approvalsHtml = buildStagedApprovalsHtml(nonL1Steps, profiles, sigDataUrls, registeredByProfiles);
 
   // Comments
