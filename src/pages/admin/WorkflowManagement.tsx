@@ -117,6 +117,8 @@ const WorkflowManagement = () => {
     setMemoType(wf.memo_type || '');
     setIsDefault(wf.is_default || false);
     setSteps(Array.isArray(wf.steps) ? (wf.steps as unknown as WorkflowStep[]) : []);
+    const wfLayout = (wf as any).pdf_layout;
+    setPdfLayout(wfLayout && typeof wfLayout === 'object' && wfLayout.grid ? wfLayout : DEFAULT_PDF_LAYOUT);
     setOpen(true);
   };
 
