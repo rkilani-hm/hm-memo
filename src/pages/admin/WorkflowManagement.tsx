@@ -312,8 +312,8 @@ const WorkflowManagement = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
-              ) : workflows.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No workflows yet</TableCell></TableRow>
+             ) : workflows.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No workflows yet</TableCell></TableRow>
               ) : workflows.map((wf) => {
                 const wfSteps = Array.isArray(wf.steps) ? (wf.steps as unknown as WorkflowStep[]) : [];
                 return (
