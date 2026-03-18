@@ -275,6 +275,18 @@ const WorkflowManagement = () => {
                 ))}
               </div>
 
+              {/* PDF Layout Editor */}
+              {steps.length > 0 && (
+                <div className="border-t pt-4">
+                  <PdfLayoutEditor
+                    steps={steps}
+                    layout={pdfLayout}
+                    onChange={setPdfLayout}
+                    profiles={profiles}
+                  />
+                </div>
+              )}
+
               <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={!name || saveMutation.isPending}>
                 {saveMutation.isPending ? 'Saving...' : 'Save Workflow'}
               </Button>
