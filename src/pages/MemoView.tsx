@@ -437,6 +437,24 @@ const MemoView = () => {
       if (initialsImg) {
         setSignatureMode('saved');
         setSignatureDataUrl(initialsImg);
+      } else if (myProfile?.initials) {
+        // Generate image from text initials
+        const canvas = document.createElement('canvas');
+        canvas.width = 300;
+        canvas.height = 100;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, 300, 100);
+          ctx.fillStyle = '#1B3A5C';
+          ctx.font = 'bold italic 48px "Century Gothic", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(myProfile.initials, 150, 50);
+        }
+        const dataUrl = canvas.toDataURL('image/png');
+        setSignatureMode('saved');
+        setSignatureDataUrl(dataUrl);
       } else {
         setSignatureMode('draw');
         setSignatureDataUrl(null);
