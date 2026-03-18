@@ -16,6 +16,7 @@ interface ApprovalStep {
   parallel_group?: number | null;
   stage_level?: string | null;
   created_at?: string;
+  comments?: string | null;
 }
 
 interface Profile {
@@ -78,12 +79,29 @@ const WorkflowTracker = ({ steps, profiles, memoStatus, currentStep }: WorkflowT
     }
   });
 
+  // Categorize steps
+  const approvedSteps = steps.filter(s => s.status === 'approved');
+  const rejectedStep = steps.find(s => s.status === 'rejected');
+  const reworkStep = steps.find(s => s.status === 'rework');
+  const pendingSteps = steps.filter(s => s.status === 'pending');
+  const skippedSteps = steps.filter(s => s.status === 'skipped');
+
+  // Find currently active pending steps (first pending + parallel siblings)
+  const firstPendingStep = steps.find(s => s.status === 'pending');
+  const activeWaiting = firstPendingStep
+    ? (firstPendingStep.parallel_group != null
+      ? pendingSteps.filter(s => s.parallel_group === firstPendingStep.parallel_group)
+      : [firstPendingStep])
+    : [];
+  const upcomingSteps = pendingSteps.filter(s => !activeWaiting.some(a => a.id === s.id));
+
   return (
-    <div className="no-print max-w-4xl mx-auto mt-6">
+    <div className="no-print max-w-4xl mx-auto mt-6 space-y-4">
+      {/* Status Summary Card */}
       <div className="rounded-lg border bg-card p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-            Approval Workflow Progress
+            Approval Workflow Status
           </h3>
           <Badge
             variant="outline"
@@ -101,7 +119,162 @@ const WorkflowTracker = ({ steps, profiles, memoStatus, currentStep }: WorkflowT
         {/* Progress bar */}
         <Progress value={progressPercent} className="h-2 mb-5" />
 
-        {/* Steps timeline */}
+        {/* Summary boxes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+          {/* Approved By */}
+          {approvedSteps.length > 0 && (
+            <div className="rounded-md border border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))]" />
+                <span className="text-xs font-bold uppercase tracking-wider text-[hsl(var(--success))]">
+                  Approved By ({approvedSteps.length})
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {approvedSteps.map(step => {
+                  const p = getProfile(step.approver_user_id);
+                  return (
+                    <div key={step.id} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-5 h-5 rounded-full bg-[hsl(var(--success))]/15 flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="h-3 w-3 text-[hsl(var(--success))]" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold truncate">{p?.full_name || 'Unknown'}</p>
+                          {p?.job_title && <p className="text-[10px] text-muted-foreground truncate">{p.job_title}</p>}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {step.signed_at && (
+                          <p className="text-[10px] text-muted-foreground">{format(new Date(step.signed_at), 'dd MMM yyyy')}</p>
+                        )}
+                        {step.stage_level && (
+                          <Badge variant="outline" className={`text-[8px] px-1 py-0 h-3.5 ${stageLevelColors[step.stage_level] || ''}`}>
+                            {step.stage_level}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Waiting For / Rejected / Rework */}
+          {!isTerminal && activeWaiting.length > 0 && (
+            <div className="rounded-md border border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="h-4 w-4 text-[hsl(var(--warning))]" />
+                <span className="text-xs font-bold uppercase tracking-wider text-[hsl(var(--warning))]">
+                  Waiting For
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {activeWaiting.map(step => {
+                  const p = getProfile(step.approver_user_id);
+                  const daysPending = step.created_at
+                    ? differenceInDays(new Date(), new Date(step.created_at))
+                    : 0;
+                  return (
+                    <div key={step.id} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-5 h-5 rounded-full bg-[hsl(var(--warning))]/15 flex items-center justify-center shrink-0 animate-pulse">
+                          <Clock className="h-3 w-3 text-[hsl(var(--warning))]" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold truncate">{p?.full_name || 'Unknown'}</p>
+                          {p?.job_title && <p className="text-[10px] text-muted-foreground truncate">{p.job_title}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {step.stage_level && (
+                          <Badge variant="outline" className={`text-[8px] px-1 py-0 h-3.5 ${stageLevelColors[step.stage_level] || ''}`}>
+                            {step.stage_level}
+                          </Badge>
+                        )}
+                        {daysPending >= 2 && (
+                          <Badge className={`text-[8px] px-1 py-0 h-3.5 border-0 ${
+                            daysPending >= 5 ? 'bg-destructive/10 text-destructive' : 'bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]'
+                          }`}>
+                            {daysPending}d
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {upcomingSteps.length > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-2 pt-2 border-t border-[hsl(var(--warning))]/20">
+                  {upcomingSteps.length} more step{upcomingSteps.length > 1 ? 's' : ''} after this
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Rejected state */}
+          {rejectedStep && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <XCircle className="h-4 w-4 text-destructive" />
+                <span className="text-xs font-bold uppercase tracking-wider text-destructive">
+                  Rejected By
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-destructive/15 flex items-center justify-center shrink-0">
+                  <XCircle className="h-3 w-3 text-destructive" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold">{getProfile(rejectedStep.approver_user_id)?.full_name || 'Unknown'}</p>
+                  {rejectedStep.comments && <p className="text-[10px] text-muted-foreground mt-0.5">"{rejectedStep.comments}"</p>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Rework state */}
+          {reworkStep && (
+            <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <RotateCcw className="h-4 w-4 text-accent" />
+                <span className="text-xs font-bold uppercase tracking-wider text-accent">
+                  Rework Requested By
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-accent/15 flex items-center justify-center shrink-0">
+                  <RotateCcw className="h-3 w-3 text-accent" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold">{getProfile(reworkStep.approver_user_id)?.full_name || 'Unknown'}</p>
+                  {reworkStep.comments && <p className="text-[10px] text-muted-foreground mt-0.5">"{reworkStep.comments}"</p>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fully approved */}
+          {memoStatus === 'approved' && (
+            <div className="rounded-md border border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 p-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[hsl(var(--success))]/15 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-5 w-5 text-[hsl(var(--success))]" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-[hsl(var(--success))]">Fully Approved</p>
+                <p className="text-[10px] text-muted-foreground">All {steps.length} approvers have signed off</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Detailed Steps Timeline */}
+      <div className="rounded-lg border bg-card p-5">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
+          Step-by-Step Timeline
+        </h3>
         <div className="space-y-0">
           {steps.map((step, index) => {
             const approver = getProfile(step.approver_user_id);
