@@ -280,7 +280,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   }).join('');
 
   // Approvals HTML (excluding L1 which is the sign-off)
-  const nonL1Steps = approvalSteps.filter(s => (s as any).stage_level !== '1');
+  const nonL1Steps = approvalSteps.filter((s) => !isL1Stage(s));
   const approvalsHtml = buildStagedApprovalsHtml(nonL1Steps, profiles, sigDataUrls, registeredByProfiles);
 
   // Comments
