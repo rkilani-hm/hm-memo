@@ -326,15 +326,27 @@ function buildGenericApprovalsHtml(
     </div>`;
 }
 
-export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: PrintPreferences): string {
+export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: PrintPreferences, pdfLayout?: PdfLayout | null): string {
   const { memo, fromProfile, toProfile, department, approvalSteps, attachments, profiles, logoDataUrl } = data;
   const { sigDataUrls, registeredByProfiles, senderSigDataUrl } = prepared;
 
-  // L1 step for the sign-off block
-  const l1Step = findStepByStage(approvalSteps, 'l1');
+  // Determine sign-off step
+  let signOffStep: Tables<'approval_steps'> | undefined;
+  let nonSignOffSteps: Tables<'approval_steps'>[];
+
+  if (pdfLayout && pdfLayout.signoff_step !== null) {
+    // Use the pdf_layout's signoff_step (0-based index → step_order 1-based)
+    const signoffOrder = pdfLayout.signoff_step + 1;
+    signOffStep = approvalSteps.find(s => s.step_order === signoffOrder);
+    nonSignOffSteps = approvalSteps.filter(s => s.step_order !== signoffOrder);
+  } else {
+    // Legacy: use L1 stage level
+    signOffStep = findStepByStage(approvalSteps, 'l1');
+    nonSignOffSteps = approvalSteps.filter((s) => !isL1Stage(s));
+  }
 
   // L1 sign-off block
-  const signOffHtml = buildL1SignOffHtml(l1Step, profiles, sigDataUrls, senderSigDataUrl, fromProfile);
+  const signOffHtml = buildL1SignOffHtml(signOffStep, profiles, sigDataUrls, senderSigDataUrl, fromProfile);
 
   // Transmitted for grid
   const transmittedForHtml = MEMO_TYPE_OPTIONS.map(opt => {
