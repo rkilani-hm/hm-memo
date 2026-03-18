@@ -896,114 +896,189 @@ const MemoView = () => {
           </div>
 
           {/* APPROVALS */}
-          {approvalSteps.length > 0 && (
-            <div className="mt-4 mx-4 mb-4">
-              <div className="bg-destructive text-destructive-foreground text-center py-2 font-bold text-lg tracking-widest uppercase">
-                Approvals
-              </div>
-              <div className="grid grid-cols-3 border border-t-0 border-foreground/30">
-                {approvalSteps.map((step) => {
-                  const approver = getProfile(step.approver_user_id);
-                  const sat = getStepActionType(step);
-                  const isParallel = (step as any).parallel_group !== null && (step as any).parallel_group !== undefined;
+          {approvalSteps.length > 0 && (() => {
+            const pdfLayout = workflowTemplate?.pdf_layout as any;
+            const signoffIdx = pdfLayout?.signoff_step;
+            const hasLayout = pdfLayout?.grid?.some?.((row: any[]) => row?.some?.((cell: any) => cell !== null));
 
-                  return (
-                    <div
-                      key={step.id}
-                      className="border-r last:border-r-0 border-foreground/30 p-3 flex flex-col justify-between min-h-[120px]"
-                    >
-                      {/* Status + action type indicator */}
-                      <div className="no-print flex items-center gap-1 text-[10px] capitalize mb-1 flex-wrap">
-                        {statusIcons[step.status]}
-                        <span className={
-                          step.status === 'approved' ? 'text-[hsl(var(--success))]' :
-                          step.status === 'rejected' ? 'text-destructive' :
-                          step.status === 'pending' ? 'text-[hsl(var(--warning))]' :
-                          'text-accent'
-                        }>
-                          {step.status}
-                        </span>
-                        <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 ml-1 gap-0.5">
-                          {stepActionIcons[sat]}
-                          {stepActionLabels[sat]}
-                        </Badge>
-                        {isParallel && (
-                          <Badge variant="secondary" className="text-[8px] px-1 py-0 h-4 ml-1">∥</Badge>
-                        )}
-                      </div>
+            // Helper to render a single approval cell
+            const renderApprovalCell = (step: typeof approvalSteps[0]) => {
+              const approver = getProfile(step.approver_user_id);
+              const sat = getStepActionType(step);
+              const isParallel = (step as any).parallel_group !== null && (step as any).parallel_group !== undefined;
 
-                      {/* Signature/Initials area */}
-                      <div className="flex-1 flex items-center justify-center">
-                        {/* Manual paper signed indicator */}
-                        {(step as any).signing_method === 'manual_paper' && step.status === 'approved' ? (
-                          <div className="text-center">
-                            <p className="text-xs font-bold text-accent">📄 SIGNED ON PAPER</p>
-                            {(step as any).registered_by_user_id && (
-                              <p className="text-[9px] text-muted-foreground mt-1">
-                                Registered by: {getProfile((step as any).registered_by_user_id)?.full_name || 'Delegate'}
-                              </p>
-                            )}
-                            <Badge className="text-[8px] bg-accent/20 text-accent mt-1">Manual</Badge>
-                          </div>
-                        ) : sat === 'signature' && step.signature_image_url ? (
-                          <div className="text-center">
-                            <SignedImage
-                              storagePath={step.signature_image_url}
-                              alt={`${approver?.full_name || 'Approver'} signature`}
-                              className="h-14 object-contain"
-                              fallback={
-                                step.status === 'approved'
-                                  ? <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
-                                  : null
-                              }
-                            />
-                            {step.status === 'approved' && <Badge variant="outline" className="text-[8px] mt-1">🔐 Digital</Badge>}
-                          </div>
-                        ) : sat === 'initial' && step.signature_image_url ? (
-                          <div className="text-center">
-                            <SignedImage
-                              storagePath={step.signature_image_url}
-                              alt={`${approver?.full_name || 'Approver'} initials`}
-                              className="h-10 object-contain"
-                              fallback={
-                                step.status === 'approved'
-                                  ? <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
-                                  : null
-                              }
-                            />
-                            {step.status === 'approved' && <Badge variant="outline" className="text-[8px] mt-1">🔐 Digital</Badge>}
-                          </div>
-                        ) : sat === 'initial' && step.status === 'approved' ? (
-                          <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
-                        ) : sat === 'signature' && step.status === 'approved' ? (
-                          <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
-                        ) : null}
-                      </div>
+              return (
+                <div className="p-3 flex flex-col justify-between min-h-[120px]">
+                  {/* Status + action type indicator */}
+                  <div className="no-print flex items-center gap-1 text-[10px] capitalize mb-1 flex-wrap">
+                    {statusIcons[step.status]}
+                    <span className={
+                      step.status === 'approved' ? 'text-[hsl(var(--success))]' :
+                      step.status === 'rejected' ? 'text-destructive' :
+                      step.status === 'pending' ? 'text-[hsl(var(--warning))]' :
+                      'text-accent'
+                    }>
+                      {step.status}
+                    </span>
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 ml-1 gap-0.5">
+                      {stepActionIcons[sat]}
+                      {stepActionLabels[sat]}
+                    </Badge>
+                    {isParallel && (
+                      <Badge variant="secondary" className="text-[8px] px-1 py-0 h-4 ml-1">∥</Badge>
+                    )}
+                  </div>
 
-                      {/* Label & Date */}
-                      <div className="border-t border-foreground/20 pt-1 mt-2">
-                        <p className="text-xs font-bold break-words leading-tight">
-                          {approver?.full_name || 'Unknown'}{approver?.job_title ? ` – ${approver.job_title}` : ''}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">
-                          – {sat === 'signature' ? 'APPROVE' : 'INITIALS'}
-                        </p>
-                        <p className="text-xs mt-0.5">
-                          <span className="font-bold">Date: </span>
-                          {step.signed_at ? format(new Date(step.signed_at), 'dd/MM/yyyy') : ''}
-                        </p>
-                        {(step as any).signing_method === 'manual_paper' && (step as any).date_of_physical_signing && (
-                          <p className="text-[9px] text-muted-foreground">
-                            Paper signed: {format(new Date((step as any).date_of_physical_signing), 'dd/MM/yyyy')}
+                  {/* Signature/Initials area */}
+                  <div className="flex-1 flex items-center justify-center">
+                    {(step as any).signing_method === 'manual_paper' && step.status === 'approved' ? (
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-accent">📄 SIGNED ON PAPER</p>
+                        {(step as any).registered_by_user_id && (
+                          <p className="text-[9px] text-muted-foreground mt-1">
+                            Registered by: {getProfile((step as any).registered_by_user_id)?.full_name || 'Delegate'}
                           </p>
                         )}
+                        <Badge className="text-[8px] bg-accent/20 text-accent mt-1">Manual</Badge>
                       </div>
+                    ) : sat === 'signature' && step.signature_image_url ? (
+                      <div className="text-center">
+                        <SignedImage
+                          storagePath={step.signature_image_url}
+                          alt={`${approver?.full_name || 'Approver'} signature`}
+                          className="h-14 object-contain"
+                          fallback={
+                            step.status === 'approved'
+                              ? <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
+                              : null
+                          }
+                        />
+                        {step.status === 'approved' && <Badge variant="outline" className="text-[8px] mt-1">🔐 Digital</Badge>}
+                      </div>
+                    ) : sat === 'initial' && step.signature_image_url ? (
+                      <div className="text-center">
+                        <SignedImage
+                          storagePath={step.signature_image_url}
+                          alt={`${approver?.full_name || 'Approver'} initials`}
+                          className="h-10 object-contain"
+                          fallback={
+                            step.status === 'approved'
+                              ? <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
+                              : null
+                          }
+                        />
+                        {step.status === 'approved' && <Badge variant="outline" className="text-[8px] mt-1">🔐 Digital</Badge>}
+                      </div>
+                    ) : sat === 'initial' && step.status === 'approved' ? (
+                      <span className="text-lg font-bold italic text-primary">{approver?.initials || '✓'}</span>
+                    ) : sat === 'signature' && step.status === 'approved' ? (
+                      <p className="text-[10px] italic text-muted-foreground">[Digitally Approved]</p>
+                    ) : null}
+                  </div>
+
+                  {/* Label & Date */}
+                  <div className="border-t border-foreground/20 pt-1 mt-2">
+                    <p className="text-xs font-bold break-words leading-tight">
+                      {approver?.full_name || 'Unknown'}{approver?.job_title ? ` – ${approver.job_title}` : ''}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                      – {sat === 'signature' ? 'APPROVE' : 'INITIALS'}
+                    </p>
+                    <p className="text-xs mt-0.5">
+                      <span className="font-bold">Date: </span>
+                      {step.signed_at ? format(new Date(step.signed_at), 'dd/MM/yyyy') : ''}
+                    </p>
+                    {(step as any).signing_method === 'manual_paper' && (step as any).date_of_physical_signing && (
+                      <p className="text-[9px] text-muted-foreground">
+                        Paper signed: {format(new Date((step as any).date_of_physical_signing), 'dd/MM/yyyy')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            };
+
+            if (hasLayout) {
+              // Layout-based rendering: use the 2×3 grid from pdf_layout
+              const stepsByOrder = new Map(approvalSteps.map(s => [s.step_order, s]));
+              const grid: (any | null)[][] = pdfLayout.grid;
+
+              return (
+                <div className="mt-4 mx-4 mb-4">
+                  <div className="bg-destructive text-destructive-foreground text-center py-2 font-bold text-lg tracking-widest uppercase">
+                    Approvals
+                  </div>
+                  <div className="border border-t-0 border-foreground/30">
+                    {grid.map((row: any[], rowIdx: number) => (
+                      <div key={rowIdx} className="grid grid-cols-3">
+                        {row.map((cell: any, colIdx: number) => {
+                          const isLastCol = colIdx === row.length - 1;
+                          const isLastRow = rowIdx === grid.length - 1;
+                          const borderClasses = `${!isLastCol ? 'border-r' : ''} ${!isLastRow ? 'border-b' : ''} border-foreground/30`;
+
+                          if (!cell || !cell.step_indices || cell.step_indices.length === 0) {
+                            return <div key={colIdx} className={`min-h-[120px] ${borderClasses}`} />;
+                          }
+
+                          // Find steps for this cell
+                          const cellSteps = cell.step_indices
+                            .map((idx: number) => stepsByOrder.get(idx + 1))
+                            .filter(Boolean);
+
+                          if (cellSteps.length === 0) {
+                            return <div key={colIdx} className={`min-h-[120px] ${borderClasses}`} />;
+                          }
+
+                          if (cell.stacked && cellSteps.length > 1) {
+                            // Stacked: multiple steps in one cell
+                            return (
+                              <div key={colIdx} className={`${borderClasses} divide-y divide-foreground/20`}>
+                                {cellSteps.map((step: any) => (
+                                  <div key={step.id}>{renderApprovalCell(step)}</div>
+                                ))}
+                              </div>
+                            );
+                          }
+
+                          // Single step (or first of non-stacked)
+                          return (
+                            <div key={colIdx} className={borderClasses}>
+                              {renderApprovalCell(cellSteps[0])}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            // Fallback: flat grid (legacy behavior) — exclude signoff step if configured
+            const gridSteps = signoffIdx !== null && signoffIdx !== undefined
+              ? approvalSteps.filter(s => s.step_order !== signoffIdx + 1)
+              : approvalSteps;
+
+            if (gridSteps.length === 0) return null;
+
+            return (
+              <div className="mt-4 mx-4 mb-4">
+                <div className="bg-destructive text-destructive-foreground text-center py-2 font-bold text-lg tracking-widest uppercase">
+                  Approvals
+                </div>
+                <div className="grid grid-cols-3 border border-t-0 border-foreground/30">
+                  {gridSteps.map((step) => (
+                    <div
+                      key={step.id}
+                      className="border-r last:border-r-0 border-foreground/30"
+                    >
+                      {renderApprovalCell(step)}
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Attachments (screen only) */}
           {attachments.length > 0 && (
