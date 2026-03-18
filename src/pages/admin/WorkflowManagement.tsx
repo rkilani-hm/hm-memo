@@ -12,9 +12,10 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, GitBranch } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, GitBranch, LayoutGrid } from 'lucide-react';
 import { Constants } from '@/integrations/supabase/types';
 import type { Tables } from '@/integrations/supabase/types';
+import PdfLayoutEditor, { type PdfLayout, DEFAULT_PDF_LAYOUT } from '@/components/memo/PdfLayoutEditor';
 
 type MemoType = Tables<'memos'>['memo_types'][number];
 const MEMO_TYPES = Constants.public.Enums.memo_type as readonly string[];
@@ -47,6 +48,7 @@ const WorkflowManagement = () => {
   const [memoType, setMemoType] = useState('');
   const [isDefault, setIsDefault] = useState(false);
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
+  const [pdfLayout, setPdfLayout] = useState<PdfLayout>(DEFAULT_PDF_LAYOUT);
 
   const { data: workflows = [], isLoading } = useQuery({
     queryKey: ['workflow-templates'],
