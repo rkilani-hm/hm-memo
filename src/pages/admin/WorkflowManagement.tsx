@@ -304,6 +304,7 @@ const WorkflowManagement = () => {
                 <TableHead>Department</TableHead>
                 <TableHead>Memo Type</TableHead>
                 <TableHead>Steps</TableHead>
+                <TableHead>Layout</TableHead>
                 <TableHead>Default</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
