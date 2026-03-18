@@ -1090,9 +1090,11 @@ const MemoView = () => {
               const myProfile = user ? getProfile(user.id) : null;
               const isInitial = actionDialog?.stepActionType === 'initial';
               const savedAsset = isInitial
-                ? (myProfile as any)?.initials_image_url
+                ? ((myProfile as any)?.initials_image_url || (myProfile?.initials ? '__text_initials__' : null))
                 : myProfile?.signature_image_url;
               const hasSaved = !!savedAsset;
+              // For text initials, signatureDataUrl is already a data URL from openApproveDialog
+              const isTextInitials = isInitial && !((myProfile as any)?.initials_image_url) && !!myProfile?.initials;
 
               return (
                 <div className="space-y-3">
@@ -1107,7 +1109,25 @@ const MemoView = () => {
                         size="sm"
                         onClick={() => {
                           setSignatureMode('saved');
-                          setSignatureDataUrl(savedAsset);
+                          if (isTextInitials) {
+                            // Re-generate text initials image
+                            const canvas = document.createElement('canvas');
+                            canvas.width = 300;
+                            canvas.height = 100;
+                            const ctx = canvas.getContext('2d');
+                            if (ctx) {
+                              ctx.fillStyle = '#ffffff';
+                              ctx.fillRect(0, 0, 300, 100);
+                              ctx.fillStyle = '#1B3A5C';
+                              ctx.font = 'bold italic 48px "Century Gothic", sans-serif';
+                              ctx.textAlign = 'center';
+                              ctx.textBaseline = 'middle';
+                              ctx.fillText(myProfile!.initials!, 150, 50);
+                            }
+                            setSignatureDataUrl(canvas.toDataURL('image/png'));
+                          } else {
+                            setSignatureDataUrl(savedAsset);
+                          }
                         }}
                       >
                         Use Saved {isInitial ? 'Initials' : 'Signature'}
@@ -1127,11 +1147,15 @@ const MemoView = () => {
                   )}
                   {signatureMode === 'saved' && hasSaved ? (
                     <div className="border border-input rounded-md p-4 bg-white flex items-center justify-center">
-                      <SignedImage
-                        storagePath={savedAsset!}
-                        alt={isInitial ? 'Your saved initials' : 'Your saved signature'}
-                        className={isInitial ? 'max-h-16 object-contain' : 'max-h-24 object-contain'}
-                      />
+                      {isTextInitials && signatureDataUrl?.startsWith('data:') ? (
+                        <img src={signatureDataUrl} alt="Your text initials" className="max-h-16 object-contain" />
+                      ) : (
+                        <SignedImage
+                          storagePath={isTextInitials ? null : savedAsset!}
+                          alt={isInitial ? 'Your saved initials' : 'Your saved signature'}
+                          className={isInitial ? 'max-h-16 object-contain' : 'max-h-24 object-contain'}
+                        />
+                      )}
                     </div>
                   ) : (
                     <SignaturePad
