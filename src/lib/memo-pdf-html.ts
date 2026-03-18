@@ -265,7 +265,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   const { sigDataUrls, registeredByProfiles, senderSigDataUrl } = prepared;
 
   // L1 step for the sign-off block
-  const l1Step = findStepByStage(approvalSteps, '1');
+  const l1Step = findStepByStage(approvalSteps, 'l1');
 
   // L1 sign-off block
   const signOffHtml = buildL1SignOffHtml(l1Step, profiles, sigDataUrls, senderSigDataUrl, fromProfile);
