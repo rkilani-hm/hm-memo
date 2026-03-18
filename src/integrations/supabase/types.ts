@@ -287,6 +287,30 @@ export type Database = {
         }
         Relationships: []
       }
+      kpi_sla_settings: {
+        Row: {
+          id: string
+          reminder_time_hour: number
+          sla_hours: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          reminder_time_hour?: number
+          sla_hours?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          reminder_time_hour?: number
+          sla_hours?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       memo_attachments: {
         Row: {
           file_name: string
@@ -599,6 +623,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reminders_log: {
+        Row: {
+          approver_user_id: string
+          created_at: string
+          delivery_method: string
+          id: string
+          memo_ids: string[]
+          sent_at: string
+        }
+        Insert: {
+          approver_user_id: string
+          created_at?: string
+          delivery_method?: string
+          id?: string
+          memo_ids?: string[]
+          sent_at?: string
+        }
+        Update: {
+          approver_user_id?: string
+          created_at?: string
+          delivery_method?: string
+          id?: string
+          memo_ids?: string[]
+          sent_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
