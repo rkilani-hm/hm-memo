@@ -16,6 +16,7 @@ interface ApprovalStep {
   parallel_group?: number | null;
   stage_level?: string | null;
   created_at?: string;
+  comments?: string | null;
 }
 
 interface Profile {
