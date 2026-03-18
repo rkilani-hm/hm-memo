@@ -62,11 +62,6 @@ const ReminderSettings = () => {
   const displaySla = slaHours ?? (slaSettings as any)?.sla_hours ?? 48;
   const displayHour = reminderHour ?? (slaSettings as any)?.reminder_time_hour ?? 8;
 
-  if (!hasRole('admin')) {
-    navigate('/');
-    return null;
-  }
-
   const updateSettingsMutation = useMutation({
     mutationFn: async () => {
       if (!slaSettings) return;
