@@ -15,9 +15,26 @@ function getProfile(profiles: Profile[], userId: string) {
   return profiles.find((p) => p.user_id === userId);
 }
 
-/** Find an approval step by stage_level */
+/** Normalize stage labels from workflow data (L1/L2a/L2b/L3/L4/gm, 1/2a/2b/3/4/gm, etc.) */
+function normalizeStageLevel(stage: string | null | undefined): string {
+  const raw = String(stage ?? '').trim().toLowerCase().replace(/[\s_-]/g, '');
+  if (raw === '1' || raw === 'l1' || raw === 'stage1') return 'l1';
+  if (raw === '2a' || raw === 'l2a' || raw === 'stage2a') return 'l2a';
+  if (raw === '2b' || raw === 'l2b' || raw === 'stage2b') return 'l2b';
+  if (raw === '3' || raw === 'l3' || raw === 'stage3') return 'l3';
+  if (raw === '4' || raw === 'l4' || raw === 'stage4') return 'l4';
+  if (raw === 'gm' || raw === 'lgm') return 'gm';
+  return raw;
+}
+
+/** Find an approval step by normalized stage_level */
 function findStepByStage(steps: Tables<'approval_steps'>[], stage: string) {
-  return steps.find((s) => (s as any).stage_level === stage);
+  const target = normalizeStageLevel(stage);
+  return steps.find((s) => normalizeStageLevel((s as any).stage_level) === target);
+}
+
+function isL1Stage(step: Tables<'approval_steps'>) {
+  return normalizeStageLevel((step as any).stage_level) === 'l1';
 }
 
 /** Build the inner HTML content of one approval cell */
