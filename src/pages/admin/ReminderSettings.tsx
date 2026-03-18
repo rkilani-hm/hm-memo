@@ -106,6 +106,11 @@ const ReminderSettings = () => {
     return profiles.find((p: any) => p.user_id === userId)?.full_name || userId.slice(0, 8);
   };
 
+  if (!hasRole('admin')) {
+    navigate('/');
+    return null;
+  }
+
   return (
     <div className="space-y-6">
       <div>
