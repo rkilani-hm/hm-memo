@@ -327,6 +327,15 @@ const WorkflowManagement = () => {
                         <span className="text-sm">{wfSteps.length} step{wfSteps.length !== 1 ? 's' : ''}</span>
                       </div>
                     </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const pl = (wf as any).pdf_layout;
+                        const hasLayout = pl && typeof pl === 'object' && pl.grid && pl.grid.some((r: any[]) => r?.some((c: any) => c !== null));
+                        return hasLayout
+                          ? <Badge variant="outline" className="gap-1"><LayoutGrid className="h-3 w-3" />Custom</Badge>
+                          : <span className="text-muted-foreground text-xs">Default</span>;
+                      })()}
+                    </TableCell>
                     <TableCell>{wf.is_default ? <Badge variant="default">Default</Badge> : '—'}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
