@@ -28,6 +28,13 @@ interface WorkflowStep {
 }
 
 const STAGE_LEVELS = ['L1', 'L2a', 'L2b', 'L3', 'L4'] as const;
+const STAGE_LABELS: Record<string, string> = {
+  L1: 'Department Manager',
+  L2a: 'Finance Staff (dual-initials)',
+  L2b: 'Finance Manager',
+  L3: 'Senior Executive (GM/COO/CAO/CFO)',
+  L4: 'CEO / Chairman (final)',
+};
 const ACTION_TYPES = ['signature', 'initial', 'review', 'acknowledge'] as const;
 
 const WorkflowManagement = () => {
@@ -235,7 +242,10 @@ const WorkflowManagement = () => {
                         <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Stage level" /></SelectTrigger>
                         <SelectContent>
                           {STAGE_LEVELS.map((sl) => (
-                            <SelectItem key={sl} value={sl} className="text-xs">{sl}</SelectItem>
+                            <SelectItem key={sl} value={sl} className="text-xs">
+                              <span className="font-medium">{sl}</span>
+                              <span className="text-muted-foreground ml-1">— {STAGE_LABELS[sl]}</span>
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
