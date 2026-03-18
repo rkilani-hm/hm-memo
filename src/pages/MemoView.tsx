@@ -505,6 +505,9 @@ const MemoView = () => {
     });
   };
 
+  // Extract pdf_layout from the workflow template
+  const pdfLayout = (workflowTemplate as any)?.pdf_layout || null;
+
   const handleOpenPrintPreview = async () => {
     if (!memo) return;
     setPdfGenerating(true);
@@ -515,7 +518,7 @@ const MemoView = () => {
         approvalSteps, attachments, profiles, departments, logoDataUrl,
       };
       const prepared = await prepareMemoData(memoData);
-      const html = buildMemoHtml(memoData, prepared, { ...DEFAULT_PRINT_PREFERENCES, ...savedPrintPrefs });
+      const html = buildMemoHtml(memoData, prepared, { ...DEFAULT_PRINT_PREFERENCES, ...savedPrintPrefs }, pdfLayout);
       setPreviewHtml(html);
       setPrintPreviewOpen(true);
     } catch (error: any) {
@@ -532,7 +535,7 @@ const MemoView = () => {
       await generateMemoPdf({
         memo, fromProfile, toProfile, department: dept,
         approvalSteps, attachments, profiles, departments, logoDataUrl,
-      }, prefs);
+      }, prefs, pdfLayout);
     } catch (error: any) {
       toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
     }
