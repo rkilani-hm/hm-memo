@@ -132,20 +132,35 @@ const MemoView = () => {
   });
 
   // Fetch workflow template pdf_layout for this memo
+  // If memo has a direct template_id, use it; otherwise fallback to department's template
   const { data: workflowTemplate } = useQuery({
-    queryKey: ['memo-workflow-template', (memo as any)?.workflow_template_id],
+    queryKey: ['memo-workflow-template', (memo as any)?.workflow_template_id, memo?.department_id],
     queryFn: async () => {
       const templateId = (memo as any)?.workflow_template_id;
-      if (!templateId) return null;
-      const { data, error } = await supabase
-        .from('workflow_templates')
-        .select('*')
-        .eq('id', templateId)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      if (templateId) {
+        const { data, error } = await supabase
+          .from('workflow_templates')
+          .select('*')
+          .eq('id', templateId)
+          .maybeSingle();
+        if (error) throw error;
+        if (data) return data;
+      }
+      // Fallback: find template by department
+      if (memo?.department_id) {
+        const { data, error } = await supabase
+          .from('workflow_templates')
+          .select('*')
+          .eq('department_id', memo.department_id)
+          .order('is_default', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      }
+      return null;
     },
-    enabled: !!(memo as any)?.workflow_template_id,
+    enabled: !!memo,
   });
 
   const { data: delegateAssignments = [] } = useQuery({
