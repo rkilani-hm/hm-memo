@@ -347,6 +347,14 @@ serve(async (req) => {
 
     const geo = await resolveIpGeolocation(clientIp);
 
+    // Notify memo creator: submission confirmation
+    await adminClient.from("notifications").insert({
+      user_id: user.id,
+      memo_id,
+      type: "step_update",
+      message: `Your memo ${memo.transmittal_no} — "${memo.subject}" has been submitted successfully and is now in the approval workflow (${steps.length} step(s)).`,
+    });
+
     // Audit log with IP + geolocation
     await adminClient.from("audit_log").insert({
       memo_id,

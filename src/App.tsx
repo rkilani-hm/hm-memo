@@ -23,6 +23,8 @@ import DelegateManagement from "@/pages/admin/DelegateManagement";
 import AuditLog from "@/pages/admin/AuditLog";
 import AuditDashboard from "@/pages/admin/AuditDashboard";
 import CrossDeptRules from "@/pages/admin/CrossDeptRules";
+import ApprovalPerformance from "@/pages/admin/ApprovalPerformance";
+import ReminderSettings from "@/pages/admin/ReminderSettings";
 import Settings from "@/pages/Settings";
 import HelpGuide from "@/pages/HelpGuide";
 import NotFound from "./pages/NotFound";
@@ -58,6 +60,8 @@ const App = () => (
                 <Route path="/admin/audit-log" element={<AuditLog />} />
                 <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
                 <Route path="/admin/cross-dept-rules" element={<CrossDeptRules />} />
+                <Route path="/admin/approval-performance" element={<ApprovalPerformance />} />
+                <Route path="/admin/reminder-settings" element={<ReminderSettings />} />
                 <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
               </Route>
               <Route path="*" element={<NotFound />} />
