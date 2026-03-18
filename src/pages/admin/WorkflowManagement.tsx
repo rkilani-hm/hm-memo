@@ -107,6 +107,7 @@ const WorkflowManagement = () => {
     setMemoType('');
     setIsDefault(false);
     setSteps([]);
+    setPdfLayout(DEFAULT_PDF_LAYOUT);
   };
 
   const openEdit = (wf: typeof workflows[0]) => {
