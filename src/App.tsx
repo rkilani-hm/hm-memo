@@ -23,6 +23,8 @@ import DelegateManagement from "@/pages/admin/DelegateManagement";
 import AuditLog from "@/pages/admin/AuditLog";
 import AuditDashboard from "@/pages/admin/AuditDashboard";
 import CrossDeptRules from "@/pages/admin/CrossDeptRules";
+import ApprovalPerformance from "@/pages/admin/ApprovalPerformance";
+import ReminderSettings from "@/pages/admin/ReminderSettings";
 import Settings from "@/pages/Settings";
 import HelpGuide from "@/pages/HelpGuide";
 import NotFound from "./pages/NotFound";
