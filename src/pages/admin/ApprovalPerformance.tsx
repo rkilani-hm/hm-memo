@@ -45,11 +45,6 @@ const ApprovalPerformance = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  if (!hasRole('admin')) {
-    navigate('/');
-    return null;
-  }
-
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: fetchDepartments });
 

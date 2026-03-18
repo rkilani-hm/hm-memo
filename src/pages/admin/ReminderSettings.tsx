@@ -21,11 +21,6 @@ const ReminderSettings = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  if (!hasRole('admin')) {
-    navigate('/');
-    return null;
-  }
-
   const { data: slaSettings, isLoading: slaLoading } = useQuery({
     queryKey: ['sla-settings'],
     queryFn: async () => {
