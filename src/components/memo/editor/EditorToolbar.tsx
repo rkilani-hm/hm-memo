@@ -466,6 +466,19 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
       >
         <RemoveFormatting className="h-3.5 w-3.5" />
       </ToolbarButton>
+      <ToolbarButton
+        onClick={() => {
+          if (formatPainter) {
+            setFormatPainter(null);
+          } else {
+            setFormatPainter(captureFormat(editor));
+          }
+        }}
+        active={!!formatPainter}
+        title="Format Painter – Click to copy formatting, then select text to apply. Click again to cancel."
+      >
+        <Paintbrush className="h-3.5 w-3.5" />
+      </ToolbarButton>
 
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
