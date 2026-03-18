@@ -22,7 +22,13 @@ const MEMO_TYPES = Constants.public.Enums.memo_type as readonly string[];
 interface WorkflowStep {
   approver_user_id: string;
   label: string;
+  stage_level?: string;
+  action_type?: string;
+  parallel_group?: number | null;
 }
+
+const STAGE_LEVELS = ['L1', 'L2a', 'L2b', 'L3', 'L4'] as const;
+const ACTION_TYPES = ['signature', 'initial', 'review', 'acknowledge'] as const;
 
 const WorkflowManagement = () => {
   const { toast } = useToast();
@@ -103,11 +109,15 @@ const WorkflowManagement = () => {
     setOpen(true);
   };
 
-  const addStep = () => setSteps([...steps, { approver_user_id: '', label: '' }]);
+  const addStep = () => setSteps([...steps, { approver_user_id: '', label: '', stage_level: '', action_type: 'signature', parallel_group: null }]);
 
   const updateStep = (idx: number, field: keyof WorkflowStep, value: string) => {
     const updated = [...steps];
-    updated[idx] = { ...updated[idx], [field]: value };
+    if (field === 'parallel_group') {
+      updated[idx] = { ...updated[idx], parallel_group: value ? parseInt(value) : null };
+    } else {
+      updated[idx] = { ...updated[idx], [field]: value };
+    }
     if (field === 'approver_user_id') {
       const prof = profiles.find(p => p.user_id === value);
       if (prof && !updated[idx].label) updated[idx].label = prof.full_name;
@@ -189,34 +199,61 @@ const WorkflowManagement = () => {
                   </p>
                 )}
                 {steps.map((step, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-3 bg-secondary/50 rounded-lg">
-                    <span className="text-xs font-bold text-muted-foreground w-6 shrink-0">#{idx + 1}</span>
-                    <div className="flex-1 grid grid-cols-2 gap-2">
-                      <Select value={step.approver_user_id} onValueChange={(v) => updateStep(idx, 'approver_user_id', v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Approver" /></SelectTrigger>
+                  <div key={idx} className="p-3 bg-secondary/50 rounded-lg space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-muted-foreground w-6 shrink-0">#{idx + 1}</span>
+                      <div className="flex-1 grid grid-cols-2 gap-2">
+                        <Select value={step.approver_user_id} onValueChange={(v) => updateStep(idx, 'approver_user_id', v)}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Approver" /></SelectTrigger>
+                          <SelectContent>
+                            {profiles.map((p) => (
+                              <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          value={step.label}
+                          onChange={(e) => updateStep(idx, 'label', e.target.value)}
+                          placeholder="Step label"
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveStep(idx, -1)} disabled={idx === 0}>
+                          <ArrowUp className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveStep(idx, 1)} disabled={idx === steps.length - 1}>
+                          <ArrowDown className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeStep(idx)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 ml-8">
+                      <Select value={step.stage_level || ''} onValueChange={(v) => updateStep(idx, 'stage_level', v)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Stage level" /></SelectTrigger>
                         <SelectContent>
-                          {profiles.map((p) => (
-                            <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>
+                          {STAGE_LEVELS.map((sl) => (
+                            <SelectItem key={sl} value={sl} className="text-xs">{sl}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={step.action_type || 'signature'} onValueChange={(v) => updateStep(idx, 'action_type', v)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Action type" /></SelectTrigger>
+                        <SelectContent>
+                          {ACTION_TYPES.map((at) => (
+                            <SelectItem key={at} value={at} className="text-xs capitalize">{at}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       <Input
-                        value={step.label}
-                        onChange={(e) => updateStep(idx, 'label', e.target.value)}
-                        placeholder="Step label"
-                        className="h-9"
+                        type="number"
+                        value={step.parallel_group ?? ''}
+                        onChange={(e) => updateStep(idx, 'parallel_group', e.target.value)}
+                        placeholder="Parallel group"
+                        className="h-8 text-xs"
                       />
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveStep(idx, -1)} disabled={idx === 0}>
-                        <ArrowUp className="h-3 w-3" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveStep(idx, 1)} disabled={idx === steps.length - 1}>
-                        <ArrowDown className="h-3 w-3" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeStep(idx)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
                     </div>
                   </div>
                 ))}
