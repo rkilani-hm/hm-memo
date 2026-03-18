@@ -784,22 +784,66 @@ const MemoView = () => {
               dangerouslySetInnerHTML={{ __html: memo.description || '<p>No description.</p>' }}
             />
 
-            {/* Sender Signature */}
+            {/* Sender Signature / Sign-off block */}
             <div className="flex justify-end mt-8 mb-4">
               <div className="text-center">
-                {fromProfile?.signature_image_url ? (
-                  <SignedImage
-                    storagePath={fromProfile.signature_image_url}
-                    alt="Sender signature"
-                    className="h-16 mb-1 object-contain mx-auto"
-                    fallback={<p className="border-b border-foreground inline-block w-48 pb-1 mb-1">&nbsp;</p>}
-                  />
-                ) : (
-                  <p className="border-b border-foreground inline-block w-48 pb-1 mb-1">&nbsp;</p>
-                )}
-                <p className="text-sm font-bold">
-                  {fromProfile?.full_name}, {fromProfile?.job_title}
-                </p>
+                {(() => {
+                  const pdfLayout = workflowTemplate?.pdf_layout as any;
+                  const signoffIdx = pdfLayout?.signoff_step;
+                  if (signoffIdx !== null && signoffIdx !== undefined) {
+                    const signoffStep = approvalSteps.find(s => s.step_order === signoffIdx + 1);
+                    if (signoffStep) {
+                      const signoffProfile = getProfile(signoffStep.approver_user_id);
+                      const sat = getStepActionType(signoffStep);
+                      return (
+                        <>
+                          {signoffStep.signature_image_url ? (
+                            <SignedImage
+                              storagePath={signoffStep.signature_image_url}
+                              alt={`${signoffProfile?.full_name || 'Approver'} signature`}
+                              className="h-16 mb-1 object-contain mx-auto"
+                              fallback={<p className="border-b border-foreground inline-block w-48 pb-1 mb-1">&nbsp;</p>}
+                            />
+                          ) : signoffStep.status === 'approved' ? (
+                            <p className="text-[10px] italic text-muted-foreground mb-1">[Digitally Approved]</p>
+                          ) : (
+                            <p className="border-b border-foreground inline-block w-48 pb-1 mb-1">&nbsp;</p>
+                          )}
+                          <p className="text-sm font-bold">
+                            {signoffProfile?.full_name}{signoffProfile?.job_title ? `, ${signoffProfile.job_title}` : ''}
+                          </p>
+                          {signoffStep.signed_at && (
+                            <p className="text-xs text-muted-foreground">
+                              Date: {format(new Date(signoffStep.signed_at), 'dd/MM/yyyy')}
+                            </p>
+                          )}
+                          <div className="no-print flex items-center justify-center gap-1 mt-1">
+                            {statusIcons[signoffStep.status]}
+                            <span className="text-[10px] capitalize">{signoffStep.status}</span>
+                          </div>
+                        </>
+                      );
+                    }
+                  }
+                  // Default: sender signature
+                  return (
+                    <>
+                      {fromProfile?.signature_image_url ? (
+                        <SignedImage
+                          storagePath={fromProfile.signature_image_url}
+                          alt="Sender signature"
+                          className="h-16 mb-1 object-contain mx-auto"
+                          fallback={<p className="border-b border-foreground inline-block w-48 pb-1 mb-1">&nbsp;</p>}
+                        />
+                      ) : (
+                        <p className="border-b border-foreground inline-block w-48 pb-1 mb-1">&nbsp;</p>
+                      )}
+                      <p className="text-sm font-bold">
+                        {fromProfile?.full_name}, {fromProfile?.job_title}
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
