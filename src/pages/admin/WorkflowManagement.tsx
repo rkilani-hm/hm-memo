@@ -22,7 +22,13 @@ const MEMO_TYPES = Constants.public.Enums.memo_type as readonly string[];
 interface WorkflowStep {
   approver_user_id: string;
   label: string;
+  stage_level?: string;
+  action_type?: string;
+  parallel_group?: number | null;
 }
+
+const STAGE_LEVELS = ['L1', 'L2a', 'L2b', 'L3', 'L4'] as const;
+const ACTION_TYPES = ['signature', 'initial', 'review', 'acknowledge'] as const;
 
 const WorkflowManagement = () => {
   const { toast } = useToast();
