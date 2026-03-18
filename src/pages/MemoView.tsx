@@ -131,7 +131,23 @@ const MemoView = () => {
     queryFn: fetchDepartments,
   });
 
-  // Fetch delegate assignments for current user
+  // Fetch workflow template pdf_layout for this memo
+  const { data: workflowTemplate } = useQuery({
+    queryKey: ['memo-workflow-template', (memo as any)?.workflow_template_id],
+    queryFn: async () => {
+      const templateId = (memo as any)?.workflow_template_id;
+      if (!templateId) return null;
+      const { data, error } = await supabase
+        .from('workflow_templates')
+        .select('*')
+        .eq('id', templateId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!(memo as any)?.workflow_template_id,
+  });
+
   const { data: delegateAssignments = [] } = useQuery({
     queryKey: ['my-delegate-assignments', user?.id],
     queryFn: async () => {
