@@ -193,6 +193,11 @@ const ApprovalPerformance = () => {
     };
   }, [kpiData]);
 
+  if (!hasRole('admin')) {
+    navigate('/');
+    return null;
+  }
+
   const toggleRow = (userId: string) => {
     setExpandedRows(prev => {
       const next = new Set(prev);
