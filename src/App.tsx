@@ -60,6 +60,8 @@ const App = () => (
                 <Route path="/admin/audit-log" element={<AuditLog />} />
                 <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
                 <Route path="/admin/cross-dept-rules" element={<CrossDeptRules />} />
+                <Route path="/admin/approval-performance" element={<ApprovalPerformance />} />
+                <Route path="/admin/reminder-settings" element={<ReminderSettings />} />
                 <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
               </Route>
               <Route path="*" element={<NotFound />} />
