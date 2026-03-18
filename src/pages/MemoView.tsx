@@ -283,6 +283,9 @@ const MemoView = () => {
               .update({ current_step: nextStep.step_order, status: 'in_review' })
               .eq('id', id);
 
+            const completedCount = allSteps?.filter(s => s.status === 'approved' || s.id === stepId).length || 0;
+            const totalCount = allSteps?.length || 0;
+
             // Notify all next step approvers
             for (const ns of nextSteps) {
               const nextProfile = getProfile(ns.approver_user_id);
@@ -304,14 +307,61 @@ const MemoView = () => {
                   message: `Memo ${memo.transmittal_no} — "${memo.subject}" requires your ${stepActionLabels[getStepActionType(ns)].toLowerCase()}.`,
                 }).then(({ error }) => { if (error) console.warn(error); });
               }
+
+              // Notify creator: new approver reached
+              if (memo && memo.from_user_id !== user.id) {
+                supabase.from('notifications').insert({
+                  user_id: memo.from_user_id,
+                  memo_id: id,
+                  type: 'step_update',
+                  message: `Your memo ${memo.transmittal_no} is now with ${nextProfile?.full_name || 'next approver'} for review (Step ${ns.step_order} of ${totalCount}).`,
+                }).then(({ error }) => { if (error) console.warn(error); });
+              }
+            }
+
+            // Notify creator: step approved
+            if (memo && memo.from_user_id !== user.id) {
+              const approverProfile = getProfile(user.id);
+              supabase.from('notifications').insert({
+                user_id: memo.from_user_id,
+                memo_id: id,
+                type: 'step_update',
+                message: `Your memo ${memo.transmittal_no} — "${memo.subject}" was approved by ${approverProfile?.full_name || 'An approver'} on ${format(new Date(), 'dd MMM yyyy HH:mm')}. ${completedCount} of ${totalCount} approvers have signed off.`,
+              }).then(({ error }) => { if (error) console.warn(error); });
             }
           } else {
             await supabase.from('memos').update({ status: 'approved' }).eq('id', id);
+
+            // Notify creator: fully approved
+            if (memo) {
+              supabase.from('notifications').insert({
+                user_id: memo.from_user_id,
+                memo_id: id,
+                type: 'step_update',
+                message: `Your memo ${memo.transmittal_no} — "${memo.subject}" has been fully approved by all approvers on ${format(new Date(), 'dd MMM yyyy HH:mm')}. You may now proceed.`,
+              }).then(({ error }) => { if (error) console.warn(error); });
+            }
           }
         }
       } else {
         const newStatus = action === 'rejected' ? 'rejected' : 'rework';
         await supabase.from('memos').update({ status: newStatus as any }).eq('id', id);
+
+        // Notify creator: rejected or rework
+        if (memo && memo.from_user_id !== user.id) {
+          const approverProfile = getProfile(user.id);
+          const actionWord = action === 'rejected' ? 'rejected' : 'returned for rework';
+          const commentText = comments ? ` Reason: ${comments}.` : '';
+          const followUp = action === 'rejected'
+            ? ' Please review and resubmit.'
+            : ' Please review the feedback and resubmit.';
+          supabase.from('notifications').insert({
+            user_id: memo.from_user_id,
+            memo_id: id,
+            type: 'step_update',
+            message: `Your memo ${memo.transmittal_no} — "${memo.subject}" was ${actionWord} by ${approverProfile?.full_name || 'An approver'} on ${format(new Date(), 'dd MMM yyyy HH:mm')}.${commentText}${followUp}`,
+          }).then(({ error }) => { if (error) console.warn(error); });
+        }
       }
 
       // Notify creator
