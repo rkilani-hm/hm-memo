@@ -109,11 +109,15 @@ const WorkflowManagement = () => {
     setOpen(true);
   };
 
-  const addStep = () => setSteps([...steps, { approver_user_id: '', label: '' }]);
+  const addStep = () => setSteps([...steps, { approver_user_id: '', label: '', stage_level: '', action_type: 'signature', parallel_group: null }]);
 
   const updateStep = (idx: number, field: keyof WorkflowStep, value: string) => {
     const updated = [...steps];
-    updated[idx] = { ...updated[idx], [field]: value };
+    if (field === 'parallel_group') {
+      updated[idx] = { ...updated[idx], parallel_group: value ? parseInt(value) : null };
+    } else {
+      updated[idx] = { ...updated[idx], [field]: value };
+    }
     if (field === 'approver_user_id') {
       const prof = profiles.find(p => p.user_id === value);
       if (prof && !updated[idx].label) updated[idx].label = prof.full_name;
