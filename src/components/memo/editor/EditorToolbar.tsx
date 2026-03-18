@@ -354,7 +354,12 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
     };
     const editorEl = editor.view.dom;
     editorEl.addEventListener('mouseup', handleMouseUp);
-    return () => editorEl.removeEventListener('mouseup', handleMouseUp);
+    // Visual cursor feedback
+    editorEl.style.cursor = 'crosshair';
+    return () => {
+      editorEl.removeEventListener('mouseup', handleMouseUp);
+      editorEl.style.cursor = '';
+    };
   }, [formatPainter, editor]);
   const getCurrentFontFamily = () => {
     const attrs = editor.getAttributes('textStyle');
