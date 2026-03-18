@@ -142,10 +142,10 @@ function buildStagedApprovalsHtml(
   sigDataUrls: Record<string, string | null>,
   registeredByProfiles: Record<string, Profile | undefined>
 ): string {
-  const l2a = findStepByStage(approvalSteps, '2a');
-  const l2b = findStepByStage(approvalSteps, '2b');
-  const l3 = findStepByStage(approvalSteps, '3');
-  const l4 = findStepByStage(approvalSteps, '4');
+  const l2a = findStepByStage(approvalSteps, 'l2a');
+  const l2b = findStepByStage(approvalSteps, 'l2b');
+  const l3 = findStepByStage(approvalSteps, 'l3');
+  const l4 = findStepByStage(approvalSteps, 'l4');
   const gm = findStepByStage(approvalSteps, 'gm');
 
   const hasAnyStaged = l2a || l2b || l3 || l4 || gm;
