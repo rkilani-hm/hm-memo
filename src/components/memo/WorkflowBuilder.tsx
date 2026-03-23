@@ -198,6 +198,7 @@ const WorkflowBuilder = ({
         department_id: departmentId,
         memo_type: memoTypes[0] || null,
         steps: customSteps as any,
+        pdf_layout: (pdfLayout || DEFAULT_PDF_LAYOUT) as any,
         is_default: false,
       });
       if (error) throw error;
