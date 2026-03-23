@@ -421,6 +421,8 @@ const MemoCreate = () => {
             onCustomStepsChange={setCustomSteps}
             mode={workflowMode}
             onModeChange={setWorkflowMode}
+            pdfLayout={dynamicPdfLayout}
+            onPdfLayoutChange={setDynamicPdfLayout}
           />
         </CardContent>
       </Card>
