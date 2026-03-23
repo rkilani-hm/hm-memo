@@ -79,6 +79,8 @@ const WorkflowBuilder = ({
   onCustomStepsChange,
   mode,
   onModeChange,
+  pdfLayout,
+  onPdfLayoutChange,
 }: WorkflowBuilderProps) => {
   const { user } = useAuth();
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
