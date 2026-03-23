@@ -25,6 +25,7 @@ import AuditDashboard from "@/pages/admin/AuditDashboard";
 import CrossDeptRules from "@/pages/admin/CrossDeptRules";
 import ApprovalPerformance from "@/pages/admin/ApprovalPerformance";
 import ReminderSettings from "@/pages/admin/ReminderSettings";
+import Authorization from "@/pages/admin/Authorization";
 import Settings from "@/pages/Settings";
 import HelpGuide from "@/pages/HelpGuide";
 import Notifications from "@/pages/Notifications";
@@ -64,6 +65,7 @@ const App = () => (
                 <Route path="/admin/cross-dept-rules" element={<CrossDeptRules />} />
                 <Route path="/admin/approval-performance" element={<ApprovalPerformance />} />
                 <Route path="/admin/reminder-settings" element={<ReminderSettings />} />
+                <Route path="/admin/authorization" element={<Authorization />} />
                 <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
               </Route>
               <Route path="*" element={<NotFound />} />

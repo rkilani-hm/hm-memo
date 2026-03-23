@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -28,31 +29,37 @@ import {
   ShieldCheck,
   HelpCircle,
   Bell,
+  Lock,
 } from 'lucide-react';
 
 const AppSidebar = () => {
   const { profile, hasRole, signOut } = useAuth();
+  const { hasPermission } = usePermissions();
   const navigate = useNavigate();
 
   const mainNavItems = [
-    { title: 'Dashboard', icon: LayoutDashboard, path: '/' },
-    { title: 'My Memos', icon: FileText, path: '/memos' },
-    { title: 'Create Memo', icon: FilePlus, path: '/memos/create' },
-    { title: 'Pending Approvals', icon: CheckSquare, path: '/approvals' },
-    { title: 'Help & Guide', icon: HelpCircle, path: '/help' },
+    { title: 'Dashboard', icon: LayoutDashboard, path: '/', key: 'dashboard' },
+    { title: 'My Memos', icon: FileText, path: '/memos', key: 'memos' },
+    { title: 'Create Memo', icon: FilePlus, path: '/memos/create', key: 'memos/create' },
+    { title: 'Pending Approvals', icon: CheckSquare, path: '/approvals', key: 'approvals' },
+    { title: 'Help & Guide', icon: HelpCircle, path: '/help', key: 'help' },
   ];
 
   const adminNavItems = [
-    { title: 'User Management', icon: Users, path: '/admin/users' },
-    { title: 'Departments', icon: Building2, path: '/admin/departments' },
-    { title: 'Workflows', icon: Settings, path: '/admin/workflows' },
-    { title: 'Delegates', icon: Shield, path: '/admin/delegates' },
-    { title: 'Cross-Dept Rules', icon: ShieldCheck, path: '/admin/cross-dept-rules' },
-    { title: 'Approval KPIs', icon: BarChart3, path: '/admin/approval-performance' },
-    { title: 'Reminder Settings', icon: Bell, path: '/admin/reminder-settings' },
-    { title: 'Audit Log', icon: ScrollText, path: '/admin/audit-log' },
-    { title: 'Audit Analytics', icon: BarChart3, path: '/admin/audit-dashboard' },
+    { title: 'User Management', icon: Users, path: '/admin/users', key: 'admin/users' },
+    { title: 'Departments', icon: Building2, path: '/admin/departments', key: 'admin/departments' },
+    { title: 'Workflows', icon: Settings, path: '/admin/workflows', key: 'admin/workflows' },
+    { title: 'Delegates', icon: Shield, path: '/admin/delegates', key: 'admin/delegates' },
+    { title: 'Cross-Dept Rules', icon: ShieldCheck, path: '/admin/cross-dept-rules', key: 'admin/cross-dept-rules' },
+    { title: 'Authorization', icon: Lock, path: '/admin/authorization', key: 'admin/authorization' },
+    { title: 'Approval KPIs', icon: BarChart3, path: '/admin/approval-performance', key: 'admin/approval-performance' },
+    { title: 'Reminder Settings', icon: Bell, path: '/admin/reminder-settings', key: 'admin/reminder-settings' },
+    { title: 'Audit Log', icon: ScrollText, path: '/admin/audit-log', key: 'admin/audit-log' },
+    { title: 'Audit Analytics', icon: BarChart3, path: '/admin/audit-dashboard', key: 'admin/audit-dashboard' },
   ];
+
+  const visibleMain = mainNavItems.filter((item) => hasPermission(item.key));
+  const visibleAdmin = adminNavItems.filter((item) => hasPermission(item.key));
 
   return (
     <Sidebar>
@@ -70,7 +77,7 @@ const AppSidebar = () => {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => (
+              {visibleMain.map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton onClick={() => navigate(item.path)}>
                     <item.icon className="h-4 w-4" />
@@ -82,12 +89,12 @@ const AppSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {hasRole('admin') && (
+        {hasRole('admin') && visibleAdmin.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {adminNavItems.map((item) => (
+                {visibleAdmin.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton onClick={() => navigate(item.path)}>
                       <item.icon className="h-4 w-4" />
@@ -113,12 +120,14 @@ const AppSidebar = () => {
           </div>
         </div>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => navigate('/settings')}>
-              <Settings className="h-4 w-4" />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {hasPermission('settings') && (
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={() => navigate('/settings')}>
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton onClick={signOut}>
               <LogOut className="h-4 w-4" />

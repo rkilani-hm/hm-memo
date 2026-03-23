@@ -260,6 +260,38 @@ export type Database = {
         }
         Relationships: []
       }
+      department_permissions: {
+        Row: {
+          created_at: string
+          department_id: string
+          id: string
+          is_allowed: boolean
+          resource_key: string
+        }
+        Insert: {
+          created_at?: string
+          department_id: string
+          id?: string
+          is_allowed?: boolean
+          resource_key: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string
+          id?: string
+          is_allowed?: boolean
+          resource_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_permissions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           code: string
@@ -544,6 +576,36 @@ export type Database = {
           },
         ]
       }
+      permission_resources: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          label: string
+          resource_key: string
+          sort_order: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          label: string
+          resource_key: string
+          sort_order?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          label?: string
+          resource_key?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -651,6 +713,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          is_allowed: boolean
+          resource_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_allowed?: boolean
+          resource_key: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_allowed?: boolean
+          resource_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -729,6 +815,10 @@ export type Database = {
             Returns: boolean
           }
         | { Args: { _memo_id: string; _user_id: string }; Returns: boolean }
+      has_permission: {
+        Args: { _resource_key: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
