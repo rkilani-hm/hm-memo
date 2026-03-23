@@ -65,6 +65,7 @@ const App = () => (
                 <Route path="/admin/cross-dept-rules" element={<CrossDeptRules />} />
                 <Route path="/admin/approval-performance" element={<ApprovalPerformance />} />
                 <Route path="/admin/reminder-settings" element={<ReminderSettings />} />
+                <Route path="/admin/authorization" element={<Authorization />} />
                 <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
               </Route>
               <Route path="*" element={<NotFound />} />
