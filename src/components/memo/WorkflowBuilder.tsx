@@ -454,6 +454,25 @@ const WorkflowBuilder = ({
               Save as Template
             </Button>
           )}
+
+          {/* PDF Layout Editor for dynamic mode */}
+          {customSteps.length > 0 && pdfLayout && onPdfLayoutChange && (
+            <>
+              <Separator className="my-4" />
+              <PdfLayoutEditor
+                steps={customSteps.map(s => ({
+                  approver_user_id: s.approver_user_id,
+                  label: s.label,
+                  stage_level: s.stage_level || undefined,
+                  action_type: s.action_type,
+                  parallel_group: s.parallel_group,
+                }))}
+                layout={pdfLayout}
+                onChange={onPdfLayoutChange}
+                profiles={profiles}
+              />
+            </>
+          )}
         </div>
       )}
 
