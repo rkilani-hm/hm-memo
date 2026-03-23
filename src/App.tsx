@@ -54,6 +54,7 @@ const App = () => (
                 <Route path="/approvals" element={<PendingApprovals />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/help" element={<HelpGuide />} />
+                <Route path="/notifications" element={<Notifications />} />
                 <Route path="/admin/users" element={<UserManagement />} />
                 <Route path="/admin/departments" element={<DepartmentManagement />} />
                 <Route path="/admin/workflows" element={<WorkflowManagement />} />

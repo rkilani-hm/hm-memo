@@ -161,6 +161,19 @@ const AppHeader = () => {
                 </div>
               )}
             </ScrollArea>
+            <div className="border-t border-border px-4 py-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-xs text-muted-foreground"
+                onClick={() => {
+                  setOpen(false);
+                  navigate('/notifications');
+                }}
+              >
+                View all notifications
+              </Button>
+            </div>
           </PopoverContent>
         </Popover>
         <div className="hidden sm:flex items-center gap-2">
