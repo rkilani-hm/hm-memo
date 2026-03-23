@@ -27,6 +27,7 @@ import ApprovalPerformance from "@/pages/admin/ApprovalPerformance";
 import ReminderSettings from "@/pages/admin/ReminderSettings";
 import Settings from "@/pages/Settings";
 import HelpGuide from "@/pages/HelpGuide";
+import Notifications from "@/pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
