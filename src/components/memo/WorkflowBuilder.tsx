@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
+import PdfLayoutEditor, { type PdfLayout, DEFAULT_PDF_LAYOUT } from '@/components/memo/PdfLayoutEditor';
 
 export type StepActionType = 'signature' | 'initial';
 
@@ -60,6 +61,8 @@ interface WorkflowBuilderProps {
   onCustomStepsChange: (steps: WorkflowStepDef[]) => void;
   mode: 'preset' | 'dynamic';
   onModeChange: (mode: 'preset' | 'dynamic') => void;
+  pdfLayout?: PdfLayout;
+  onPdfLayoutChange?: (layout: PdfLayout) => void;
 }
 
 const ACTION_TYPE_META: Record<StepActionType, { label: string; icon: React.ReactNode; desc: string }> = {
