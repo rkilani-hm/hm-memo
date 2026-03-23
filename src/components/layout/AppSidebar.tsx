@@ -39,9 +39,9 @@ const AppSidebar = () => {
 
   const mainNavItems = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/', key: 'dashboard' },
-    { title: 'My Memos', icon: FileText, path: '/memos', key: 'memos' },
+    { title: 'All Memos', icon: FileText, path: '/memos', key: 'memos' },
     { title: 'Create Memo', icon: FilePlus, path: '/memos/create', key: 'memos/create' },
-    { title: 'Pending Approvals', icon: CheckSquare, path: '/approvals', key: 'approvals' },
+    { title: 'Pending My Approval', icon: CheckSquare, path: '/approvals', key: 'approvals' },
     { title: 'Help & Guide', icon: HelpCircle, path: '/help', key: 'help' },
   ];
 
