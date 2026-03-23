@@ -134,7 +134,7 @@ serve(async (req) => {
         if (dynTemplate) {
           workflow = { id: dynTemplate.id, name: `Dynamic — ${memo.transmittal_no}` };
         }
-      }
+    } else {
       // Priority 2: Specified template
       if (workflow_template_id) {
         const { data } = await adminClient
