@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Separator } from '@/components/ui/separator';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +39,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
+import PdfLayoutEditor, { type PdfLayout, DEFAULT_PDF_LAYOUT } from '@/components/memo/PdfLayoutEditor';
 
 export type StepActionType = 'signature' | 'initial';
 
@@ -60,6 +62,8 @@ interface WorkflowBuilderProps {
   onCustomStepsChange: (steps: WorkflowStepDef[]) => void;
   mode: 'preset' | 'dynamic';
   onModeChange: (mode: 'preset' | 'dynamic') => void;
+  pdfLayout?: PdfLayout;
+  onPdfLayoutChange?: (layout: PdfLayout) => void;
 }
 
 const ACTION_TYPE_META: Record<StepActionType, { label: string; icon: React.ReactNode; desc: string }> = {
@@ -76,6 +80,8 @@ const WorkflowBuilder = ({
   onCustomStepsChange,
   mode,
   onModeChange,
+  pdfLayout,
+  onPdfLayoutChange,
 }: WorkflowBuilderProps) => {
   const { user } = useAuth();
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -192,6 +198,7 @@ const WorkflowBuilder = ({
         department_id: departmentId,
         memo_type: memoTypes[0] || null,
         steps: customSteps as any,
+        pdf_layout: (pdfLayout || DEFAULT_PDF_LAYOUT) as any,
         is_default: false,
       });
       if (error) throw error;
@@ -448,6 +455,25 @@ const WorkflowBuilder = ({
               <Save className="h-3.5 w-3.5 mr-1" />
               Save as Template
             </Button>
+          )}
+
+          {/* PDF Layout Editor for dynamic mode */}
+          {customSteps.length > 0 && pdfLayout && onPdfLayoutChange && (
+            <>
+              <Separator className="my-4" />
+              <PdfLayoutEditor
+                steps={customSteps.map(s => ({
+                  approver_user_id: s.approver_user_id,
+                  label: s.label,
+                  stage_level: s.stage_level || undefined,
+                  action_type: s.action_type,
+                  parallel_group: s.parallel_group,
+                }))}
+                layout={pdfLayout}
+                onChange={onPdfLayoutChange}
+                profiles={profiles}
+              />
+            </>
           )}
         </div>
       )}
