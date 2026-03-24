@@ -470,8 +470,9 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
 
     <!-- HEADER TABLE -->
     <table class="memo-header-table" style="width:100%;border-collapse:collapse;">
+      <!-- Row 1: TO + TRANSMITTAL NO -->
       <tr>
-        <td style="width:50%;border:1px solid #000;padding:8px 12px;vertical-align:top;">
+        <td rowspan="2" style="width:50%;border:1px solid #000;padding:8px 12px;vertical-align:top;">
           <p style="font-size:10px;color:#666;margin:0;">TO:</p>
           <p style="font-weight:bold;margin:4px 0 0;">${toProfile?.full_name || '—'}</p>
           ${toProfile?.job_title ? `<p style="font-size:11px;margin:0;">${toProfile.job_title}</p>` : ''}
@@ -479,6 +480,12 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
         <td style="width:25%;border:1px solid #000;background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;vertical-align:middle;">TRANSMITTAL NO:</td>
         <td style="width:25%;border:1px solid #000;padding:8px 12px;font-weight:bold;font-family:monospace;vertical-align:middle;">${memo.transmittal_no}</td>
       </tr>
+      <!-- Row 2: (TO continues via rowspan) + DATE -->
+      <tr>
+        <td style="border:1px solid #000;background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;vertical-align:middle;">DATE:</td>
+        <td style="border:1px solid #000;padding:8px 12px;vertical-align:middle;">${format(new Date(memo.date), "do MMMM yyyy")}</td>
+      </tr>
+      <!-- Row 3: FROM + TRANSMITTED FOR -->
       <tr>
         <td style="border:1px solid #000;padding:8px 12px;vertical-align:top;">
           <p style="font-size:10px;color:#666;margin:0;">FROM:</p>
@@ -486,18 +493,15 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
           ${fromProfile?.job_title ? `<p style="font-size:11px;margin:0;">${fromProfile.job_title}</p>` : ''}
           ${department ? `<p style="font-size:10px;color:#666;margin:0;">${department.name}</p>` : ''}
         </td>
-        <td style="border:1px solid #000;background:#fff;color:#c00;padding:8px 12px;font-size:10px;font-weight:bold;vertical-align:middle;">DATE:</td>
-        <td style="border:1px solid #000;padding:8px 12px;vertical-align:middle;">${format(new Date(memo.date), "do MMMM yyyy")}</td>
-      </tr>
-      <tr>
-        <td style="border:1px solid #000;padding:8px 16px;" colspan="3">
-          <p style="margin:0;"><strong>Subject:</strong> <strong>${memo.subject}</strong></p>
-        </td>
-      </tr>
-      <tr>
-        <td style="border:1px solid #000;padding:8px 12px;" colspan="3">
+        <td colspan="2" style="border:1px solid #000;padding:8px 12px;vertical-align:top;">
           <p style="font-size:10px;font-weight:bold;text-align:center;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">Transmitted For</p>
           <div style="display:flex;flex-wrap:wrap;">${transmittedForHtml}</div>
+        </td>
+      </tr>
+      <!-- Row 4: Subject -->
+      <tr>
+        <td style="border:1px solid #000;padding:8px 16px;" colspan="3">
+          <p style="margin:0;"><strong>Subject:</strong> ${memo.subject}</p>
         </td>
       </tr>
     </table>
