@@ -182,10 +182,7 @@ const WorkflowBuilder = ({
       validationWarnings.push('Payment memos: ensure a Finance department approver is included.');
     }
 
-    if (mode === 'dynamic' && user) {
-      const selfAdded = customSteps.some((s) => s.approver_user_id === user.id);
-      if (selfAdded) validationWarnings.push('You cannot add yourself as an approver.');
-    }
+    // Self-approval is allowed per business requirement
   }
 
   // Save as template
