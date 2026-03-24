@@ -119,21 +119,20 @@ serve(async (req) => {
       workflowSource = "dynamic";
 
       // Create an ad-hoc workflow template to persist the dynamic layout
-      if (pdf_layout || steps.length > 0) {
-        const { data: dynTemplate } = await adminClient
-          .from("workflow_templates")
-          .insert({
-            name: `Dynamic — ${memo.transmittal_no}`,
-            department_id: memo.department_id,
-            steps: steps as any,
-            pdf_layout: pdf_layout || { grid: [[null,null,null],[null,null,null]], signoff_step: null },
-            is_default: false,
-          })
-          .select("id")
-          .single();
-        if (dynTemplate) {
-          workflow = { id: dynTemplate.id, name: `Dynamic — ${memo.transmittal_no}` };
-        }
+      const { data: dynTemplate } = await adminClient
+        .from("workflow_templates")
+        .insert({
+          name: `Dynamic — ${memo.transmittal_no}`,
+          department_id: memo.department_id,
+          steps: steps as any,
+          pdf_layout: pdf_layout || { grid: [[null,null,null],[null,null,null]], signoff_step: null },
+          is_default: false,
+        })
+        .select("id")
+        .single();
+      if (dynTemplate) {
+        workflow = { id: dynTemplate.id, name: `Dynamic — ${memo.transmittal_no}` };
+      }
     } else {
       // Priority 2: Specified template
       if (workflow_template_id) {
