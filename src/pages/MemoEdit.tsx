@@ -101,6 +101,21 @@ const MemoEdit = () => {
     queryFn: fetchDepartments,
   });
 
+  // Fetch existing approval steps for pre-loading into Dynamic Builder
+  const { data: existingSteps = [] } = useQuery({
+    queryKey: ['approval-steps', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('approval_steps')
+        .select('*')
+        .eq('memo_id', id!)
+        .order('step_order');
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
   // Load memo data into form
   useEffect(() => {
     if (memo && !loaded) {
@@ -113,9 +128,25 @@ const MemoEdit = () => {
       setInitials(memo.initials || '');
       setReviewerUserId((memo as any).reviewer_user_id || '');
       setCopiesTo(memo.copies_to || []);
+
+      // Pre-load existing approval steps into Dynamic Builder
+      if (existingSteps.length > 0) {
+        const steps: WorkflowStepDef[] = existingSteps.map((s) => ({
+          approver_user_id: s.approver_user_id,
+          label: s.stage_level || '',
+          action_type: s.action_type as 'signature' | 'initial',
+          is_required: s.is_required,
+          parallel_group: s.parallel_group,
+          deadline: s.deadline,
+          stage_level: s.stage_level,
+        }));
+        setCustomSteps(steps);
+        setWorkflowMode('dynamic');
+      }
+
       setLoaded(true);
     }
-  }, [memo, loaded]);
+  }, [memo, loaded, existingSteps]);
 
   const editableStatuses = ['draft', 'submitted', 'in_review', 'rejected', 'rework'];
   const wasAlreadySubmitted = memo && ['submitted', 'in_review', 'rejected', 'rework'].includes(memo.status);
