@@ -161,7 +161,7 @@ const MemoEdit = () => {
 
         // Load existing pdf_layout from workflow template
         if (workflowTemplate?.pdf_layout) {
-          setDynamicPdfLayout(workflowTemplate.pdf_layout as PdfLayout);
+          setDynamicPdfLayout(workflowTemplate.pdf_layout as unknown as PdfLayout);
         }
       }
 
