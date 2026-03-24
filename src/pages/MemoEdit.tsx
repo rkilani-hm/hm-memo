@@ -36,6 +36,7 @@ import UserMultiSelect from '@/components/memo/UserMultiSelect';
 import type { WorkflowStepDef } from '@/components/memo/WorkflowBuilder';
 import type { FileAttachment } from '@/components/memo/FileUpload';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
+import { DEFAULT_PDF_LAYOUT, type PdfLayout } from '@/components/memo/PdfLayoutEditor';
 import { format } from 'date-fns';
 import { Save, Send, ArrowLeft } from 'lucide-react';
 
