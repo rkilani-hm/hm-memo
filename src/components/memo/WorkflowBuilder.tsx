@@ -337,21 +337,14 @@ const WorkflowBuilder = ({
                   </Button>
                 </div>
 
-                {/* Approver Select */}
+                {/* Approver Select with Search */}
                 <div className="space-y-1">
                   <Label className="text-xs">Approver</Label>
-                  <Select value={step.approver_user_id} onValueChange={(v) => updateStep(index, { approver_user_id: v })}>
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Select person..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {profiles.map((p) => (
-                          <SelectItem key={p.user_id} value={p.user_id}>
-                            {p.full_name} — {p.job_title || 'No title'}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableApproverSelect
+                    profiles={profiles}
+                    value={step.approver_user_id}
+                    onChange={(v) => updateStep(index, { approver_user_id: v })}
+                  />
                 </div>
 
                 {/* Action Type */}
