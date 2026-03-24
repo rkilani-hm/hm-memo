@@ -182,10 +182,7 @@ const WorkflowBuilder = ({
       validationWarnings.push('Payment memos: ensure a Finance department approver is included.');
     }
 
-    if (mode === 'dynamic' && user) {
-      const selfAdded = customSteps.some((s) => s.approver_user_id === user.id);
-      if (selfAdded) validationWarnings.push('You cannot add yourself as an approver.');
-    }
+    // Self-approval is allowed per business requirement
   }
 
   // Save as template
@@ -346,9 +343,7 @@ const WorkflowBuilder = ({
                       <SelectValue placeholder="Select person..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {profiles
-                        .filter((p) => p.user_id !== user?.id)
-                        .map((p) => (
+                      {profiles.map((p) => (
                           <SelectItem key={p.user_id} value={p.user_id}>
                             {p.full_name} — {p.job_title || 'No title'}
                           </SelectItem>
