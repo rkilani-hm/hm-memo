@@ -65,6 +65,7 @@ const MemoEdit = () => {
   const [workflowMode, setWorkflowMode] = useState<'preset' | 'dynamic'>('preset');
   const [customSteps, setCustomSteps] = useState<WorkflowStepDef[]>([]);
   const [showResetWarning, setShowResetWarning] = useState(false);
+  const [dynamicPdfLayout, setDynamicPdfLayout] = useState<PdfLayout>(DEFAULT_PDF_LAYOUT);
 
 
   // Fetch memo
