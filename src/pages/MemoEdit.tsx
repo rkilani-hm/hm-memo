@@ -116,6 +116,22 @@ const MemoEdit = () => {
     enabled: !!id,
   });
 
+  // Fetch workflow template pdf_layout for this memo
+  const { data: workflowTemplate } = useQuery({
+    queryKey: ['memo-workflow-template-edit', memo?.workflow_template_id],
+    queryFn: async () => {
+      if (!memo?.workflow_template_id) return null;
+      const { data, error } = await supabase
+        .from('workflow_templates')
+        .select('pdf_layout')
+        .eq('id', memo.workflow_template_id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!memo?.workflow_template_id,
+  });
+
   // Load memo data into form
   useEffect(() => {
     if (memo && !loaded) {
@@ -142,6 +158,11 @@ const MemoEdit = () => {
         }));
         setCustomSteps(steps);
         setWorkflowMode('dynamic');
+
+        // Load existing pdf_layout from workflow template
+        if (workflowTemplate?.pdf_layout) {
+          setDynamicPdfLayout(workflowTemplate.pdf_layout as unknown as PdfLayout);
+        }
       }
 
       setLoaded(true);
@@ -268,6 +289,7 @@ const MemoEdit = () => {
           body.workflow_template_id = selectedWorkflowId || undefined;
         } else if (workflowMode === 'dynamic' && customSteps.length > 0) {
           body.custom_steps = customSteps;
+          body.pdf_layout = dynamicPdfLayout;
         }
         const { error: submitError } = await supabase.functions.invoke('submit-memo', { body });
         if (submitError) console.warn('Workflow creation warning:', submitError);
