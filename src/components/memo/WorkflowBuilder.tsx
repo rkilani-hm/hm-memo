@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Check, ChevronsUpDown } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,6 +71,58 @@ interface WorkflowBuilderProps {
 const ACTION_TYPE_META: Record<StepActionType, { label: string; icon: React.ReactNode; desc: string }> = {
   signature: { label: 'Approve', icon: <Pen className="h-3.5 w-3.5" />, desc: 'Full approval with signature image' },
   initial: { label: 'Initial', icon: <Type className="h-3.5 w-3.5" />, desc: 'Quick endorsement with initials stamp' },
+};
+
+interface SearchableApproverSelectProps {
+  profiles: { user_id: string; full_name: string; job_title: string | null; department_id: string | null }[];
+  value: string;
+  onChange: (value: string) => void;
+}
+
+const SearchableApproverSelect = ({ profiles, value, onChange }: SearchableApproverSelectProps) => {
+  const [open, setOpen] = useState(false);
+  const selected = profiles.find((p) => p.user_id === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full h-9 justify-between text-sm font-normal"
+        >
+          {selected ? `${selected.full_name} — ${selected.job_title || 'No title'}` : 'Select person...'}
+          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search by name or title..." className="h-9 text-sm" />
+          <CommandList>
+            <CommandEmpty>No person found.</CommandEmpty>
+            <CommandGroup>
+              {profiles.map((p) => (
+                <CommandItem
+                  key={p.user_id}
+                  value={`${p.full_name} ${p.job_title || ''}`}
+                  onSelect={() => {
+                    onChange(p.user_id);
+                    setOpen(false);
+                  }}
+                  className="text-sm"
+                >
+                  <Check className={`mr-2 h-3.5 w-3.5 ${value === p.user_id ? 'opacity-100' : 'opacity-0'}`} />
+                  <span className="truncate">{p.full_name} — {p.job_title || 'No title'}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 };
 
 const WorkflowBuilder = ({
@@ -335,21 +389,14 @@ const WorkflowBuilder = ({
                   </Button>
                 </div>
 
-                {/* Approver Select */}
+                {/* Approver Select with Search */}
                 <div className="space-y-1">
                   <Label className="text-xs">Approver</Label>
-                  <Select value={step.approver_user_id} onValueChange={(v) => updateStep(index, { approver_user_id: v })}>
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Select person..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {profiles.map((p) => (
-                          <SelectItem key={p.user_id} value={p.user_id}>
-                            {p.full_name} — {p.job_title || 'No title'}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableApproverSelect
+                    profiles={profiles}
+                    value={step.approver_user_id}
+                    onChange={(v) => updateStep(index, { approver_user_id: v })}
+                  />
                 </div>
 
                 {/* Action Type */}
