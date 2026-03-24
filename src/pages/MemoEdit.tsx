@@ -116,6 +116,22 @@ const MemoEdit = () => {
     enabled: !!id,
   });
 
+  // Fetch workflow template pdf_layout for this memo
+  const { data: workflowTemplate } = useQuery({
+    queryKey: ['memo-workflow-template-edit', memo?.workflow_template_id],
+    queryFn: async () => {
+      if (!memo?.workflow_template_id) return null;
+      const { data, error } = await supabase
+        .from('workflow_templates')
+        .select('pdf_layout')
+        .eq('id', memo.workflow_template_id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!memo?.workflow_template_id,
+  });
+
   // Load memo data into form
   useEffect(() => {
     if (memo && !loaded) {
