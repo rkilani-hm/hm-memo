@@ -90,10 +90,6 @@ const MemoCreate = () => {
 
       // Validate dynamic workflow
       if (workflowMode === 'dynamic') {
-        if (customSteps.some((s) => s.approver_user_id === user.id)) {
-          toast({ title: 'Validation Error', description: 'You cannot add yourself as an approver.', variant: 'destructive' });
-          return;
-        }
         if (customSteps.length > 0 && !customSteps.some((s) => s.action_type === 'signature')) {
           toast({ title: 'Validation Error', description: 'At least one step must require a Signature.', variant: 'destructive' });
           return;
