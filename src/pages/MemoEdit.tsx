@@ -268,6 +268,7 @@ const MemoEdit = () => {
           body.workflow_template_id = selectedWorkflowId || undefined;
         } else if (workflowMode === 'dynamic' && customSteps.length > 0) {
           body.custom_steps = customSteps;
+          body.pdf_layout = dynamicPdfLayout;
         }
         const { error: submitError } = await supabase.functions.invoke('submit-memo', { body });
         if (submitError) console.warn('Workflow creation warning:', submitError);
