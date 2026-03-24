@@ -125,8 +125,7 @@ const SearchableApproverSelect = ({ profiles, value, onChange }: SearchableAppro
   );
 };
 
-
-  departmentId,
+const WorkflowBuilder = ({
   memoTypes,
   selectedTemplateId,
   onTemplateChange,
