@@ -158,6 +158,11 @@ const MemoEdit = () => {
         }));
         setCustomSteps(steps);
         setWorkflowMode('dynamic');
+
+        // Load existing pdf_layout from workflow template
+        if (workflowTemplate?.pdf_layout) {
+          setDynamicPdfLayout(workflowTemplate.pdf_layout as PdfLayout);
+        }
       }
 
       setLoaded(true);
