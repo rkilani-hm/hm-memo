@@ -346,9 +346,7 @@ const WorkflowBuilder = ({
                       <SelectValue placeholder="Select person..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {profiles
-                        .filter((p) => p.user_id !== user?.id)
-                        .map((p) => (
+                      {profiles.map((p) => (
                           <SelectItem key={p.user_id} value={p.user_id}>
                             {p.full_name} — {p.job_title || 'No title'}
                           </SelectItem>
