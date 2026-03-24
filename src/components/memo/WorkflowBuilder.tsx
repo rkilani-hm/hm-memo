@@ -73,7 +73,59 @@ const ACTION_TYPE_META: Record<StepActionType, { label: string; icon: React.Reac
   initial: { label: 'Initial', icon: <Type className="h-3.5 w-3.5" />, desc: 'Quick endorsement with initials stamp' },
 };
 
-const WorkflowBuilder = ({
+interface SearchableApproverSelectProps {
+  profiles: { user_id: string; full_name: string; job_title: string | null; department_id: string | null }[];
+  value: string;
+  onChange: (value: string) => void;
+}
+
+const SearchableApproverSelect = ({ profiles, value, onChange }: SearchableApproverSelectProps) => {
+  const [open, setOpen] = useState(false);
+  const selected = profiles.find((p) => p.user_id === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full h-9 justify-between text-sm font-normal"
+        >
+          {selected ? `${selected.full_name} — ${selected.job_title || 'No title'}` : 'Select person...'}
+          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search by name or title..." className="h-9 text-sm" />
+          <CommandList>
+            <CommandEmpty>No person found.</CommandEmpty>
+            <CommandGroup>
+              {profiles.map((p) => (
+                <CommandItem
+                  key={p.user_id}
+                  value={`${p.full_name} ${p.job_title || ''}`}
+                  onSelect={() => {
+                    onChange(p.user_id);
+                    setOpen(false);
+                  }}
+                  className="text-sm"
+                >
+                  <Check className={`mr-2 h-3.5 w-3.5 ${value === p.user_id ? 'opacity-100' : 'opacity-0'}`} />
+                  <span className="truncate">{p.full_name} — {p.job_title || 'No title'}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+
   departmentId,
   memoTypes,
   selectedTemplateId,
