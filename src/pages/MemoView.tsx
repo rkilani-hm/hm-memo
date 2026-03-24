@@ -676,7 +676,7 @@ const MemoView = () => {
             </>
           )}
           {['draft', 'submitted', 'in_review', 'rejected', 'rework'].includes(memo.status) && 
-           (memo.from_user_id === user?.id || isAdmin) && (
+           (memo.from_user_id === user?.id || isAdmin || (profile?.department_id === memo.department_id && memo.status !== 'approved')) && (
             <Button variant="outline" onClick={() => navigate(`/memos/${memo.id}/edit`)}>
               <Edit className="h-4 w-4 mr-2" />
               {memo.status === 'draft' ? 'Edit Draft' : 'Edit & Resubmit'}
