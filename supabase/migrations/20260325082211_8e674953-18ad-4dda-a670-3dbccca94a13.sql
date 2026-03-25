@@ -1,0 +1,1 @@
+ALTER TABLE public.memos ADD COLUMN action_comments text DEFAULT NULL;
