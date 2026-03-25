@@ -195,6 +195,12 @@ serve(async (req) => {
       );
     }
 
+    // Remove any previous workflow instances (for edit & resubmit)
+    await adminClient
+      .from("approval_steps")
+      .delete()
+      .eq("memo_id", memo_id);
+
     // Create approval steps with action_type, parallel_group, is_required, deadline
     const approvalSteps = steps.map((step, index) => ({
       memo_id,
