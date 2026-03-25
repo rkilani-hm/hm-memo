@@ -156,6 +156,7 @@ const MemoCreate = () => {
           department_id: deptId,
           subject: subject.trim() || 'Untitled Memo',
           description,
+          action_comments: actionComments || null,
           status: status === 'draft' ? 'draft' : 'submitted',
           memo_types: memoTypes,
           continuation_pages: continuationPages,
