@@ -442,6 +442,7 @@ const MemoList = () => {
                 <SelectItem value="in_review">In Review</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="rework">Changes Requested</SelectItem>
                 <SelectItem value="rework">Rework</SelectItem>
               </SelectContent>
             </Select>
