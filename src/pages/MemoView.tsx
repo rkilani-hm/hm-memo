@@ -799,10 +799,12 @@ const MemoView = () => {
                 ? 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
                 : memo.status === 'rejected'
                 ? 'bg-destructive/10 text-destructive'
+                : memo.status === 'rework'
+                ? 'bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]'
                 : 'bg-muted text-muted-foreground'
             }`}
           >
-            {memo.status.replace('_', ' ')}
+            {memo.status === 'rework' ? 'Changes Requested' : memo.status.replace('_', ' ')}
           </Badge>
         </div>
 
