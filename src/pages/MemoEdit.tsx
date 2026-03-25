@@ -52,6 +52,7 @@ const MemoEdit = () => {
   const [toUserId, setToUserId] = useState('');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
+  const [actionComments, setActionComments] = useState('');
   const [memoTypes, setMemoTypes] = useState<MemoType[]>([]);
   const [continuationPages, setContinuationPages] = useState(0);
   const [initials, setInitials] = useState('');
