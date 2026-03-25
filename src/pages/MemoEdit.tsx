@@ -252,6 +252,7 @@ const MemoEdit = () => {
           to_user_id: toUserId || null,
           subject: subject.trim() || 'Untitled Memo',
           description,
+          action_comments: actionComments || null,
           status: status === 'draft' ? 'draft' : 'submitted',
           memo_types: memoTypes,
           continuation_pages: continuationPages,
