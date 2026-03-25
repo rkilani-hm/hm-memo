@@ -288,7 +288,7 @@ const MemoList = () => {
                   </TableCell>
                   <TableCell>
                     <Badge className={`${statusColors[memo.status] || ''} capitalize`}>
-                      {memo.status.replace('_', ' ')}
+                      {memo.status === 'rework' ? 'Changes Requested' : memo.status.replace('_', ' ')}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -442,6 +442,7 @@ const MemoList = () => {
                 <SelectItem value="in_review">In Review</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="rework">Changes Requested</SelectItem>
                 <SelectItem value="rework">Rework</SelectItem>
               </SelectContent>
             </Select>

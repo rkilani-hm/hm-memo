@@ -223,6 +223,36 @@ const PendingApprovals = () => {
           }).catch((err) => console.warn('Email to creator failed:', err));
         }
 
+        // CC department manager on rework requests
+        if (action === 'rework') {
+          const memoDept = departments.find(d => d.id === memo.department_id);
+          const deptHeadId = memoDept?.head_user_id;
+          if (deptHeadId && deptHeadId !== user.id && deptHeadId !== memo.from_user_id) {
+            const deptHeadProfile = getProfile(deptHeadId);
+
+            // In-app notification to dept manager
+            supabase.from('notifications').insert({
+              user_id: deptHeadId,
+              memo_id: memoId,
+              type: 'step_update',
+              message: `[CC] Memo ${memo.transmittal_no} — "${memo.subject}" was returned for rework by ${approverProfile?.full_name || 'An approver'}. ${comments ? `Reason: ${comments}. ` : ''}Creator: ${creatorProfile?.full_name || 'Unknown'}.`,
+            }).then(({ error }) => { if (error) console.warn(error); });
+
+            // Email to dept manager
+            if (deptHeadProfile) {
+              notifyMemoStatus({
+                creatorEmail: deptHeadProfile.email,
+                creatorName: deptHeadProfile.full_name,
+                memoSubject: memo.subject,
+                transmittalNo: memo.transmittal_no,
+                status: 'rework',
+                approverName: approverProfile?.full_name || 'An approver',
+                memoId,
+              }).catch(console.warn);
+            }
+          }
+        }
+
         // If approved and there's a next approver, notify them
         if (action === 'approved' && nextApproverStep) {
           const nextProfile = getProfile(nextApproverStep.approver_user_id);

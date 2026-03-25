@@ -348,19 +348,51 @@ const MemoView = () => {
         await supabase.from('memos').update({ status: newStatus as any }).eq('id', id);
 
         // Notify creator: rejected or rework
-        if (memo && memo.from_user_id !== user.id) {
+        if (memo) {
           const approverProfile = getProfile(user.id);
           const actionWord = action === 'rejected' ? 'rejected' : 'returned for rework';
           const commentText = comments ? ` Reason: ${comments}.` : '';
           const followUp = action === 'rejected'
             ? ' Please review and resubmit.'
             : ' Please review the feedback and resubmit.';
-          supabase.from('notifications').insert({
-            user_id: memo.from_user_id,
-            memo_id: id,
-            type: 'step_update',
-            message: `Your memo ${memo.transmittal_no} — "${memo.subject}" was ${actionWord} by ${approverProfile?.full_name || 'An approver'} on ${format(new Date(), 'dd MMM yyyy HH:mm')}.${commentText}${followUp}`,
-          }).then(({ error }) => { if (error) console.warn(error); });
+
+          // Notify memo creator
+          if (memo.from_user_id !== user.id) {
+            supabase.from('notifications').insert({
+              user_id: memo.from_user_id,
+              memo_id: id,
+              type: 'step_update',
+              message: `Your memo ${memo.transmittal_no} — "${memo.subject}" was ${actionWord} by ${approverProfile?.full_name || 'An approver'} on ${format(new Date(), 'dd MMM yyyy HH:mm')}.${commentText}${followUp}`,
+            }).then(({ error }) => { if (error) console.warn(error); });
+          }
+
+          // CC department manager on rework requests
+          if (action === 'rework') {
+            const memoDept = departments.find(d => d.id === memo.department_id);
+            const deptHeadId = memoDept?.head_user_id;
+            if (deptHeadId && deptHeadId !== user.id && deptHeadId !== memo.from_user_id) {
+              const deptHeadProfile = getProfile(deptHeadId);
+              supabase.from('notifications').insert({
+                user_id: deptHeadId,
+                memo_id: id,
+                type: 'step_update',
+                message: `[CC] Memo ${memo.transmittal_no} — "${memo.subject}" was returned for rework by ${approverProfile?.full_name || 'An approver'}.${commentText} Creator: ${getProfile(memo.from_user_id)?.full_name || 'Unknown'}.`,
+              }).then(({ error }) => { if (error) console.warn(error); });
+
+              // Send email to dept manager
+              if (deptHeadProfile) {
+                notifyMemoStatus({
+                  creatorEmail: deptHeadProfile.email,
+                  creatorName: deptHeadProfile.full_name,
+                  memoSubject: memo.subject,
+                  transmittalNo: memo.transmittal_no,
+                  status: 'rework',
+                  approverName: approverProfile?.full_name || 'An approver',
+                  memoId: id!,
+                }).catch(console.warn);
+              }
+            }
+          }
         }
       }
 
@@ -767,10 +799,12 @@ const MemoView = () => {
                 ? 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
                 : memo.status === 'rejected'
                 ? 'bg-destructive/10 text-destructive'
+                : memo.status === 'rework'
+                ? 'bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]'
                 : 'bg-muted text-muted-foreground'
             }`}
           >
-            {memo.status.replace('_', ' ')}
+            {memo.status === 'rework' ? 'Changes Requested' : memo.status.replace('_', ' ')}
           </Badge>
         </div>
 
