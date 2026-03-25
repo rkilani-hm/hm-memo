@@ -288,7 +288,7 @@ const MemoList = () => {
                   </TableCell>
                   <TableCell>
                     <Badge className={`${statusColors[memo.status] || ''} capitalize`}>
-                      {memo.status.replace('_', ' ')}
+                      {memo.status === 'rework' ? 'Changes Requested' : memo.status.replace('_', ' ')}
                     </Badge>
                   </TableCell>
                   <TableCell>
