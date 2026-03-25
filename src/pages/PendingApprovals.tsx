@@ -252,7 +252,6 @@ const PendingApprovals = () => {
             }
           }
         }
-        }
 
         // If approved and there's a next approver, notify them
         if (action === 'approved' && nextApproverStep) {
