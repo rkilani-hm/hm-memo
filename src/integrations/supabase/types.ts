@@ -459,6 +459,7 @@ export type Database = {
       }
       memos: {
         Row: {
+          action_comments: string | null
           continuation_pages: number | null
           copies_to: string[] | null
           created_at: string
@@ -480,6 +481,7 @@ export type Database = {
           workflow_template_id: string | null
         }
         Insert: {
+          action_comments?: string | null
           continuation_pages?: number | null
           copies_to?: string[] | null
           created_at?: string
@@ -501,6 +503,7 @@ export type Database = {
           workflow_template_id?: string | null
         }
         Update: {
+          action_comments?: string | null
           continuation_pages?: number | null
           copies_to?: string[] | null
           created_at?: string

@@ -41,6 +41,7 @@ const MemoCreate = () => {
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [memoTypes, setMemoTypes] = useState<MemoType[]>([]);
+  const [actionComments, setActionComments] = useState('');
   const [continuationPages, setContinuationPages] = useState(0);
   const [reviewerUserId, setReviewerUserId] = useState('');
   const [initials, setInitials] = useState('');
@@ -155,6 +156,7 @@ const MemoCreate = () => {
           department_id: deptId,
           subject: subject.trim() || 'Untitled Memo',
           description,
+          action_comments: actionComments || null,
           status: status === 'draft' ? 'draft' : 'submitted',
           memo_types: memoTypes,
           continuation_pages: continuationPages,
@@ -326,6 +328,18 @@ const MemoCreate = () => {
           <div className="space-y-2">
             <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Description</Label>
             <RichTextEditor content={description} onChange={setDescription} placeholder="Write the memo body here..." />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Action Required / Comments If Any</Label>
+            <textarea
+              value={actionComments}
+              onChange={(e) => setActionComments(e.target.value)}
+              placeholder="Enter any action required or comments..."
+              className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
           </div>
 
           {/* Signature block preview */}

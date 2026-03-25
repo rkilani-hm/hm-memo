@@ -947,6 +947,9 @@ const MemoView = () => {
               <p className="mt-1">COMMENTS IF ANY:</p>
             </div>
             <div className="px-3 py-2 text-sm">
+              {(memo as any)?.action_comments && (
+                <p className="text-xs mb-2 whitespace-pre-wrap">{(memo as any).action_comments}</p>
+              )}
               {approvalSteps
                 .filter((s) => s.comments)
                 .map((s) => {

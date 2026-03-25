@@ -361,12 +361,16 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   const approvalsHtml = buildStagedApprovalsHtml(nonSignOffSteps, profiles, sigDataUrls, registeredByProfiles, pdfLayout);
 
   // Comments
-  const commentsHtml = approvalSteps
+  const memoActionComments = (memo as any).action_comments
+    ? `<p style="font-size:10px;margin:2px 0;white-space:pre-wrap;">${(memo as any).action_comments}</p>`
+    : '';
+  const approverCommentsHtml = approvalSteps
     .filter(s => s.comments)
     .map(s => {
       const approver = getProfile(profiles, s.approver_user_id);
       return `<p style="font-size:10px;margin:2px 0;"><strong>${approver?.full_name || 'Unknown'}:</strong> ${s.comments}</p>`;
     }).join('');
+  const commentsHtml = memoActionComments + approverCommentsHtml;
 
   // Confidentiality line
   const confidentialityHtml = prefs.confidentialityLine
