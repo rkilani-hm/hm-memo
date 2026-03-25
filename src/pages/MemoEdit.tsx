@@ -140,6 +140,7 @@ const MemoEdit = () => {
       setToUserId(memo.to_user_id || '');
       setSubject(memo.subject);
       setDescription(memo.description || '');
+      setActionComments((memo as any).action_comments || '');
       setMemoTypes((memo.memo_types || []) as MemoType[]);
       setContinuationPages(memo.continuation_pages || 0);
       setInitials(memo.initials || '');
