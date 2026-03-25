@@ -41,6 +41,7 @@ const MemoCreate = () => {
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [memoTypes, setMemoTypes] = useState<MemoType[]>([]);
+  const [actionComments, setActionComments] = useState('');
   const [continuationPages, setContinuationPages] = useState(0);
   const [reviewerUserId, setReviewerUserId] = useState('');
   const [initials, setInitials] = useState('');
