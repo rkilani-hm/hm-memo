@@ -655,8 +655,12 @@ const MemoView = () => {
   const needsSigningAsset = actionDialog?.action === 'approved' && 
     (actionDialog.stepActionType === 'signature' || actionDialog.stepActionType === 'initial');
 
+  const isApprover = !!myPendingStep || approvalSteps.some(s => s.approver_user_id === user?.id);
+  const showAiPanel = isApprover && memo.status !== 'draft';
+
   return (
-    <>
+    <div className="flex">
+      <div className="flex-1 min-w-0">
       {/* Print Styles */}
       <style>{`
         @media print {
