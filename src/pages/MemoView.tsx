@@ -31,6 +31,7 @@ import AuditTrailTab from '@/components/memo/AuditTrailTab';
 import VersionHistory from '@/components/memo/VersionHistory';
 import ManualRegistrationPanel from '@/components/memo/ManualRegistrationPanel';
 import WorkflowTracker from '@/components/memo/WorkflowTracker';
+import AiApprovalSummary from '@/components/memo/AiApprovalSummary';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 
 
@@ -654,8 +655,12 @@ const MemoView = () => {
   const needsSigningAsset = actionDialog?.action === 'approved' && 
     (actionDialog.stepActionType === 'signature' || actionDialog.stepActionType === 'initial');
 
+  const isApprover = !!myPendingStep || approvalSteps.some(s => s.approver_user_id === user?.id);
+  const showAiPanel = isApprover && memo.status !== 'draft';
+
   return (
-    <>
+    <div className="flex">
+      <div className="flex-1 min-w-0">
       {/* Print Styles */}
       <style>{`
         @media print {
@@ -1503,7 +1508,13 @@ const MemoView = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+      </div>
+
+      {/* AI Approval Summary Panel */}
+      {showAiPanel && (
+        <AiApprovalSummary memoId={id!} memoUpdatedAt={memo.updated_at} />
+      )}
+    </div>
   );
 };
 
