@@ -31,6 +31,7 @@ import AuditTrailTab from '@/components/memo/AuditTrailTab';
 import VersionHistory from '@/components/memo/VersionHistory';
 import ManualRegistrationPanel from '@/components/memo/ManualRegistrationPanel';
 import WorkflowTracker from '@/components/memo/WorkflowTracker';
+import AiApprovalSummary from '@/components/memo/AiApprovalSummary';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 
 
