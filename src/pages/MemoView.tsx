@@ -1508,7 +1508,13 @@ const MemoView = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+      </div>
+
+      {/* AI Approval Summary Panel */}
+      {showAiPanel && (
+        <AiApprovalSummary memoId={id!} memoUpdatedAt={memo.updated_at} />
+      )}
+    </div>
   );
 };
 
