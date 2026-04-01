@@ -407,7 +407,8 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   <meta charset="UTF-8">
   <title>Memo ${memo.transmittal_no}</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { box-sizing: border-box; }
+    body, h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd { margin: 0; padding: 0; }
     body { font-family: 'Century Gothic', 'Calibri', 'Arial', sans-serif; font-size: 12px; color: #1a1a1a; ${grayscaleCss} }
 
     @page { size: A4 portrait; margin: 20mm 15mm 20mm 15mm; }
@@ -452,9 +453,157 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     tfoot { display: table-footer-group !important; }
     tbody { display: table-row-group !important; }
     table { border-collapse: collapse !important; }
-    .memo-body table { border-collapse: collapse !important; border: none !important; width: 100%; margin: 12px 0; }
-    .memo-body table td, .memo-body table th { border: 1px solid #000 !important; padding: 5pt 8pt !important; vertical-align: top !important; }
-    .memo-body table th { font-weight: bold; background-color: #f5f5f5; }
+
+    /* ===== MEMO BODY: Tables ===== */
+    .memo-body table {
+      border-collapse: collapse !important;
+      width: 100% !important;
+      margin: 10px 0 !important;
+      border: 1px solid #000 !important;
+      font-size: 10px !important;
+      line-height: 1.4 !important;
+      table-layout: auto !important;
+    }
+    .memo-body table colgroup { display: table-column-group !important; }
+    .memo-body table col { width: auto !important; }
+    .memo-body table td,
+    .memo-body table th {
+      border: 1px solid #000 !important;
+      padding: 5pt 8pt !important;
+      vertical-align: top !important;
+      word-wrap: break-word !important;
+      overflow-wrap: break-word !important;
+      min-width: 0 !important;
+      max-width: none !important;
+    }
+    .memo-body table th,
+    .memo-body table thead td,
+    .memo-body table tr:first-child td {
+      font-weight: bold !important;
+      background-color: #f0f0f0 !important;
+      text-align: center !important;
+      font-size: 10px !important;
+    }
+    /* Prevent first-row styling on single-row or body-only tables */
+    .memo-body table tbody tr:first-child td {
+      font-weight: normal !important;
+      background-color: transparent !important;
+      text-align: left !important;
+    }
+    .memo-body table thead + tbody tr:first-child td {
+      font-weight: normal !important;
+      background-color: transparent !important;
+      text-align: left !important;
+    }
+
+    /* ===== MEMO BODY: Lists (bullets & numbering) ===== */
+    .memo-body ul,
+    .memo-body ol {
+      margin: 6px 0 6px 0 !important;
+      padding-left: 24px !important;
+      list-style-position: outside !important;
+    }
+    .memo-body ul {
+      list-style-type: disc !important;
+    }
+    .memo-body ol {
+      list-style-type: decimal !important;
+    }
+    .memo-body li {
+      margin-bottom: 3px !important;
+      padding-left: 4px !important;
+      line-height: 1.5 !important;
+      font-size: 11px !important;
+    }
+    .memo-body li p {
+      margin: 0 !important;
+      display: inline !important;
+    }
+    /* Nested lists (sub-bullets / sub-numbers) */
+    .memo-body ul ul,
+    .memo-body ol ul {
+      list-style-type: circle !important;
+      margin-top: 3px !important;
+      margin-bottom: 3px !important;
+      padding-left: 20px !important;
+    }
+    .memo-body ul ol,
+    .memo-body ol ol {
+      list-style-type: lower-alpha !important;
+      margin-top: 3px !important;
+      margin-bottom: 3px !important;
+      padding-left: 20px !important;
+    }
+    /* Third-level nesting */
+    .memo-body ul ul ul,
+    .memo-body ol ol ol,
+    .memo-body ul ol ul,
+    .memo-body ol ul ul {
+      list-style-type: square !important;
+      padding-left: 18px !important;
+    }
+
+    /* ===== MEMO BODY: Paragraphs & Typography ===== */
+    .memo-body p {
+      margin: 0 0 6px 0 !important;
+      line-height: 1.6 !important;
+    }
+    .memo-body p:last-child {
+      margin-bottom: 0 !important;
+    }
+    .memo-body strong, .memo-body b {
+      font-weight: bold !important;
+    }
+    .memo-body em, .memo-body i {
+      font-style: italic !important;
+    }
+    .memo-body u {
+      text-decoration: underline !important;
+    }
+
+    /* ===== MEMO BODY: Headings inside content ===== */
+    .memo-body h1, .memo-body h2, .memo-body h3,
+    .memo-body h4, .memo-body h5, .memo-body h6 {
+      margin: 10px 0 4px 0 !important;
+      line-height: 1.3 !important;
+      font-weight: bold !important;
+    }
+    .memo-body h1 { font-size: 14px !important; }
+    .memo-body h2 { font-size: 13px !important; }
+    .memo-body h3 { font-size: 12px !important; }
+    .memo-body h4, .memo-body h5, .memo-body h6 { font-size: 11px !important; }
+
+    /* ===== MEMO BODY: Blockquotes ===== */
+    .memo-body blockquote {
+      border-left: 3px solid #999 !important;
+      margin: 8px 0 !important;
+      padding: 4px 12px !important;
+      color: #333 !important;
+      font-style: italic !important;
+    }
+
+    /* ===== MEMO BODY: Horizontal rules ===== */
+    .memo-body hr {
+      border: none !important;
+      border-top: 1px solid #ccc !important;
+      margin: 10px 0 !important;
+    }
+
+    /* ===== MEMO BODY: Task lists (TipTap) ===== */
+    .memo-body ul[data-type="taskList"] {
+      list-style-type: none !important;
+      padding-left: 4px !important;
+    }
+    .memo-body ul[data-type="taskList"] li {
+      display: flex !important;
+      align-items: flex-start !important;
+      gap: 6px !important;
+    }
+    .memo-body ul[data-type="taskList"] li input[type="checkbox"] {
+      margin-top: 3px !important;
+    }
+
+    /* ===== Layout tables (header/approvals - NOT memo body) ===== */
     .memo-layout-table, .memo-layout-table td, .memo-layout-table th {
       border-collapse: collapse !important; border: 1px solid #000 !important;
     }
