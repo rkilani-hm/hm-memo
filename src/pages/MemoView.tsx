@@ -390,6 +390,7 @@ const MemoView = () => {
                   status: 'rework',
                   approverName: approverProfile?.full_name || 'An approver',
                   memoId: id!,
+                  comments: comments || undefined,
                 }).catch(console.warn);
               }
             }
@@ -410,6 +411,7 @@ const MemoView = () => {
             status: action,
             approverName: approverProfile?.full_name || 'An approver',
             memoId: id,
+            comments: comments || undefined,
           }).catch(console.warn);
         }
       }

@@ -220,6 +220,7 @@ const PendingApprovals = () => {
             status: action,
             approverName: approverProfile?.full_name || 'An approver',
             memoId,
+            comments: comments || undefined,
           }).catch((err) => console.warn('Email to creator failed:', err));
         }
 
@@ -248,6 +249,7 @@ const PendingApprovals = () => {
                 status: 'rework',
                 approverName: approverProfile?.full_name || 'An approver',
                 memoId,
+                comments: comments || undefined,
               }).catch(console.warn);
             }
           }

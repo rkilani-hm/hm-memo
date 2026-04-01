@@ -118,7 +118,7 @@ export const sendApprovalReminder = async ({
 };
 
 /**
- * Notify memo creator of approval/rejection
+ * Notify memo creator of approval/rejection/rework
  */
 export const notifyMemoStatus = async ({
   creatorEmail,
@@ -128,6 +128,7 @@ export const notifyMemoStatus = async ({
   status,
   approverName,
   memoId,
+  comments,
 }: {
   creatorEmail: string;
   creatorName: string;
@@ -136,10 +137,33 @@ export const notifyMemoStatus = async ({
   status: 'approved' | 'rejected' | 'rework';
   approverName: string;
   memoId: string;
+  comments?: string;
 }) => {
   const appUrl = window.location.origin;
   const statusLabel = status === 'approved' ? '✅ Approved' : status === 'rejected' ? '❌ Rejected' : '🔄 Rework Required';
   const statusColor = status === 'approved' ? '#16a34a' : status === 'rejected' ? '#dc2626' : '#ca8a04';
+
+  // Build rework/rejection comments block
+  let commentsHtml = '';
+  if (comments && comments.trim() && (status === 'rework' || status === 'rejected')) {
+    const sectionTitle = status === 'rework' ? 'Rework Instructions' : 'Rejection Reason';
+    const borderColor = status === 'rework' ? '#ca8a04' : '#dc2626';
+    const bgColor = status === 'rework' ? '#fefce8' : '#fef2f2';
+    const iconEmoji = status === 'rework' ? '📝' : '⚠️';
+
+    commentsHtml = `
+        <div style="margin: 16px 0; padding: 16px; background: ${bgColor}; border-left: 4px solid ${borderColor}; border-radius: 4px;">
+          <p style="margin: 0 0 8px; font-weight: bold; font-size: 13px; color: ${borderColor};">${iconEmoji} ${sectionTitle} from ${approverName}:</p>
+          <p style="margin: 0; font-size: 13px; color: #374151; line-height: 1.6; white-space: pre-wrap;">${comments.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+        </div>`;
+  }
+
+  // Build action guidance for rework
+  let actionGuidanceHtml = '';
+  if (status === 'rework') {
+    actionGuidanceHtml = `
+        <p style="margin: 12px 0 0; font-size: 13px; color: #374151;">Please review the instructions above, make the necessary changes, and resubmit the memo for approval.</p>`;
+  }
 
   const body = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -156,7 +180,9 @@ export const notifyMemoStatus = async ({
           <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Status</td><td style="padding: 8px; border: 1px solid #e5e7eb; color: ${statusColor}; font-weight: bold;">${statusLabel}</td></tr>
           <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">By</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${approverName}</td></tr>
         </table>
-        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">View Memo</a>
+        ${commentsHtml}
+        ${actionGuidanceHtml}
+        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 16px;">${status === 'rework' ? 'Edit & Resubmit Memo' : 'View Memo'}</a>
       </div>
       <div style="padding: 12px; text-align: center; font-size: 11px; color: #6b7280;">
         This is an automated notification from the Al Hamra Memo System.
