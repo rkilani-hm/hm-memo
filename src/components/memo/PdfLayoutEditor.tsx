@@ -38,6 +38,7 @@ interface PdfLayoutEditorProps {
 
 const CELL_LABELS = [
   ['Top-Left', 'Top-Middle', 'Top-Right'],
+  ['Middle-Left', 'Middle-Middle', 'Middle-Right'],
   ['Bottom-Left', 'Bottom-Middle', 'Bottom-Right'],
 ];
 
