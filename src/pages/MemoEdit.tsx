@@ -38,7 +38,11 @@ import type { FileAttachment } from '@/components/memo/FileUpload';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
 import { DEFAULT_PDF_LAYOUT, type PdfLayout } from '@/components/memo/PdfLayoutEditor';
 import { format } from 'date-fns';
-import { Save, Send, ArrowLeft } from 'lucide-react';
+import { Save, Send, ArrowLeft, FileDown } from 'lucide-react';
+import { buildMemoHtml } from '@/lib/memo-pdf-html';
+import { generateMemoPdf, prepareMemoData, type PrintPreferences, DEFAULT_PRINT_PREFERENCES } from '@/lib/memo-pdf';
+import PrintPreviewDialog from '@/components/memo/PrintPreviewDialog';
+import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 
 const MemoEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -68,6 +72,9 @@ const MemoEdit = () => {
   const [customSteps, setCustomSteps] = useState<WorkflowStepDef[]>([]);
   const [showResetWarning, setShowResetWarning] = useState(false);
   const [dynamicPdfLayout, setDynamicPdfLayout] = useState<PdfLayout>(DEFAULT_PDF_LAYOUT);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
 
 
   // Fetch memo
@@ -552,6 +559,72 @@ const MemoEdit = () => {
 
       {/* Action Buttons */}
       <div className="flex justify-end gap-3 pb-8">
+        <Button variant="outline" onClick={async () => {
+          if (!memo) return;
+          setPdfGenerating(true);
+          try {
+            const logoResponse = await fetch(alHamraLogo);
+            const logoBlob = await logoResponse.blob();
+            const logoDataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(logoBlob);
+            });
+            const selectedFromProfile = profiles.find(p => p.user_id === fromUserId);
+            const deptId = selectedFromProfile?.department_id || profile?.department_id;
+            const dept = departments.find(d => d.id === deptId);
+            const toProfile = toUserId ? profiles.find(p => p.user_id === toUserId) : undefined;
+            const myProfile = user ? profiles.find(p => p.user_id === user.id) : undefined;
+            const savedPrintPrefs: Partial<PrintPreferences> = {
+              duplexMode: ((myProfile as any)?.print_duplex_mode as any) || 'long_edge',
+              blankBackPages: (myProfile as any)?.print_blank_back_pages ?? true,
+              colorMode: ((myProfile as any)?.print_color_mode as any) || 'color',
+              pageNumberStyle: ((myProfile as any)?.print_page_number_style as any) || 'bottom_center',
+            };
+            const currentMemo = {
+              ...memo,
+              from_user_id: fromUserId || memo.from_user_id,
+              to_user_id: toUserId || null,
+              subject: subject || memo.subject,
+              description,
+              action_comments: actionComments || null,
+              memo_types: memoTypes,
+              continuation_pages: continuationPages,
+              initials: (() => {
+                const rp = profiles.find(p => p.user_id === reviewerUserId);
+                if (!rp) return '--';
+                const parts = rp.full_name.trim().split(' ');
+                if (parts.length === 1) return parts[0][0].toUpperCase();
+                return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+              })(),
+              copies_to: copiesTo.length > 0 ? copiesTo : null,
+              reviewer_user_id: reviewerUserId || null,
+            };
+            const pdfLayout = workflowTemplate?.pdf_layout || dynamicPdfLayout;
+            const memoData = {
+              memo: currentMemo as any,
+              fromProfile: selectedFromProfile,
+              toProfile,
+              department: dept,
+              approvalSteps: existingSteps,
+              attachments: existingAttachments,
+              profiles,
+              departments,
+              logoDataUrl,
+            };
+            const prepared = await prepareMemoData(memoData);
+            const html = buildMemoHtml(memoData, prepared, { ...DEFAULT_PRINT_PREFERENCES, ...savedPrintPrefs }, pdfLayout as any);
+            setPreviewHtml(html);
+            setPrintPreviewOpen(true);
+          } catch (error: any) {
+            toast({ title: 'Preview Failed', description: error.message, variant: 'destructive' });
+          } finally {
+            setPdfGenerating(false);
+          }
+        }} disabled={pdfGenerating}>
+          <FileDown className="h-4 w-4 mr-2" />
+          {pdfGenerating ? 'Generating...' : 'Print Preview'}
+        </Button>
         <Button variant="outline" onClick={() => saveMemo('draft')} disabled={submitting}>
           <Save className="h-4 w-4 mr-2" />
           Update Draft
@@ -570,6 +643,55 @@ const MemoEdit = () => {
           {submitting ? 'Submitting...' : 'Submit Memo'}
         </Button>
       </div>
+
+      <PrintPreviewDialog
+        open={printPreviewOpen}
+        onClose={() => setPrintPreviewOpen(false)}
+        htmlContent={previewHtml}
+        onPrint={async (prefs) => {
+          if (!memo) return;
+          try {
+            const logoResponse = await fetch(alHamraLogo);
+            const logoBlob = await logoResponse.blob();
+            const logoDataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(logoBlob);
+            });
+            const selectedFromProfile = profiles.find(p => p.user_id === fromUserId);
+            const deptId = selectedFromProfile?.department_id || profile?.department_id;
+            const dept = departments.find(d => d.id === deptId);
+            const toProfile = toUserId ? profiles.find(p => p.user_id === toUserId) : undefined;
+            const currentMemo = {
+              ...memo,
+              from_user_id: fromUserId || memo.from_user_id,
+              to_user_id: toUserId || null,
+              subject: subject || memo.subject,
+              description,
+              action_comments: actionComments || null,
+              memo_types: memoTypes,
+              continuation_pages: continuationPages,
+              initials: '--',
+              copies_to: copiesTo.length > 0 ? copiesTo : null,
+              reviewer_user_id: reviewerUserId || null,
+            };
+            const pdfLayout = workflowTemplate?.pdf_layout || dynamicPdfLayout;
+            await generateMemoPdf({
+              memo: currentMemo as any,
+              fromProfile: selectedFromProfile,
+              toProfile,
+              department: dept,
+              approvalSteps: existingSteps,
+              attachments: existingAttachments,
+              profiles,
+              departments,
+              logoDataUrl,
+            }, prefs, pdfLayout as any);
+          } catch (error: any) {
+            toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
+          }
+        }}
+      />
 
       {/* Workflow Reset Warning Dialog */}
       <AlertDialog open={showResetWarning} onOpenChange={setShowResetWarning}>
