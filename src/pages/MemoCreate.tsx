@@ -446,6 +446,79 @@ const MemoCreate = () => {
 
       {/* Action Buttons */}
       <div className="flex justify-end gap-3 pb-8">
+        <Button variant="outline" onClick={async () => {
+          setPdfGenerating(true);
+          try {
+            const logoResponse = await fetch(alHamraLogo);
+            const logoBlob = await logoResponse.blob();
+            const logoDataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(logoBlob);
+            });
+            const selectedFromProfile = profiles.find(p => p.user_id === fromUserId);
+            const deptId = selectedFromProfile?.department_id || profile?.department_id;
+            const dept = departments.find(d => d.id === deptId);
+            const toProfile = toUserId ? profiles.find(p => p.user_id === toUserId) : undefined;
+            const myProfile = user ? profiles.find(p => p.user_id === user.id) : undefined;
+            const savedPrintPrefs: Partial<PrintPreferences> = {
+              duplexMode: ((myProfile as any)?.print_duplex_mode as any) || 'long_edge',
+              blankBackPages: (myProfile as any)?.print_blank_back_pages ?? true,
+              colorMode: ((myProfile as any)?.print_color_mode as any) || 'color',
+              pageNumberStyle: ((myProfile as any)?.print_page_number_style as any) || 'bottom_center',
+            };
+            const fakeMemo = {
+              id: 'preview',
+              transmittal_no: 'PREVIEW',
+              from_user_id: fromUserId || user?.id || '',
+              to_user_id: toUserId || null,
+              department_id: deptId || '',
+              subject: subject || 'Untitled Memo',
+              description,
+              action_comments: actionComments || null,
+              status: 'draft' as const,
+              memo_types: memoTypes,
+              continuation_pages: continuationPages,
+              initials: (() => {
+                const rp = profiles.find(p => p.user_id === reviewerUserId);
+                if (!rp) return '--';
+                const parts = rp.full_name.trim().split(' ');
+                if (parts.length === 1) return parts[0][0].toUpperCase();
+                return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+              })(),
+              copies_to: copiesTo.length > 0 ? copiesTo : null,
+              reviewer_user_id: reviewerUserId || null,
+              date: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              current_step: 0,
+              revision_count: 0,
+              workflow_template_id: null,
+            };
+            const memoData = {
+              memo: fakeMemo as any,
+              fromProfile: selectedFromProfile,
+              toProfile,
+              department: dept,
+              approvalSteps: [],
+              attachments: [],
+              profiles,
+              departments,
+              logoDataUrl,
+            };
+            const prepared = await prepareMemoData(memoData);
+            const html = buildMemoHtml(memoData, prepared, { ...DEFAULT_PRINT_PREFERENCES, ...savedPrintPrefs }, dynamicPdfLayout);
+            setPreviewHtml(html);
+            setPrintPreviewOpen(true);
+          } catch (error: any) {
+            toast({ title: 'Preview Failed', description: error.message, variant: 'destructive' });
+          } finally {
+            setPdfGenerating(false);
+          }
+        }} disabled={pdfGenerating}>
+          <FileDown className="h-4 w-4 mr-2" />
+          {pdfGenerating ? 'Generating...' : 'Print Preview'}
+        </Button>
         <Button variant="outline" onClick={() => saveMemo('draft')} disabled={submitting}>
           <Save className="h-4 w-4 mr-2" />
           Save as Draft
@@ -455,6 +528,62 @@ const MemoCreate = () => {
           {submitting ? 'Submitting...' : 'Submit Memo'}
         </Button>
       </div>
+
+      <PrintPreviewDialog
+        open={printPreviewOpen}
+        onClose={() => setPrintPreviewOpen(false)}
+        htmlContent={previewHtml}
+        onPrint={async (prefs) => {
+          try {
+            const logoResponse = await fetch(alHamraLogo);
+            const logoBlob = await logoResponse.blob();
+            const logoDataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(logoBlob);
+            });
+            const selectedFromProfile = profiles.find(p => p.user_id === fromUserId);
+            const deptId = selectedFromProfile?.department_id || profile?.department_id;
+            const dept = departments.find(d => d.id === deptId);
+            const toProfile = toUserId ? profiles.find(p => p.user_id === toUserId) : undefined;
+            const fakeMemo = {
+              id: 'preview',
+              transmittal_no: 'PREVIEW',
+              from_user_id: fromUserId || user?.id || '',
+              to_user_id: toUserId || null,
+              department_id: deptId || '',
+              subject: subject || 'Untitled Memo',
+              description,
+              action_comments: actionComments || null,
+              status: 'draft' as const,
+              memo_types: memoTypes,
+              continuation_pages: continuationPages,
+              initials: '--',
+              copies_to: copiesTo.length > 0 ? copiesTo : null,
+              reviewer_user_id: reviewerUserId || null,
+              date: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              current_step: 0,
+              revision_count: 0,
+              workflow_template_id: null,
+            };
+            await generateMemoPdf({
+              memo: fakeMemo as any,
+              fromProfile: selectedFromProfile,
+              toProfile,
+              department: dept,
+              approvalSteps: [],
+              attachments: [],
+              profiles,
+              departments,
+              logoDataUrl,
+            }, prefs, dynamicPdfLayout);
+          } catch (error: any) {
+            toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
+          }
+        }}
+      />
     </div>
   );
 };
