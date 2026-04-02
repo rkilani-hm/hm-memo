@@ -223,7 +223,7 @@ function buildLayoutBasedApprovalsHtml(
       return `<td style="border:0.5pt solid #000;min-height:${minHeight};"></td>`;
     }
 
-    if (slot.stacked && slot.step_indices.length > 1) {
+    if (slot.step_indices.length > 1) {
       // Multiple steps stacked with separator
       const parts = slot.step_indices.map(si => {
         const step = getStepByIndex(si);
@@ -236,7 +236,9 @@ function buildLayoutBasedApprovalsHtml(
         </td>`;
     }
 
-    // Single step or multiple non-stacked (render first)
+
+
+    // Single step
     const step = getStepByIndex(slot.step_indices[0]);
     const actionLabel = step?.action_type === 'initial' ? 'INITIALS' : 'APPROVE';
     return `
