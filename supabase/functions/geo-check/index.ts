@@ -44,7 +44,7 @@ serve(async (req) => {
   } catch (error) {
     // Fail-open: if anything goes wrong, allow access
     return new Response(
-      JSON.stringify({ allowed: true, country: "Unknown", error: error.message }),
+      JSON.stringify({ allowed: true, country: "Unknown", error: (error as Error).message }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
