@@ -28,7 +28,11 @@ import type { FileAttachment } from '@/components/memo/FileUpload';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
 import { DEFAULT_PDF_LAYOUT, type PdfLayout } from '@/components/memo/PdfLayoutEditor';
 import { format } from 'date-fns';
-import { Save, Send, ArrowLeft } from 'lucide-react';
+import { Save, Send, ArrowLeft, FileDown } from 'lucide-react';
+import { buildMemoHtml } from '@/lib/memo-pdf-html';
+import { generateMemoPdf, prepareMemoData, type PrintPreferences, DEFAULT_PRINT_PREFERENCES } from '@/lib/memo-pdf';
+import PrintPreviewDialog from '@/components/memo/PrintPreviewDialog';
+import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 
 const MemoCreate = () => {
   const { user, profile } = useAuth();
