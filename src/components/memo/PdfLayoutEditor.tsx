@@ -134,7 +134,7 @@ const PdfLayoutEditor = ({ steps, layout, onChange, profiles }: PdfLayoutEditorP
 
       {/* Approvals Grid */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Approvals Grid (3×3)</Label>
+        <Label className="text-sm font-medium">Approvals Grid (2×3)</Label>
         <div className="border rounded-lg overflow-hidden">
           {/* Red header */}
           <div className="bg-destructive text-destructive-foreground text-center py-1.5 text-xs font-bold tracking-widest uppercase">
