@@ -223,7 +223,7 @@ function buildLayoutBasedApprovalsHtml(
       return `<td style="border:0.5pt solid #000;min-height:${minHeight};"></td>`;
     }
 
-    if (slot.stacked && slot.step_indices.length > 1) {
+    if (slot.step_indices.length > 1) {
       // Multiple steps stacked with separator
       const parts = slot.step_indices.map(si => {
         const step = getStepByIndex(si);
