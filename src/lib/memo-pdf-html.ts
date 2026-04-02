@@ -236,7 +236,20 @@ function buildLayoutBasedApprovalsHtml(
         </td>`;
     }
 
-    // Single step or multiple non-stacked (render first)
+    if (slot.step_indices.length > 1) {
+      // Multiple steps in same cell — always stack them with separator
+      const parts = slot.step_indices.map(si => {
+        const step = getStepByIndex(si);
+        const actionLabel = step?.action_type === 'initial' ? 'INITIALS' : 'APPROVE';
+        return buildApprovalCellContent(step, profiles, sigDataUrls, registeredByProfiles, actionLabel);
+      });
+      return `
+        <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:${minHeight};">
+          ${parts.join('<hr style="border:none;border-top:0.3pt solid #ccc;margin:2pt 6pt;" />')}
+        </td>`;
+    }
+
+    // Single step
     const step = getStepByIndex(slot.step_indices[0]);
     const actionLabel = step?.action_type === 'initial' ? 'INITIALS' : 'APPROVE';
     return `
