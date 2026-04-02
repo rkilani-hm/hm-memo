@@ -991,16 +991,6 @@ const MemoView = () => {
               {(memo as any)?.action_comments && (
                 <p className="text-xs mb-2 whitespace-pre-wrap">{(memo as any).action_comments}</p>
               )}
-              {approvalSteps
-                .filter((s) => s.comments)
-                .map((s) => {
-                  const approver = getProfile(s.approver_user_id);
-                  return (
-                    <p key={s.id} className="text-xs mb-1">
-                      <span className="font-medium">{approver?.full_name}:</span> {s.comments}
-                    </p>
-                  );
-                })}
             </div>
           </div>
 
