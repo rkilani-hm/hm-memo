@@ -58,6 +58,9 @@ const MemoCreate = () => {
   const [workflowMode, setWorkflowMode] = useState<'preset' | 'dynamic'>('preset');
   const [customSteps, setCustomSteps] = useState<WorkflowStepDef[]>([]);
   const [dynamicPdfLayout, setDynamicPdfLayout] = useState<PdfLayout>(DEFAULT_PDF_LAYOUT);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
 
   // Fetch users and departments
   const { data: profiles = [] } = useQuery({
