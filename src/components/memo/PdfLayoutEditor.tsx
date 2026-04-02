@@ -18,7 +18,7 @@ export interface PdfLayout {
 
 export const DEFAULT_PDF_LAYOUT: PdfLayout = {
   signoff_step: null,
-  grid: [[null, null, null], [null, null, null]],
+  grid: [[null, null, null], [null, null, null], [null, null, null]],
 };
 
 interface WorkflowStep {
