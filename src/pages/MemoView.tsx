@@ -1108,7 +1108,7 @@ const MemoView = () => {
             };
 
             if (hasLayout) {
-              // Layout-based rendering: use the 2×3 grid from pdf_layout
+              // Layout-based rendering: use the 3×3 grid from pdf_layout
               const stepsByOrder = new Map(approvalSteps.map(s => [s.step_order, s]));
               const grid: (any | null)[][] = pdfLayout.grid;
 
