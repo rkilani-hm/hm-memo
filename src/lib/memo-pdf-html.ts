@@ -38,6 +38,42 @@ function isL1Stage(step: Tables<'approval_steps'>) {
   return normalizeStageLevel((step as any).stage_level) === 'l1';
 }
 
+function buildApprovalSignatureHtml(
+  step: Tables<'approval_steps'>,
+  approver: Profile | undefined,
+  sigUrl: string | null,
+  registeredBy: Profile | undefined,
+  variant: 'grid' | 'signoff' = 'grid'
+): string {
+  const isApproved = step.status === 'approved';
+  const isManual = step.signing_method === 'manual_paper';
+  const isInitial = step.action_type === 'initial';
+
+  if (isManual && isApproved) {
+    return `<div style="text-align:center;">
+      <p style="font-weight:bold;color:#C8952E;font-size:${variant === 'signoff' ? '10pt' : '9pt'};margin:0;">📄 SIGNED ON PAPER</p>
+      ${registeredBy ? `<p style="font-size:${variant === 'signoff' ? '8pt' : '7pt'};color:#666;margin:2pt 0 0;">Registered by: ${registeredBy.full_name}</p>` : ''}
+    </div>`;
+  }
+
+  if (sigUrl) {
+    return `<img src="${sigUrl}" style="${variant === 'signoff'
+      ? `max-width:160pt;max-height:${isInitial ? '45pt' : '50pt'};object-fit:contain;display:block;margin:0 0 4pt auto;`
+      : `max-width:100pt;height:${isInitial ? '35pt' : '40pt'};object-fit:contain;display:block;margin:0 auto;`
+    }" />`;
+  }
+
+  if (isInitial && isApproved) {
+    return `<span style="font-size:${variant === 'signoff' ? '18pt' : '16pt'};font-weight:bold;font-style:italic;color:#1B3A5C;display:inline-block;">${approver?.initials || '✓'}</span>`;
+  }
+
+  if (isApproved) {
+    return `<span style="font-size:${variant === 'signoff' ? '9pt' : '8pt'};font-style:italic;color:#666;display:inline-block;">[Digitally Approved]</span>`;
+  }
+
+  return '';
+}
+
 /** Build the inner HTML content of one approval cell */
 function buildApprovalCellContent(
   step: Tables<'approval_steps'> | undefined,
@@ -59,32 +95,15 @@ function buildApprovalCellContent(
 
   const approver = getProfile(profiles, step.approver_user_id);
   const sigUrl = sigDataUrls[step.id] || null;
-  const isManual = step.signing_method === 'manual_paper';
   const regBy = registeredByProfiles[step.id];
-
-  let sigHtml = '';
-  if (step.status === 'approved') {
-    if (isManual) {
-      sigHtml = `<p style="font-weight:bold;color:#C8952E;font-size:9pt;margin:0;">📄 SIGNED ON PAPER</p>
-        ${regBy ? `<p style="font-size:7pt;color:#666;margin:2pt 0 0;">Registered by: ${regBy.full_name}</p>` : ''}`;
-    } else if (sigUrl) {
-      const imgH = step.action_type === 'initial' ? '35pt' : '40pt';
-      sigHtml = `<img src="${sigUrl}" style="max-width:100pt;height:${imgH};object-fit:contain;display:block;" />`;
-    } else if (step.action_type === 'initial') {
-      sigHtml = `<span style="font-size:16pt;font-weight:bold;font-style:italic;color:#1B3A5C;">${approver?.initials || '✓'}</span>`;
-    } else {
-      sigHtml = `<span style="font-size:8pt;font-style:italic;color:#666;">[Digitally Approved]</span>`;
-    }
-  } else {
-    sigHtml = `<div style="width:100pt;height:40pt;border:1px dashed #ccc;"></div>`;
-  }
+  const sigHtml = buildApprovalSignatureHtml(step, approver, sigUrl, regBy);
 
   const dateStr = step.signed_at ? format(new Date(step.signed_at), 'dd MMMM yyyy') : '';
   const nameTitle = `${approver?.full_name || 'Unknown'}${approver?.job_title ? ' – ' + approver.job_title : ''}`;
 
   return `
     <div style="padding:6pt;">
-      ${sigHtml}
+      ${sigHtml || '<div style="width:100pt;height:40pt;border:1px dashed #ccc;margin:0 auto;"></div>'}
       <div style="border-bottom:0.5pt solid #000;width:80%;margin:4pt 0;"></div>
       <p style="font-size:8pt;font-weight:bold;margin:0;line-height:1.3;word-wrap:break-word;">${nameTitle}</p>
       <p style="font-size:7pt;color:#666;margin:0;">– ${actionLabel}</p>
@@ -97,6 +116,7 @@ function buildL1SignOffHtml(
   step: Tables<'approval_steps'> | undefined,
   profiles: Profile[],
   sigDataUrls: Record<string, string | null>,
+  registeredByProfiles: Record<string, Profile | undefined>,
   senderSigDataUrl: string | null,
   fromProfile: Profile | undefined
 ): string {
@@ -104,13 +124,11 @@ function buildL1SignOffHtml(
   if (step) {
     const approver = getProfile(profiles, step.approver_user_id);
     const sigUrl = sigDataUrls[step.id] || null;
-    let sigImgHtml = '<p style="border-bottom:0.5pt solid #000;width:200pt;padding-bottom:4pt;margin-bottom:4pt;">&nbsp;</p>';
-    if (step.status === 'approved' && sigUrl) {
-      sigImgHtml = `<img src="${sigUrl}" style="max-width:160pt;max-height:50pt;object-fit:contain;margin-bottom:4pt;display:block;margin-left:auto;" />
-        <div style="border-bottom:0.5pt solid #000;width:200pt;margin-left:auto;margin-bottom:4pt;"></div>`;
-    } else if (step.status !== 'approved') {
-      sigImgHtml = `<div style="border-bottom:0.5pt solid #ccc;width:200pt;margin-left:auto;padding-bottom:4pt;margin-bottom:4pt;">&nbsp;</div>`;
-    }
+    const regBy = registeredByProfiles[step.id];
+    const signatureHtml = buildApprovalSignatureHtml(step, approver, sigUrl, regBy, 'signoff');
+    const sigImgHtml = signatureHtml
+      ? `${signatureHtml}<div style="border-bottom:0.5pt solid #000;width:200pt;margin-left:auto;margin-bottom:4pt;"></div>`
+      : `<div style="border-bottom:0.5pt solid #ccc;width:200pt;margin-left:auto;padding-bottom:4pt;margin-bottom:4pt;">&nbsp;</div>`;
     const name = approver?.full_name || fromProfile?.full_name || '—';
     const title = approver?.job_title || fromProfile?.job_title || '';
     return `
@@ -118,6 +136,7 @@ function buildL1SignOffHtml(
         <div style="display:inline-block;text-align:center;">
           ${sigImgHtml}
           <p style="font-weight:bold;font-size:11px;margin:0;">${name}${title ? ', ' + title : ''}</p>
+          ${step.signed_at ? `<p style="font-size:9px;color:#666;margin:2pt 0 0;">Date: ${format(new Date(step.signed_at), 'dd/MM/yyyy')}</p>` : ''}
         </div>
       </div>`;
   }
@@ -348,7 +367,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   }
 
   // L1 sign-off block
-  const signOffHtml = buildL1SignOffHtml(signOffStep, profiles, sigDataUrls, senderSigDataUrl, fromProfile);
+  const signOffHtml = buildL1SignOffHtml(signOffStep, profiles, sigDataUrls, registeredByProfiles, senderSigDataUrl, fromProfile);
 
   // Transmitted for grid
   const transmittedForHtml = MEMO_TYPE_OPTIONS.map(opt => {
