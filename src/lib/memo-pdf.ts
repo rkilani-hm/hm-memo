@@ -41,6 +41,11 @@ export const DEFAULT_PRINT_PREFERENCES: PrintPreferences = {
 
 export async function getSignedImageDataUrl(storagePath: string, bucket = 'signatures'): Promise<string | null> {
   try {
+    // If the value is already a data URL, return it directly
+    if (storagePath.startsWith('data:')) {
+      return storagePath;
+    }
+
     let path = storagePath;
     const bucketPrefix = `/storage/v1/object/public/${bucket}/`;
     const idx = path.indexOf(bucketPrefix);
