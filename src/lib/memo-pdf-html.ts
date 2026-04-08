@@ -116,6 +116,7 @@ function buildL1SignOffHtml(
   step: Tables<'approval_steps'> | undefined,
   profiles: Profile[],
   sigDataUrls: Record<string, string | null>,
+  registeredByProfiles: Record<string, Profile | undefined>,
   senderSigDataUrl: string | null,
   fromProfile: Profile | undefined
 ): string {
@@ -366,7 +367,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   }
 
   // L1 sign-off block
-  const signOffHtml = buildL1SignOffHtml(signOffStep, profiles, sigDataUrls, senderSigDataUrl, fromProfile);
+  const signOffHtml = buildL1SignOffHtml(signOffStep, profiles, sigDataUrls, registeredByProfiles, senderSigDataUrl, fromProfile);
 
   // Transmitted for grid
   const transmittedForHtml = MEMO_TYPE_OPTIONS.map(opt => {
