@@ -84,12 +84,12 @@ function buildApprovalCellContent(
 ): string {
   if (!step) {
     return `
-      <div style="padding:6pt;">
-        <div style="width:100pt;height:40pt;border:1px dashed #ccc;margin-bottom:4pt;"></div>
-        <div style="border-bottom:0.5pt solid #ccc;width:80%;margin-bottom:4pt;"></div>
-        <p style="font-size:8pt;color:#999;font-style:italic;margin:0;">Awaiting approval</p>
-        <p style="font-size:7pt;color:#999;margin:0;">– ${actionLabel}</p>
-        <p style="font-size:7pt;color:#999;margin:0;">Date:</p>
+      <div style="padding:3pt 4pt;">
+        <div style="width:80pt;height:28pt;border:1px dashed #ccc;margin-bottom:2pt;"></div>
+        <div style="border-bottom:0.5pt solid #ccc;width:80%;margin-bottom:2pt;"></div>
+        <p style="font-size:6pt;color:#999;font-style:italic;margin:0;line-height:1.1;">Awaiting approval</p>
+        <p style="font-size:5.5pt;color:#999;margin:0;line-height:1.1;">– ${actionLabel}</p>
+        <p style="font-size:5.5pt;color:#999;margin:0;line-height:1.1;">Date:</p>
       </div>`;
   }
 
@@ -102,12 +102,12 @@ function buildApprovalCellContent(
   const nameTitle = `${approver?.full_name || 'Unknown'}${approver?.job_title ? ' – ' + approver.job_title : ''}`;
 
   return `
-    <div style="padding:6pt;">
-      ${sigHtml || '<div style="width:100pt;height:40pt;border:1px dashed #ccc;margin:0 auto;"></div>'}
-      <div style="border-bottom:0.5pt solid #000;width:80%;margin:4pt 0;"></div>
-      <p style="font-size:8pt;font-weight:bold;margin:0;line-height:1.3;word-wrap:break-word;">${nameTitle}</p>
-      <p style="font-size:7pt;color:#666;margin:0;">– ${actionLabel}</p>
-      <p style="font-size:7pt;margin:0;">Date: ${dateStr}</p>
+    <div style="padding:3pt 4pt;">
+      ${sigHtml || '<div style="width:80pt;height:28pt;border:1px dashed #ccc;margin:0 auto;"></div>'}
+      <div style="border-bottom:0.5pt solid #000;width:80%;margin:2pt 0;"></div>
+      <p style="font-size:6pt;font-weight:bold;margin:0;line-height:1.15;word-wrap:break-word;">${nameTitle}</p>
+      <p style="font-size:5.5pt;color:#666;margin:0;line-height:1.1;">– ${actionLabel}</p>
+      <p style="font-size:5.5pt;margin:0;line-height:1.1;">Date: ${dateStr}</p>
     </div>`;
 }
 
