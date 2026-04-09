@@ -185,27 +185,27 @@ function buildStagedApprovalsHtml(
   const l2aContent = buildApprovalCellContent(l2a, profiles, sigDataUrls, registeredByProfiles, 'INITIALS');
   const l2bContent = buildApprovalCellContent(l2b, profiles, sigDataUrls, registeredByProfiles, 'APPROVE');
   const leftTopCell = `
-    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:110pt;">
+    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:70pt;">
       ${l2aContent}
-      <hr style="border:none;border-top:0.3pt solid #ccc;margin:2pt 6pt;" />
+      <hr style="border:none;border-top:0.3pt solid #ccc;margin:1pt 4pt;" />
       ${l2bContent}
     </td>`;
 
   const middleTopCell = `
-    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:110pt;">
+    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:70pt;">
       ${buildApprovalCellContent(l3, profiles, sigDataUrls, registeredByProfiles, 'INITIALS')}
     </td>`;
 
   const rightTopCell = `
-    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:110pt;">
+    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:70pt;">
       ${buildApprovalCellContent(l4, profiles, sigDataUrls, registeredByProfiles, 'APPROVE')}
     </td>`;
 
   const gmCell = `
-    <td style="border:0.5pt solid #000;vertical-align:top;min-height:90pt;">
+    <td style="border:0.5pt solid #000;vertical-align:top;min-height:60pt;">
       ${buildApprovalCellContent(gm, profiles, sigDataUrls, registeredByProfiles, 'APPROVE')}
     </td>`;
-  const emptyCell = `<td style="border:0.5pt solid #000;min-height:90pt;"></td>`;
+  const emptyCell = `<td style="border:0.5pt solid #000;min-height:60pt;"></td>`;
 
   return `
     <div style="margin:16px 0;page-break-inside:avoid;">
