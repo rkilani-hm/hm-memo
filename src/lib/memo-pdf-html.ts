@@ -58,8 +58,8 @@ function buildApprovalSignatureHtml(
 
   if (sigUrl) {
     return `<img src="${sigUrl}" style="${variant === 'signoff'
-      ? `max-width:160pt;max-height:${isInitial ? '45pt' : '50pt'};object-fit:contain;display:block;margin:0 0 4pt auto;`
-      : `max-width:100pt;height:${isInitial ? '35pt' : '40pt'};object-fit:contain;display:block;margin:0 auto;`
+      ? `max-width:140pt;max-height:${isInitial ? '35pt' : '40pt'};object-fit:contain;display:block;margin:0 0 2pt auto;`
+      : `max-width:80pt;height:${isInitial ? '25pt' : '28pt'};object-fit:contain;display:block;margin:0 auto;`
     }" />`;
   }
 
@@ -84,12 +84,12 @@ function buildApprovalCellContent(
 ): string {
   if (!step) {
     return `
-      <div style="padding:6pt;">
-        <div style="width:100pt;height:40pt;border:1px dashed #ccc;margin-bottom:4pt;"></div>
-        <div style="border-bottom:0.5pt solid #ccc;width:80%;margin-bottom:4pt;"></div>
-        <p style="font-size:8pt;color:#999;font-style:italic;margin:0;">Awaiting approval</p>
-        <p style="font-size:7pt;color:#999;margin:0;">– ${actionLabel}</p>
-        <p style="font-size:7pt;color:#999;margin:0;">Date:</p>
+      <div style="padding:3pt 4pt;">
+        <div style="width:80pt;height:28pt;border:1px dashed #ccc;margin-bottom:2pt;"></div>
+        <div style="border-bottom:0.5pt solid #ccc;width:80%;margin-bottom:2pt;"></div>
+        <p style="font-size:6pt;color:#999;font-style:italic;margin:0;line-height:1.1;">Awaiting approval</p>
+        <p style="font-size:5.5pt;color:#999;margin:0;line-height:1.1;">– ${actionLabel}</p>
+        <p style="font-size:5.5pt;color:#999;margin:0;line-height:1.1;">Date:</p>
       </div>`;
   }
 
@@ -102,12 +102,12 @@ function buildApprovalCellContent(
   const nameTitle = `${approver?.full_name || 'Unknown'}${approver?.job_title ? ' – ' + approver.job_title : ''}`;
 
   return `
-    <div style="padding:6pt;">
-      ${sigHtml || '<div style="width:100pt;height:40pt;border:1px dashed #ccc;margin:0 auto;"></div>'}
-      <div style="border-bottom:0.5pt solid #000;width:80%;margin:4pt 0;"></div>
-      <p style="font-size:8pt;font-weight:bold;margin:0;line-height:1.3;word-wrap:break-word;">${nameTitle}</p>
-      <p style="font-size:7pt;color:#666;margin:0;">– ${actionLabel}</p>
-      <p style="font-size:7pt;margin:0;">Date: ${dateStr}</p>
+    <div style="padding:3pt 4pt;">
+      ${sigHtml || '<div style="width:80pt;height:28pt;border:1px dashed #ccc;margin:0 auto;"></div>'}
+      <div style="border-bottom:0.5pt solid #000;width:80%;margin:2pt 0;"></div>
+      <p style="font-size:6pt;font-weight:bold;margin:0;line-height:1.15;word-wrap:break-word;">${nameTitle}</p>
+      <p style="font-size:5.5pt;color:#666;margin:0;line-height:1.1;">– ${actionLabel}</p>
+      <p style="font-size:5.5pt;margin:0;line-height:1.1;">Date: ${dateStr}</p>
     </div>`;
 }
 
@@ -185,27 +185,27 @@ function buildStagedApprovalsHtml(
   const l2aContent = buildApprovalCellContent(l2a, profiles, sigDataUrls, registeredByProfiles, 'INITIALS');
   const l2bContent = buildApprovalCellContent(l2b, profiles, sigDataUrls, registeredByProfiles, 'APPROVE');
   const leftTopCell = `
-    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:110pt;">
+    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:70pt;">
       ${l2aContent}
-      <hr style="border:none;border-top:0.3pt solid #ccc;margin:2pt 6pt;" />
+      <hr style="border:none;border-top:0.3pt solid #ccc;margin:1pt 4pt;" />
       ${l2bContent}
     </td>`;
 
   const middleTopCell = `
-    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:110pt;">
+    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:70pt;">
       ${buildApprovalCellContent(l3, profiles, sigDataUrls, registeredByProfiles, 'INITIALS')}
     </td>`;
 
   const rightTopCell = `
-    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:110pt;">
+    <td style="border:0.5pt solid #000;vertical-align:top;width:33.33%;min-height:70pt;">
       ${buildApprovalCellContent(l4, profiles, sigDataUrls, registeredByProfiles, 'APPROVE')}
     </td>`;
 
   const gmCell = `
-    <td style="border:0.5pt solid #000;vertical-align:top;min-height:90pt;">
+    <td style="border:0.5pt solid #000;vertical-align:top;min-height:60pt;">
       ${buildApprovalCellContent(gm, profiles, sigDataUrls, registeredByProfiles, 'APPROVE')}
     </td>`;
-  const emptyCell = `<td style="border:0.5pt solid #000;min-height:90pt;"></td>`;
+  const emptyCell = `<td style="border:0.5pt solid #000;min-height:60pt;"></td>`;
 
   return `
     <div style="margin:16px 0;page-break-inside:avoid;">
@@ -267,7 +267,7 @@ function buildLayoutBasedApprovalsHtml(
   }
 
   const rows = layout.grid.map((row, rowIdx) => {
-    const minH = rowIdx === 0 ? '110pt' : '90pt';
+    const minH = rowIdx === 0 ? '70pt' : '60pt';
     const cells = row.map(slot => renderCell(slot, minH)).join('');
     return `<tr>${cells}</tr>`;
   }).join('');
