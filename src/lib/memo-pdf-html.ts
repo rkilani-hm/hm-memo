@@ -58,8 +58,8 @@ function buildApprovalSignatureHtml(
 
   if (sigUrl) {
     return `<img src="${sigUrl}" style="${variant === 'signoff'
-      ? `max-width:160pt;max-height:${isInitial ? '45pt' : '50pt'};object-fit:contain;display:block;margin:0 0 4pt auto;`
-      : `max-width:100pt;height:${isInitial ? '35pt' : '40pt'};object-fit:contain;display:block;margin:0 auto;`
+      ? `max-width:140pt;max-height:${isInitial ? '35pt' : '40pt'};object-fit:contain;display:block;margin:0 0 2pt auto;`
+      : `max-width:80pt;height:${isInitial ? '25pt' : '28pt'};object-fit:contain;display:block;margin:0 auto;`
     }" />`;
   }
 
