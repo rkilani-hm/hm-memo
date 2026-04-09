@@ -51,24 +51,24 @@ function buildApprovalSignatureHtml(
 
   if (isManual && isApproved) {
     return `<div style="text-align:center;">
-      <p style="font-weight:bold;color:#C8952E;font-size:${variant === 'signoff' ? '10pt' : '9pt'};margin:0;">📄 SIGNED ON PAPER</p>
-      ${registeredBy ? `<p style="font-size:${variant === 'signoff' ? '8pt' : '7pt'};color:#666;margin:2pt 0 0;">Registered by: ${registeredBy.full_name}</p>` : ''}
+      <p style="font-weight:bold;color:#C8952E;font-size:${variant === 'signoff' ? '9pt' : '8pt'};margin:0;">📄 SIGNED ON PAPER</p>
+      ${registeredBy ? `<p style="font-size:${variant === 'signoff' ? '7pt' : '6pt'};color:#666;margin:1pt 0 0;">Registered by: ${registeredBy.full_name}</p>` : ''}
     </div>`;
   }
 
   if (sigUrl) {
     return `<img src="${sigUrl}" style="${variant === 'signoff'
-      ? `max-width:140pt;max-height:${isInitial ? '35pt' : '40pt'};object-fit:contain;display:block;margin:0 0 2pt auto;`
-      : `max-width:80pt;height:${isInitial ? '25pt' : '28pt'};object-fit:contain;display:block;margin:0 auto;`
+      ? `max-width:126pt;max-height:${isInitial ? '31pt' : '36pt'};object-fit:contain;display:block;margin:0 0 2pt auto;`
+      : `max-width:72pt;height:${isInitial ? '22pt' : '25pt'};object-fit:contain;display:block;margin:0 auto;`
     }" />`;
   }
 
   if (isInitial && isApproved) {
-    return `<span style="font-size:${variant === 'signoff' ? '18pt' : '16pt'};font-weight:bold;font-style:italic;color:#1B3A5C;display:inline-block;">${approver?.initials || '✓'}</span>`;
+    return `<span style="font-size:${variant === 'signoff' ? '16pt' : '14pt'};font-weight:bold;font-style:italic;color:#1B3A5C;display:inline-block;">${approver?.initials || '✓'}</span>`;
   }
 
   if (isApproved) {
-    return `<span style="font-size:${variant === 'signoff' ? '9pt' : '8pt'};font-style:italic;color:#666;display:inline-block;">[Digitally Approved]</span>`;
+    return `<span style="font-size:${variant === 'signoff' ? '8pt' : '7pt'};font-style:italic;color:#666;display:inline-block;">[Digitally Approved]</span>`;
   }
 
   return '';
@@ -84,12 +84,12 @@ function buildApprovalCellContent(
 ): string {
   if (!step) {
     return `
-      <div style="padding:3pt 4pt;">
-        <div style="width:80pt;height:28pt;border:1px dashed #ccc;margin-bottom:2pt;"></div>
-        <div style="border-bottom:0.5pt solid #ccc;width:80%;margin-bottom:2pt;"></div>
-        <p style="font-size:6pt;color:#999;font-style:italic;margin:0;line-height:1.1;">Awaiting approval</p>
-        <p style="font-size:5.5pt;color:#999;margin:0;line-height:1.1;">– ${actionLabel}</p>
-        <p style="font-size:5.5pt;color:#999;margin:0;line-height:1.1;">Date:</p>
+      <div style="padding:2pt 3pt;">
+        <div style="width:72pt;height:25pt;border:1px dashed #ccc;margin-bottom:1pt;"></div>
+        <div style="border-bottom:0.5pt solid #ccc;width:80%;margin-bottom:1pt;"></div>
+        <p style="font-size:5.5pt;color:#999;font-style:italic;margin:0;line-height:1.05;">Awaiting approval</p>
+        <p style="font-size:5pt;color:#999;margin:0;line-height:1.05;">– ${actionLabel}</p>
+        <p style="font-size:5pt;color:#999;margin:0;line-height:1.05;">Date:</p>
       </div>`;
   }
 
@@ -102,12 +102,12 @@ function buildApprovalCellContent(
   const nameTitle = `${approver?.full_name || 'Unknown'}${approver?.job_title ? ' – ' + approver.job_title : ''}`;
 
   return `
-    <div style="padding:3pt 4pt;">
-      ${sigHtml || '<div style="width:80pt;height:28pt;border:1px dashed #ccc;margin:0 auto;"></div>'}
-      <div style="border-bottom:0.5pt solid #000;width:80%;margin:2pt 0;"></div>
-      <p style="font-size:6pt;font-weight:bold;margin:0;line-height:1.15;word-wrap:break-word;">${nameTitle}</p>
-      <p style="font-size:5.5pt;color:#666;margin:0;line-height:1.1;">– ${actionLabel}</p>
-      <p style="font-size:5.5pt;margin:0;line-height:1.1;">Date: ${dateStr}</p>
+    <div style="padding:2pt 3pt;">
+      ${sigHtml || '<div style="width:72pt;height:25pt;border:1px dashed #ccc;margin:0 auto;"></div>'}
+      <div style="border-bottom:0.5pt solid #000;width:80%;margin:1pt 0;"></div>
+      <p style="font-size:5.5pt;font-weight:bold;margin:0;line-height:1.1;word-wrap:break-word;">${nameTitle}</p>
+      <p style="font-size:5pt;color:#666;margin:0;line-height:1.05;">– ${actionLabel}</p>
+      <p style="font-size:5pt;margin:0;line-height:1.05;">Date: ${dateStr}</p>
     </div>`;
 }
 
