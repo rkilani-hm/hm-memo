@@ -267,7 +267,7 @@ function buildLayoutBasedApprovalsHtml(
   }
 
   const rows = layout.grid.map((row, rowIdx) => {
-    const minH = rowIdx === 0 ? '70pt' : '60pt';
+    const minH = rowIdx === 0 ? '63pt' : '54pt';
     const cells = row.map(slot => renderCell(slot, minH)).join('');
     return `<tr>${cells}</tr>`;
   }).join('');
