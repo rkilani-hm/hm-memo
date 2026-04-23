@@ -8,6 +8,7 @@ import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 import { generateMemoPdf, prepareMemoData, type PrintPreferences, DEFAULT_PRINT_PREFERENCES } from '@/lib/memo-pdf';
 import { buildMemoHtml } from '@/lib/memo-pdf-html';
+import { saveApprovedMemoToSharePoint } from '@/lib/sharepoint-save';
 import PrintPreviewDialog from '@/components/memo/PrintPreviewDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -341,6 +342,45 @@ const MemoView = () => {
                 type: 'step_update',
                 message: `Your memo ${memo.transmittal_no} — "${memo.subject}" has been fully approved by all approvers on ${format(new Date(), 'dd MMM yyyy HH:mm')}. You may now proceed.`,
               }).then(({ error }) => { if (error) console.warn(error); });
+
+              // Auto-save approved memo PDF to SharePoint (non-blocking)
+              (async () => {
+                try {
+                  const logoResponse = await fetch(alHamraLogo);
+                  const logoBlob = await logoResponse.blob();
+                  const logoDataUrl = await new Promise<string>((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(logoBlob);
+                  });
+
+                  // Re-fetch fresh approval steps (with all signatures)
+                  const { data: freshSteps } = await supabase
+                    .from('approval_steps')
+                    .select('*')
+                    .eq('memo_id', id)
+                    .order('step_order');
+
+                  const memoData = {
+                    memo, fromProfile: profiles.find(p => p.user_id === memo.from_user_id),
+                    toProfile: memo.to_user_id ? profiles.find(p => p.user_id === memo.to_user_id) : undefined,
+                    department: departments.find(d => d.id === memo.department_id),
+                    approvalSteps: freshSteps || approvalSteps,
+                    attachments, profiles, departments, logoDataUrl,
+                  };
+
+                  const templatePdfLayout = (workflowTemplate as any)?.pdf_layout || null;
+                  const result = await saveApprovedMemoToSharePoint(memoData, templatePdfLayout);
+
+                  if (result.success) {
+                    toast({ title: 'Saved to SharePoint', description: `${memo.transmittal_no}.pdf archived successfully.` });
+                  } else {
+                    console.warn('[SharePoint] Auto-save failed:', result.error);
+                  }
+                } catch (err) {
+                  console.warn('[SharePoint] Auto-save error:', err);
+                }
+              })();
             }
           }
         }

@@ -6,6 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles, fetchDepartments } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
+import { saveApprovedMemoToSharePoint } from '@/lib/sharepoint-save';
+import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -180,6 +182,55 @@ const PendingApprovals = () => {
             .from('memos')
             .update({ status: 'approved' })
             .eq('id', memoId);
+
+          // Auto-save approved memo PDF to SharePoint (non-blocking)
+          if (memo) {
+            (async () => {
+              try {
+                const logoResponse = await fetch(alHamraLogo);
+                const logoBlob = await logoResponse.blob();
+                const logoDataUrl = await new Promise<string>((resolve) => {
+                  const reader = new FileReader();
+                  reader.onloadend = () => resolve(reader.result as string);
+                  reader.readAsDataURL(logoBlob);
+                });
+
+                // Fetch fresh approval steps and attachments
+                const [{ data: freshSteps }, { data: memoAttachments }] = await Promise.all([
+                  supabase.from('approval_steps').select('*').eq('memo_id', memoId).order('step_order'),
+                  supabase.from('memo_attachments').select('*').eq('memo_id', memoId),
+                ]);
+
+                // Fetch workflow template for pdf_layout
+                let templatePdfLayout = null;
+                const templateId = (memo as any)?.workflow_template_id;
+                if (templateId) {
+                  const { data: tmpl } = await supabase
+                    .from('workflow_templates').select('pdf_layout').eq('id', templateId).single();
+                  templatePdfLayout = tmpl?.pdf_layout || null;
+                }
+
+                const memoData = {
+                  memo,
+                  fromProfile: getProfile(memo.from_user_id),
+                  toProfile: memo.to_user_id ? getProfile(memo.to_user_id) : undefined,
+                  department: getDept(memo.department_id),
+                  approvalSteps: freshSteps || [],
+                  attachments: memoAttachments || [],
+                  profiles, departments, logoDataUrl,
+                };
+
+                const result = await saveApprovedMemoToSharePoint(memoData, templatePdfLayout);
+                if (result.success) {
+                  toast({ title: 'Saved to SharePoint', description: `${memo.transmittal_no}.pdf archived successfully.` });
+                } else {
+                  console.warn('[SharePoint] Auto-save failed:', result.error);
+                }
+              } catch (err) {
+                console.warn('[SharePoint] Auto-save error:', err);
+              }
+            })();
+          }
         }
       } else {
         const newMemoStatus = action === 'rejected' ? 'rejected' : 'rework';
