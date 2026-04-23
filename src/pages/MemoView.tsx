@@ -553,8 +553,9 @@ const MemoView = () => {
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!memo || !user || !id) return;
-
-      // Delete related records first (approval_steps, attachments, versions, notifications, audit_log)
+      if (memo.status === 'approved') {
+        throw new Error('Fully approved memos cannot be deleted.');
+      }
       await supabase.from('approval_steps').delete().eq('memo_id', id);
       await supabase.from('memo_attachments').delete().eq('memo_id', id);
       await supabase.from('memo_versions').delete().eq('memo_id', id);
@@ -776,7 +777,7 @@ const MemoView = () => {
               {recallMutation.isPending ? 'Recalling...' : 'Recall'}
             </Button>
           )}
-          {isAdmin && (
+          {isAdmin && memo.status !== 'approved' && (
             <Button
               variant="destructive"
               size="sm"
