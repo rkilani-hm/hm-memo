@@ -73,7 +73,7 @@ const RichTextEditor = ({ content, onChange, placeholder }: RichTextEditorProps)
       Placeholder.configure({
         placeholder: placeholder || 'Start typing...',
       }),
-    ],
+    ] as any,
     content,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
@@ -84,21 +84,19 @@ const RichTextEditor = ({ content, onChange, placeholder }: RichTextEditorProps)
         spellcheck: 'true',
       },
       handleKeyDown: (_view, event) => {
-        // Ctrl+F for find
         if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
           event.preventDefault();
           setShowFindReplace(true);
           return true;
         }
-        // Ctrl+] indent, Ctrl+[ outdent
         if ((event.ctrlKey || event.metaKey) && event.key === ']') {
           event.preventDefault();
-          editor?.commands.indent();
+          (editor?.commands as any)?.indent?.();
           return true;
         }
         if ((event.ctrlKey || event.metaKey) && event.key === '[') {
           event.preventDefault();
-          editor?.commands.outdent();
+          (editor?.commands as any)?.outdent?.();
           return true;
         }
         return false;
