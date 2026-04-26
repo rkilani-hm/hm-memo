@@ -112,8 +112,8 @@ async function verifyJwt(token: string, tenantId: string): Promise<VerifiedToken
   const ok = await crypto.subtle.verify(
     "RSASSA-PKCS1-v1_5",
     cryptoKey,
-    sig,
-    data,
+    sig as BufferSource,
+    data as BufferSource,
   );
   if (!ok) throw new Error("Signature verification failed");
   return { header, payload };
@@ -260,7 +260,7 @@ serve(async (req) => {
         auth_time: authTime,
         upn: payload.preferred_username || payload.upn || null,
       } as any,
-    } as any).then(() => {}).catch((e) => console.error("audit log failed:", e));
+    } as any).then(({ error }: { error: unknown }) => { if (error) console.error("audit log failed:", error); });
 
     return new Response(
       JSON.stringify({
