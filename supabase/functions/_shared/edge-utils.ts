@@ -154,7 +154,7 @@ export function bytesToDataUrl(bytes: Uint8Array, mime: string): string {
 // SHA-256 hex hash --------------------------------------------------------
 
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", bytes);
+  const buf = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
