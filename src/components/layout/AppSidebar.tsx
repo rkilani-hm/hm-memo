@@ -54,6 +54,7 @@ const AppSidebar = () => {
     { title: 'Authorization', icon: Lock, path: '/admin/authorization', key: 'admin/authorization' },
     { title: 'Approval KPIs', icon: BarChart3, path: '/admin/approval-performance', key: 'admin/approval-performance' },
     { title: 'Reminder Settings', icon: Bell, path: '/admin/reminder-settings', key: 'admin/reminder-settings' },
+    { title: 'Fraud & MFA', icon: ShieldCheck, path: '/admin/fraud-settings', key: 'admin/fraud-settings' },
     { title: 'Audit Log', icon: ScrollText, path: '/admin/audit-log', key: 'admin/audit-log' },
     { title: 'Audit Analytics', icon: BarChart3, path: '/admin/audit-dashboard', key: 'admin/audit-dashboard' },
   ];

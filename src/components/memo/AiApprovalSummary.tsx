@@ -27,6 +27,7 @@ import {
   XCircle,
   HelpCircle,
 } from 'lucide-react';
+import FraudCheckPanel from './FraudCheckPanel';
 
 interface AiSummaryData {
   executive_summary?: {
@@ -101,6 +102,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<AiSummaryData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<Array<{ id: string; file_name: string; file_type: string | null }>>([]);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     executive: true,
     financial: true,
@@ -113,6 +115,14 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
 
   const toggleSection = (key: string) => {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const fetchAttachments = async () => {
+    const { data } = await supabase
+      .from('memo_attachments')
+      .select('id, file_name, file_type')
+      .eq('memo_id', memoId);
+    setAttachments(data || []);
   };
 
   const fetchSummary = async () => {
@@ -151,6 +161,8 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
 
   useEffect(() => {
     fetchSummary();
+    fetchAttachments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memoId, memoUpdatedAt]);
 
   if (!panelOpen) {
@@ -262,6 +274,9 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
                   </div>
                 </SectionCard>
               )}
+
+              {/* Fraud & Authenticity Check */}
+              <FraudCheckPanel memoId={memoId} attachments={attachments} />
 
               {/* Financial Impact */}
               {summary.financial_impact && summary.financial_impact.total_amount && (

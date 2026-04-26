@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import SignaturePad from '@/components/memo/SignaturePad';
 import SignedImage from '@/components/memo/SignedImage';
+import MfaStepUp from '@/components/memo/MfaStepUp';
 import {
   Dialog,
   DialogContent,
@@ -60,6 +61,24 @@ const PendingApprovals = () => {
   const [signatureMode, setSignatureMode] = useState<'saved' | 'draw'>('saved');
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [mfaVerified, setMfaVerified] = useState(false);
+
+  // Fetch fraud-settings to know if MFA is required for payment memos
+  const { data: fraudPolicy } = useQuery({
+    queryKey: ['fraud-policy'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('fraud_settings' as any)
+        .select('mfa_required_for_payments, mfa_required_for_high_risk, block_high_severity')
+        .eq('id', 1)
+        .maybeSingle();
+      return (data as any) || {
+        mfa_required_for_payments: false,
+        mfa_required_for_high_risk: false,
+        block_high_severity: false,
+      };
+    },
+  });
   // Fetch approval steps assigned to current user
   const { data: mySteps = [], isLoading } = useQuery({
     queryKey: ['my-approval-steps', user?.id],
@@ -122,6 +141,16 @@ const PendingApprovals = () => {
         throw new Error('Password verification failed');
       }
       setPasswordError('');
+
+      // MFA gate: for payment memos with MFA policy, refuse to apply signature
+      // unless the verify-mfa-and-sign edge function has already set
+      // mfa_verified=true on this step (which the MfaStepUp UI does).
+      const memoForCheck = getMemo(memoId);
+      const isPayment = !!memoForCheck?.memo_types?.includes('payments');
+      const mfaRequired = isPayment && !!fraudPolicy?.mfa_required_for_payments;
+      if (action === 'approved' && mfaRequired && !mfaVerified) {
+        throw new Error('Microsoft Authenticator MFA is required before signing this payment memo.');
+      }
 
       // Handle signature: use saved URL directly or upload drawn signature
       let signatureUrl: string | null = null;
@@ -342,6 +371,7 @@ const PendingApprovals = () => {
       setSignatureDataUrl(null);
       setPassword('');
       setPasswordError('');
+      setMfaVerified(false);
     },
     onError: (e: Error) =>
       toast({ title: 'Error', description: e.message, variant: 'destructive' }),
@@ -580,6 +610,7 @@ const PendingApprovals = () => {
             setSignatureDataUrl(null);
             setPassword('');
             setPasswordError('');
+            setMfaVerified(false);
           }
         }}
       >
@@ -650,6 +681,25 @@ const PendingApprovals = () => {
               );
             })()}
 
+            {/* MFA step-up — required for payment memos when policy is enabled */}
+            {actionDialog?.action === 'approved' &&
+              fraudPolicy?.mfa_required_for_payments &&
+              (() => {
+                const memoForDialog = getMemo(actionDialog.memoId);
+                const isPayment = !!memoForDialog?.memo_types?.includes('payments');
+                if (!isPayment) return null;
+                const myProfile = user ? getProfile(user.id) : null;
+                return (
+                  <MfaStepUp
+                    memoId={actionDialog.memoId}
+                    stepId={actionDialog.stepId}
+                    loginHint={(myProfile as any)?.email || user?.email}
+                    onVerified={() => setMfaVerified(true)}
+                    onReset={() => setMfaVerified(false)}
+                  />
+                );
+              })()}
+
             {/* Password Verification */}
             <div className="space-y-2">
               <Label>
@@ -698,18 +748,26 @@ const PendingApprovals = () => {
                 setSignatureDataUrl(null);
                 setPassword('');
                 setPasswordError('');
+                setMfaVerified(false);
               }}
             >
               Cancel
             </Button>
             <Button
               className={actionDialog ? actionColor[actionDialog.action] : ''}
-              disabled={
-                actionMutation.isPending ||
-                !password.trim() ||
-                (actionDialog?.action === 'approved' && !signatureDataUrl) ||
-                (actionDialog?.action !== 'approved' && !comments.trim())
-              }
+              disabled={(() => {
+                if (actionMutation.isPending) return true;
+                if (!password.trim()) return true;
+                if (actionDialog?.action === 'approved' && !signatureDataUrl) return true;
+                if (actionDialog?.action !== 'approved' && !comments.trim()) return true;
+                // MFA gate for payment memos
+                if (actionDialog?.action === 'approved' && fraudPolicy?.mfa_required_for_payments) {
+                  const memoForDialog = getMemo(actionDialog.memoId);
+                  const isPayment = !!memoForDialog?.memo_types?.includes('payments');
+                  if (isPayment && !mfaVerified) return true;
+                }
+                return false;
+              })()}
               onClick={() => actionMutation.mutate()}
             >
               {actionMutation.isPending
