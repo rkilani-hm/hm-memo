@@ -25,6 +25,12 @@ export type Database = {
           id: string
           is_required: boolean
           memo_id: string
+          mfa_auth_time: string | null
+          mfa_method: string | null
+          mfa_provider: string | null
+          mfa_token_jti: string | null
+          mfa_verified: boolean | null
+          mfa_verified_at: string | null
           parallel_group: number | null
           password_verified: boolean | null
           registered_by_user_id: string | null
@@ -48,6 +54,12 @@ export type Database = {
           id?: string
           is_required?: boolean
           memo_id: string
+          mfa_auth_time?: string | null
+          mfa_method?: string | null
+          mfa_provider?: string | null
+          mfa_token_jti?: string | null
+          mfa_verified?: boolean | null
+          mfa_verified_at?: string | null
           parallel_group?: number | null
           password_verified?: boolean | null
           registered_by_user_id?: string | null
@@ -71,6 +83,12 @@ export type Database = {
           id?: string
           is_required?: boolean
           memo_id?: string
+          mfa_auth_time?: string | null
+          mfa_method?: string | null
+          mfa_provider?: string | null
+          mfa_token_jti?: string | null
+          mfa_verified?: boolean | null
+          mfa_verified_at?: string | null
           parallel_group?: number | null
           password_verified?: boolean | null
           registered_by_user_id?: string | null
@@ -319,6 +337,63 @@ export type Database = {
         }
         Relationships: []
       }
+      fraud_settings: {
+        Row: {
+          azure_authority_url: string | null
+          azure_client_id: string | null
+          azure_tenant_id: string | null
+          block_high_severity: boolean
+          duplicate_lookback_days: number
+          enabled: boolean
+          id: number
+          mfa_required_for_high_risk: boolean
+          mfa_required_for_payments: boolean
+          scan_on_approval_view: boolean
+          scan_on_submit: boolean
+          split_threshold_kwd: number
+          split_window_days: number
+          updated_at: string
+          updated_by: string | null
+          vendor_new_threshold_days: number
+        }
+        Insert: {
+          azure_authority_url?: string | null
+          azure_client_id?: string | null
+          azure_tenant_id?: string | null
+          block_high_severity?: boolean
+          duplicate_lookback_days?: number
+          enabled?: boolean
+          id?: number
+          mfa_required_for_high_risk?: boolean
+          mfa_required_for_payments?: boolean
+          scan_on_approval_view?: boolean
+          scan_on_submit?: boolean
+          split_threshold_kwd?: number
+          split_window_days?: number
+          updated_at?: string
+          updated_by?: string | null
+          vendor_new_threshold_days?: number
+        }
+        Update: {
+          azure_authority_url?: string | null
+          azure_client_id?: string | null
+          azure_tenant_id?: string | null
+          block_high_severity?: boolean
+          duplicate_lookback_days?: number
+          enabled?: boolean
+          id?: number
+          mfa_required_for_high_risk?: boolean
+          mfa_required_for_payments?: boolean
+          scan_on_approval_view?: boolean
+          scan_on_submit?: boolean
+          split_threshold_kwd?: number
+          split_window_days?: number
+          updated_at?: string
+          updated_by?: string | null
+          vendor_new_threshold_days?: number
+        }
+        Relationships: []
+      }
       kpi_sla_settings: {
         Row: {
           id: string
@@ -377,6 +452,125 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "memo_attachments_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "memos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memo_fraud_runs: {
+        Row: {
+          ai_summary: string | null
+          attachments_scanned: number
+          error_message: string | null
+          finished_at: string | null
+          high_count: number
+          id: string
+          low_count: number
+          medium_count: number
+          memo_id: string
+          overall_risk: string | null
+          raw_response: Json | null
+          started_at: string
+          status: string
+          triggered_by: string | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          attachments_scanned?: number
+          error_message?: string | null
+          finished_at?: string | null
+          high_count?: number
+          id?: string
+          low_count?: number
+          medium_count?: number
+          memo_id: string
+          overall_risk?: string | null
+          raw_response?: Json | null
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          ai_summary?: string | null
+          attachments_scanned?: number
+          error_message?: string | null
+          finished_at?: string | null
+          high_count?: number
+          id?: string
+          low_count?: number
+          medium_count?: number
+          memo_id?: string
+          overall_risk?: string | null
+          raw_response?: Json | null
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memo_fraud_runs_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "memos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memo_fraud_signals: {
+        Row: {
+          attachment_id: string | null
+          created_at: string
+          description: string | null
+          detected_at: string
+          evidence: Json | null
+          id: string
+          layer: string
+          memo_id: string
+          run_id: string | null
+          severity: string
+          signal_type: string
+          title: string
+        }
+        Insert: {
+          attachment_id?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          evidence?: Json | null
+          id?: string
+          layer: string
+          memo_id: string
+          run_id?: string | null
+          severity: string
+          signal_type: string
+          title: string
+        }
+        Update: {
+          attachment_id?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          evidence?: Json | null
+          id?: string
+          layer?: string
+          memo_id?: string
+          run_id?: string | null
+          severity?: string
+          signal_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memo_fraud_signals_attachment_id_fkey"
+            columns: ["attachment_id"]
+            isOneToOne: false
+            referencedRelation: "memo_attachments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memo_fraud_signals_memo_id_fkey"
             columns: ["memo_id"]
             isOneToOne: false
             referencedRelation: "memos"
@@ -611,6 +805,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          azure_ad_oid: string | null
+          azure_ad_upn: string | null
           created_at: string
           department_id: string | null
           email: string
@@ -634,6 +830,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          azure_ad_oid?: string | null
+          azure_ad_upn?: string | null
           created_at?: string
           department_id?: string | null
           email: string
@@ -657,6 +855,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          azure_ad_oid?: string | null
+          azure_ad_upn?: string | null
           created_at?: string
           department_id?: string | null
           email?: string
@@ -804,7 +1004,26 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_memo_fraud_summary: {
+        Row: {
+          high_count: number | null
+          last_detected_at: string | null
+          low_count: number | null
+          medium_count: number | null
+          memo_id: string | null
+          run_id: string | null
+          total_signals: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memo_fraud_signals_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "memos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_next_transmittal_no: { Args: { dept_id: string }; Returns: string }
