@@ -178,21 +178,65 @@ serve(async (req) => {
             attachment_id: a.id,
           });
         } else {
-          // Producer / Creator analysis -------------------------------------
-          const produceText = `${pdf.producer || ""} ${pdf.creator || ""}`;
+          // ---- Composite "PDF was modified after creation" signal ----------
+          // A genuine ERP/accounting invoice is written exactly once and never
+          // re-saved. ANY of the following is a strong indicator someone has
+          // opened the file in an editor and altered it. We collapse them into
+          // one HIGH-severity headline so an approver sees a clear "this PDF
+          // has been modified" message instead of three technical-sounding
+          // ones.
+          const produceText = `${pdf.producer || ""} ${pdf.creator || ""}`.trim();
           const looksLegit = LEGIT_PDF_PRODUCERS.some((re) => re.test(produceText));
           const looksRisky = SUSPICIOUS_PDF_PRODUCERS.some((re) => re.test(produceText));
+
+          const editIndicators: string[] = [];
+          const editEvidence: Record<string, unknown> = {};
+
+          if (pdf.hasIncrementalUpdate) {
+            editIndicators.push(
+              `File was saved more than once (${pdf.startxrefCount} startxref entries, ${pdf.eofCount} EOF markers — genuine ERP PDFs have exactly one of each)`,
+            );
+            editEvidence.startxrefCount = pdf.startxrefCount;
+            editEvidence.eofCount = pdf.eofCount;
+          }
+          if (pdf.creationDate && pdf.modDate && pdf.creationDate !== pdf.modDate) {
+            editIndicators.push(
+              `Modification date (${pdf.modDate}) differs from creation date (${pdf.creationDate})`,
+            );
+            editEvidence.creationDate = pdf.creationDate;
+            editEvidence.modDate = pdf.modDate;
+          }
           if (looksRisky && !looksLegit) {
+            editIndicators.push(
+              `Producer/Creator metadata names a PDF-editing tool ("${produceText}") rather than an ERP/accounting system`,
+            );
+            editEvidence.producer = pdf.producer;
+            editEvidence.creator = pdf.creator;
+          }
+          if (pdf.editAnnotations > 0) {
+            editIndicators.push(
+              `File contains ${pdf.editAnnotations} editing annotation(s) (FreeText/Stamp/Highlight/Redact). Genuine flat invoices do not carry these.`,
+            );
+            editEvidence.editAnnotations = pdf.editAnnotations;
+          }
+
+          if (editIndicators.length > 0) {
             push({
               layer: "forensic",
-              signal_type: "pdf_producer_suspicious",
-              severity: "medium",
-              title: "PDF was last saved by an editing tool",
-              description: `Producer/Creator: ${produceText.trim() || "unknown"}. This is unusual for an original ERP-generated invoice.`,
+              signal_type: "pdf_content_modified_after_creation",
+              severity: "high",
+              title: "PDF appears to have been modified after creation",
+              description:
+                "This file shows one or more strong indicators that its contents were edited after the original was generated. " +
+                "On payment-related documents this is treated as high-risk.\n\nIndicators:\n• " +
+                editIndicators.join("\n• "),
               attachment_id: a.id,
-              evidence: { producer: pdf.producer, creator: pdf.creator },
+              evidence: { ...editEvidence, indicators: editIndicators },
             });
           }
+
+          // Missing metadata is its own (low) signal — it doesn't prove the
+          // file was edited, just that we can't trust producer info either way.
           if (!pdf.producer && !pdf.creator) {
             push({
               layer: "forensic",
@@ -204,33 +248,7 @@ serve(async (req) => {
             });
           }
 
-          // Incremental updates / multiple saves ---------------------------
-          if (pdf.hasIncrementalUpdate) {
-            push({
-              layer: "forensic",
-              signal_type: "pdf_incremental_update",
-              severity: "high",
-              title: "PDF has been re-saved after creation",
-              description: `Found ${pdf.startxrefCount} startxref entries and ${pdf.eofCount} EOF markers. Original ERP-generated PDFs are saved exactly once.`,
-              attachment_id: a.id,
-              evidence: { startxrefCount: pdf.startxrefCount, eofCount: pdf.eofCount },
-            });
-          }
-
-          // CreationDate vs ModDate divergence -----------------------------
-          if (pdf.creationDate && pdf.modDate && pdf.creationDate !== pdf.modDate) {
-            push({
-              layer: "forensic",
-              signal_type: "pdf_creation_modification_divergence",
-              severity: "medium",
-              title: "PDF creation and modification dates differ",
-              description: `CreationDate=${pdf.creationDate}, ModDate=${pdf.modDate}.`,
-              attachment_id: a.id,
-              evidence: { creationDate: pdf.creationDate, modDate: pdf.modDate },
-            });
-          }
-
-          // Embedded weirdness ---------------------------------------------
+          // ---- Truly orthogonal concerns (not "edited content") ------------
           if (pdf.containsLaunch) {
             push({
               layer: "forensic",
@@ -622,6 +640,21 @@ CRITICAL RULES
     const aiRisk = parsedExtraction?.overall_assessment?.risk;
     const rank = (r: string) => ["clean", "low", "medium", "high", "critical"].indexOf(r);
     if (aiRisk && rank(aiRisk) > rank(overall)) overall = aiRisk;
+
+    // ---- Payment-memo escalation ------------------------------------------
+    // When the memo is payment-type AND any attachment shows the composite
+    // "PDF content modified after creation" signal, force risk to at least
+    // HIGH. If two or more attachments show it, escalate to CRITICAL.
+    // This guarantees that an edited invoice on a payment memo is never
+    // graded as low/medium just because individual indicators were mild.
+    const isPaymentMemo = !!memo.memo_types?.includes("payments");
+    const modifiedPdfCount = allSignals.filter(
+      (s) => s.signal_type === "pdf_content_modified_after_creation",
+    ).length;
+    if (isPaymentMemo && modifiedPdfCount > 0) {
+      const minRisk = modifiedPdfCount >= 2 ? "critical" : "high";
+      if (rank(minRisk) > rank(overall)) overall = minRisk;
+    }
 
     await supabase
       .from("memo_fraud_runs")

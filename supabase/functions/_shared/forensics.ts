@@ -54,6 +54,8 @@ export interface PdfForensics {
   encrypted: boolean;
   // signature presence
   hasDigitalSignature: boolean;
+  // edit-style annotations (FreeText, Stamp, Square/whiteout, Redact) — strong tampering tell on flat invoices
+  editAnnotations: number;
   // raw text scrape (rough, just for keyword cues — not for accurate extraction)
   rawTextSample: string;
 }
@@ -114,6 +116,7 @@ export function analyzePdf(bytes: Uint8Array): PdfForensics {
       acroFormPresent: false,
       encrypted: false,
       hasDigitalSignature: false,
+      editAnnotations: 0,
       rawTextSample: "",
     };
   }
@@ -153,6 +156,19 @@ export function analyzePdf(bytes: Uint8Array): PdfForensics {
   const pageCountMatch = text.match(/\/Type\s*\/Pages[^>]*\/Count\s+(\d+)/);
   const pageCount = pageCountMatch ? parseInt(pageCountMatch[1], 10) : undefined;
 
+  // "Edit-style" annotations are objects Acrobat / similar editors leave behind
+  // when someone visually overwrites an existing PDF — FreeText boxes covering
+  // numbers, Stamp annotations, Square/Highlight redactions, Caret edits.
+  // Genuine ERP-generated invoices essentially never carry these.
+  const editAnnotationSubtypes = [
+    "FreeText", "Stamp", "Square", "Highlight", "Caret",
+    "StrikeOut", "Underline", "Redact", "Ink",
+  ];
+  const editAnnotations = editAnnotationSubtypes.reduce((sum, sub) => {
+    const re = new RegExp(`/Subtype\\s*/${sub}\\b`, "g");
+    return sum + (text.match(re)?.length || 0);
+  }, 0);
+
   // Pull a rough sample of human-readable text (ASCII only, dedup whitespace)
   const sample = text
     .replace(/[\x00-\x08\x0E-\x1F\x7F]/g, " ")
@@ -179,6 +195,7 @@ export function analyzePdf(bytes: Uint8Array): PdfForensics {
     acroFormPresent,
     encrypted,
     hasDigitalSignature,
+    editAnnotations,
     pageCount,
     rawTextSample: sample,
   };

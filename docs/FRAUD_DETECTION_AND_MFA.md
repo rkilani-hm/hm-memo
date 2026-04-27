@@ -76,10 +76,16 @@ Three layers, one POST `{ memo_id }`:
 **Layer A — Forensic (deterministic, no AI):**
 - Magic-byte sniffing → mime mismatch detection
 - PDF: `/Producer`, `/Creator`, `/CreationDate`, `/ModDate`, `/Title`, `/Author`
-  - Suspicious producers → `pdf_producer_suspicious` (medium)
-  - Missing producer/creator → `pdf_no_producer` (low)
-  - Multiple `startxref` + `%%EOF` (incremental updates) → `pdf_incremental_update` (high)
-  - `CreationDate` ≠ `ModDate` → `pdf_creation_modification_divergence` (medium)
+  - **`pdf_content_modified_after_creation` (HIGH — composite headline)**
+    Fires when ANY of: incremental updates (multiple `startxref` + `%%EOF`),
+    `CreationDate` ≠ `ModDate`, suspicious producer (Acrobat / PDFescape /
+    SmallPDF / iLovePDF / Sejda / Foxit Phantom and similar editors not
+    matched as legit ERPs), or edit-style annotations
+    (`FreeText`/`Stamp`/`Highlight`/`Redact`/`Square`/`Caret`). All
+    underlying indicators are listed inline in the signal description and
+    in `evidence`. On payment memos, presence of this signal forces the
+    overall risk to ≥ HIGH (≥ CRITICAL if two or more attachments show it).
+  - Missing producer + creator → `pdf_no_producer` (low)
   - `/Launch` action → `pdf_launch_action` (high)
   - `/JavaScript` → `pdf_javascript` (medium)
   - `/EmbeddedFile` → `pdf_embedded_files` (low)
