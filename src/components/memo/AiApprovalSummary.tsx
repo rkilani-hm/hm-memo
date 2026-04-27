@@ -184,7 +184,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
   }
 
   return (
-    <div className="no-print w-[360px] shrink-0 border-l border-border bg-card sticky top-0 h-screen flex flex-col shadow-lg">
+    <div className="no-print w-[440px] xl:w-[480px] shrink-0 border-l border-border bg-card sticky top-0 h-screen flex flex-col shadow-lg break-words">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
         <div className="flex items-center gap-2">
