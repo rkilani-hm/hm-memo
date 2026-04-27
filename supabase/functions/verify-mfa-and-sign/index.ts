@@ -150,10 +150,21 @@ serve(async (req) => {
     const { header, payload } = await verifyJwt(id_token, tenantId);
 
     // ---- Standard JWT claim checks ----------------------------------------
+    // Allow a small clock-skew window (5 minutes) on exp/nbf/iat so a
+    // legitimately-fresh token from Entra ID isn't rejected just because
+    // the edge function host's clock is a few seconds ahead/behind. 5 min
+    // is the de-facto industry default for OIDC implementations.
+    const CLOCK_SKEW = 5 * 60;
     const now = Math.floor(Date.now() / 1000);
-    if (typeof payload.exp !== "number" || payload.exp < now) throw new Error("Token expired");
-    if (typeof payload.nbf === "number" && payload.nbf > now + 60) throw new Error("Token not yet valid");
-    if (typeof payload.iat === "number" && payload.iat > now + 60) throw new Error("Token issued in the future");
+    if (typeof payload.exp !== "number" || payload.exp + CLOCK_SKEW < now) {
+      throw new Error(`Token expired (exp=${payload.exp}, now=${now})`);
+    }
+    if (typeof payload.nbf === "number" && payload.nbf > now + CLOCK_SKEW) {
+      throw new Error("Token not yet valid");
+    }
+    if (typeof payload.iat === "number" && payload.iat > now + CLOCK_SKEW) {
+      throw new Error("Token issued in the future");
+    }
 
     // aud must equal our client id
     if (payload.aud !== clientId) {
