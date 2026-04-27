@@ -129,8 +129,13 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
     setLoading(true);
     setError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
+      // Refresh first so we don't send a stale/expired token (server-side session may have been revoked)
+      let { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        if (refreshed?.session) session = refreshed.session;
+      }
+      if (!session) throw new Error('Your session has expired. Please sign in again.');
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/memo-ai-summary`,
