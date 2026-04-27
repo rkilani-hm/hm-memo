@@ -110,6 +110,13 @@ export type Database = {
             referencedRelation: "memos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "approval_steps_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_handoff_queue"
+            referencedColumns: ["id"]
+          },
         ]
       }
       audit_log: {
@@ -197,6 +204,13 @@ export type Database = {
             columns: ["memo_id"]
             isOneToOne: false
             referencedRelation: "memos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_log_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_handoff_queue"
             referencedColumns: ["id"]
           },
         ]
@@ -457,6 +471,13 @@ export type Database = {
             referencedRelation: "memos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "memo_attachments_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_handoff_queue"
+            referencedColumns: ["id"]
+          },
         ]
       }
       memo_fraud_runs: {
@@ -514,6 +535,13 @@ export type Database = {
             columns: ["memo_id"]
             isOneToOne: false
             referencedRelation: "memos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memo_fraud_runs_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_handoff_queue"
             referencedColumns: ["id"]
           },
         ]
@@ -574,6 +602,13 @@ export type Database = {
             columns: ["memo_id"]
             isOneToOne: false
             referencedRelation: "memos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memo_fraud_signals_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_handoff_queue"
             referencedColumns: ["id"]
           },
         ]
@@ -649,6 +684,13 @@ export type Database = {
             referencedRelation: "memos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "memo_versions_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_handoff_queue"
+            referencedColumns: ["id"]
+          },
         ]
       }
       memos: {
@@ -665,6 +707,14 @@ export type Database = {
           id: string
           initials: string | null
           memo_types: Database["public"]["Enums"]["memo_type"][]
+          originals_received_at: string | null
+          originals_received_by: string | null
+          originals_received_notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payment_method: string | null
+          payment_notes: string | null
+          payment_reference: string | null
           reviewer_user_id: string | null
           revision_count: number
           status: Database["public"]["Enums"]["memo_status"]
@@ -687,6 +737,14 @@ export type Database = {
           id?: string
           initials?: string | null
           memo_types?: Database["public"]["Enums"]["memo_type"][]
+          originals_received_at?: string | null
+          originals_received_by?: string | null
+          originals_received_notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method?: string | null
+          payment_notes?: string | null
+          payment_reference?: string | null
           reviewer_user_id?: string | null
           revision_count?: number
           status?: Database["public"]["Enums"]["memo_status"]
@@ -709,6 +767,14 @@ export type Database = {
           id?: string
           initials?: string | null
           memo_types?: Database["public"]["Enums"]["memo_type"][]
+          originals_received_at?: string | null
+          originals_received_by?: string | null
+          originals_received_notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method?: string | null
+          payment_notes?: string | null
+          payment_reference?: string | null
           reviewer_user_id?: string | null
           revision_count?: number
           status?: Database["public"]["Enums"]["memo_status"]
@@ -769,6 +835,13 @@ export type Database = {
             columns: ["memo_id"]
             isOneToOne: false
             referencedRelation: "memos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_handoff_queue"
             referencedColumns: ["id"]
           },
         ]
@@ -1020,6 +1093,78 @@ export type Database = {
             columns: ["memo_id"]
             isOneToOne: false
             referencedRelation: "memos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memo_fraud_signals_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_handoff_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_payment_handoff_queue: {
+        Row: {
+          date: string | null
+          department_id: string | null
+          from_user_id: string | null
+          handoff_stage: string | null
+          id: string | null
+          memo_types: Database["public"]["Enums"]["memo_type"][] | null
+          originals_received_at: string | null
+          originals_received_by: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          status: string | null
+          subject: string | null
+          transmittal_no: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          date?: string | null
+          department_id?: string | null
+          from_user_id?: string | null
+          handoff_stage?: never
+          id?: string | null
+          memo_types?: Database["public"]["Enums"]["memo_type"][] | null
+          originals_received_at?: string | null
+          originals_received_by?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          status?: never
+          subject?: string | null
+          transmittal_no?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          date?: string | null
+          department_id?: string | null
+          from_user_id?: string | null
+          handoff_stage?: never
+          id?: string | null
+          memo_types?: Database["public"]["Enums"]["memo_type"][] | null
+          originals_received_at?: string | null
+          originals_received_by?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          status?: never
+          subject?: string | null
+          transmittal_no?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memos_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
             referencedColumns: ["id"]
           },
         ]
