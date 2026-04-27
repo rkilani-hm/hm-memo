@@ -589,9 +589,6 @@ const MemoView = () => {
       if (!isAdmin) {
         throw new Error('Only administrators can delete memos.');
       }
-      if (memo.status === 'approved') {
-        throw new Error('Fully approved memos cannot be deleted.');
-      }
       await supabase.from('approval_steps').delete().eq('memo_id', id);
       await supabase.from('memo_attachments').delete().eq('memo_id', id);
       await supabase.from('memo_versions').delete().eq('memo_id', id);
