@@ -713,24 +713,39 @@ const PendingApprovals = () => {
               );
             })()}
 
-            {/* MFA step-up — required for payment memos when policy is enabled */}
-            {actionDialog?.action === 'approved' &&
-              fraudPolicy?.mfa_required_for_payments &&
-              (() => {
-                const memoForDialog = getMemo(actionDialog.memoId);
-                const isPayment = !!memoForDialog?.memo_types?.includes('payments');
-                if (!isPayment) return null;
-                const myProfile = user ? getProfile(user.id) : null;
+            {/* MFA step-up — required for payment memos when policy is enabled.
+                For transparency, on payment memos we also show a one-line
+                banner explaining the decision (so approvers and admins
+                immediately understand why MFA is or isn't required). */}
+            {actionDialog?.action === 'approved' && (() => {
+              const memoForDialog = getMemo(actionDialog.memoId);
+              const isPayment = !!memoForDialog?.memo_types?.includes('payments');
+              if (!isPayment) return null;
+
+              const policyOn = !!fraudPolicy?.mfa_required_for_payments;
+              const myProfile = user ? getProfile(user.id) : null;
+
+              if (!policyOn) {
                 return (
-                  <MfaStepUp
-                    memoId={actionDialog.memoId}
-                    stepId={actionDialog.stepId}
-                    loginHint={(myProfile as any)?.email || user?.email}
-                    onVerified={() => setMfaVerified(true)}
-                    onReset={() => setMfaVerified(false)}
-                  />
+                  <div className="rounded-md border border-muted bg-muted/30 p-2.5 text-[11px] text-muted-foreground">
+                    <strong>Note:</strong> this is a payment memo, but Microsoft
+                    Authenticator step-up MFA is currently disabled in
+                    Admin → Fraud & MFA settings. Approval will proceed with
+                    password + signature only.
+                  </div>
                 );
-              })()}
+              }
+
+              return (
+                <MfaStepUp
+                  memoId={actionDialog.memoId}
+                  stepId={actionDialog.stepId}
+                  loginHint={(myProfile as any)?.email || user?.email}
+                  onVerified={() => setMfaVerified(true)}
+                  onReset={() => setMfaVerified(false)}
+                />
+              );
+            })()}
 
             {/* Password Verification */}
             <div className="space-y-2">
