@@ -586,6 +586,9 @@ const MemoView = () => {
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!memo || !user || !id) return;
+      if (!isAdmin) {
+        throw new Error('Only administrators can delete memos.');
+      }
       if (memo.status === 'approved') {
         throw new Error('Fully approved memos cannot be deleted.');
       }
