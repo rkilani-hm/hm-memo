@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Profile = Tables<'profiles'>;
-type AppRole = 'admin' | 'department_head' | 'staff' | 'approver';
+type AppRole = 'admin' | 'department_head' | 'staff' | 'approver' | 'finance';
 
 interface AuthContextType {
   user: User | null;

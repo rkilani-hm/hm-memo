@@ -30,6 +30,7 @@ import {
   HelpCircle,
   Bell,
   Lock,
+  Banknote,
 } from 'lucide-react';
 
 const AppSidebar = () => {
@@ -59,8 +60,13 @@ const AppSidebar = () => {
     { title: 'Audit Analytics', icon: BarChart3, path: '/admin/audit-dashboard', key: 'admin/audit-dashboard' },
   ];
 
+  const financeNavItems = [
+    { title: 'Payments', icon: Banknote, path: '/finance/payments', key: 'finance/payments' },
+  ];
+
   const visibleMain = mainNavItems.filter((item) => hasPermission(item.key));
   const visibleAdmin = adminNavItems.filter((item) => hasPermission(item.key));
+  const visibleFinance = financeNavItems.filter((item) => hasPermission(item.key));
 
   return (
     <Sidebar>
@@ -89,6 +95,24 @@ const AppSidebar = () => {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {(hasRole('finance') || hasRole('admin')) && visibleFinance.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Finance</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleFinance.map((item) => (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton onClick={() => navigate(item.path)}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {hasRole('admin') && visibleAdmin.length > 0 && (
           <SidebarGroup>

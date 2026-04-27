@@ -316,3 +316,83 @@ For payment memos with `mfa_required_for_payments=true`:
 7. Open a memo with attachments → AI panel → "Run scan" to verify everything works.
 8. Once happy, enable `mfa_required_for_payments` and have one finance approver
    try a payment-memo approval end-to-end.
+
+---
+
+## Payment handoff (Option B) — finance team workflow
+
+After a payment memo is fully approved digitally, original physical
+documents (invoice, delivery notes, GRN, etc.) still need to reach
+finance before payment is released. The system tracks this handoff
+without modifying the existing approve/reject lifecycle.
+
+### Lifecycle stages (additive — `memos.status` is unchanged)
+
+A payment memo is in one of three handoff stages once `status='approved'`:
+
+| Stage | Means | How it changes |
+| --- | --- | --- |
+| **Awaiting Originals** | Memo approved digitally; physical bundle not received | Department couriers the originals + cover sheet; finance ticks "Originals received" |
+| **Awaiting Payment** | Originals received; payment not released | Finance issues cheque/transfer; ticks "Mark paid" with reference |
+| **Paid** | Payment released | (terminal) |
+
+These are derived columns on `memos`:
+`originals_received_at`, `originals_received_by`, `originals_received_notes`,
+`paid_at`, `paid_by`, `payment_method`, `payment_reference`, `payment_notes`.
+
+The view `v_payment_handoff_queue` exposes the derived `handoff_stage`
+field; the finance Payments page reads from it.
+
+### Roles and access
+
+- New role `finance` (`app_role` enum). Members of this role:
+  - SEE all memos and attachments via RLS (`Finance views all memos`/`...attachments`/`...approval steps` policies).
+  - CAN UPDATE memos.payment-lifecycle columns when status='approved'
+    (`Finance updates payment lifecycle`).
+  - SEE the new sidebar item `Finance → Payments` (`/finance/payments`).
+- Admins continue to have full access; the finance UI also surfaces for
+  them.
+
+### Cover sheet (paper trail)
+
+Both the finance Payments queue and the memo detail page (for the
+memo creator and finance) expose a **Print cover sheet** button on
+payment memos awaiting originals. The cover sheet is a one-page A4
+PDF/print containing:
+
+- Transmittal number, subject, department, submitter, date
+- A QR code linking back to the digital memo URL
+- Document checklist (invoice / DN / GRN / PO / quotation / vendor
+  bank-account / other)
+- A finance-receipt block with name + date + stamp signature cells
+
+The bearer brings the cover sheet and the originals; finance compares
+them, stamps the receipt section, hands it back as proof of delivery,
+then ticks "Originals received" in the system.
+
+### Audit-log events
+
+Both finance actions write `audit_log` entries:
+
+| Action | When |
+| --- | --- |
+| `finance_originals_received` | Finance ticks "Originals received" |
+| `finance_payment_released` | Finance ticks "Mark paid" with method + reference |
+
+Each entry carries the standard device/IP fields plus the structured
+`details` (notes, payment method, payment reference) and a one-line
+human-readable `notes` summary.
+
+### Onboarding finance team members
+
+To grant a user finance access, an admin assigns the `finance` role:
+
+```sql
+INSERT INTO public.user_roles (user_id, role)
+VALUES ('<auth.users.id of the finance person>', 'finance')
+ON CONFLICT DO NOTHING;
+```
+
+Or do it from the admin User Management page once it gains a finance-role
+toggle (currently roles are set in the DB / by the admin via existing
+flows). One finance user is enough to start; add more as needed.

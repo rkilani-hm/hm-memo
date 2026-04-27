@@ -16,6 +16,7 @@ import MemoEdit from "@/pages/MemoEdit";
 import MemoList from "@/pages/MemoList";
 import MemoView from "@/pages/MemoView";
 import PendingApprovals from "@/pages/PendingApprovals";
+import FinancePayments from "@/pages/finance/Payments";
 import DepartmentManagement from "@/pages/admin/DepartmentManagement";
 import UserManagement from "@/pages/admin/UserManagement";
 import WorkflowManagement from "@/pages/admin/WorkflowManagement";
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="/memos/:id/edit" element={<MemoEdit />} />
                 <Route path="/memos/:id" element={<MemoView />} />
                 <Route path="/approvals" element={<PendingApprovals />} />
+                <Route path="/finance/payments" element={<FinancePayments />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/help" element={<HelpGuide />} />
                 <Route path="/notifications" element={<Notifications />} />

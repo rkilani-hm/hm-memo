@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, FileDown, Edit, Undo2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, FileDown, Edit, Undo2, Trash2, Banknote } from 'lucide-react';
 import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import SignaturePad from '@/components/memo/SignaturePad';
@@ -942,7 +942,79 @@ const MemoView = () => {
           >
             {memo.status === 'rework' ? 'Changes Requested' : memo.status.replace('_', ' ')}
           </Badge>
+
+          {/* Payment-handoff status (only for approved payment memos) */}
+          {memo.status === 'approved' && (memo as any).memo_types?.includes('payments') && (() => {
+            const m = memo as any;
+            if (m.paid_at) {
+              return (
+                <Badge variant="outline" className="text-xs border-emerald-500/40 text-emerald-700 bg-emerald-500/5 capitalize">
+                  Paid · {m.payment_method?.replace('_', ' ') || 'recorded'}{m.payment_reference ? ` · ${m.payment_reference}` : ''}
+                </Badge>
+              );
+            }
+            if (m.originals_received_at) {
+              return (
+                <Badge variant="outline" className="text-xs border-blue-500/40 text-blue-700 bg-blue-500/5">
+                  Awaiting Payment
+                </Badge>
+              );
+            }
+            return (
+              <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-700 bg-amber-500/5">
+                Awaiting Originals
+              </Badge>
+            );
+          })()}
         </div>
+
+        {/* Originals-handoff prompt — visible to memo creator (and to finance / admin),
+            shown only on payment memos that are approved but originals not yet received. */}
+        {memo.status === 'approved'
+          && (memo as any).memo_types?.includes('payments')
+          && !(memo as any).originals_received_at
+          && (memo.from_user_id === user?.id || isAdmin || hasRole('finance'))
+          && (
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 mb-3 print:hidden">
+            <div className="flex items-start gap-2">
+              <Banknote className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1 text-xs">
+                <p className="font-medium text-amber-700">Next step: send original documents to Finance</p>
+                <p className="text-amber-700/80 mt-0.5">
+                  This payment memo has been fully approved. Please deliver the original supplier invoice, delivery notes, GRN, and any supporting paperwork to the Finance Cashier desk during business hours.
+                  {' '}Bring the printed cover sheet (button on the right) — Finance will stamp it as your delivery receipt and process the payment from there.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  // Inline cover-sheet generation, mirrors finance/Payments.tsx
+                  const url = window.location.href;
+                  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=0&data=${encodeURIComponent(url)}`;
+                  const submitter = getProfile(memo.from_user_id);
+                  const dept = getDept(memo.department_id);
+                  const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                  const memoDate = memo.date ? new Date(memo.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+                  const escape = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+                  const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Cover Sheet — ${memo.transmittal_no}</title>
+<style>@page{size:A4;margin:18mm}body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111;font-size:12pt;margin:0}h1{font-size:18pt;margin:0 0 4mm}h2{font-size:13pt;margin:8mm 0 3mm;border-bottom:1px solid #999;padding-bottom:1mm}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6mm}.meta{font-size:10pt;line-height:1.55}.meta strong{display:inline-block;min-width:30mm}table{width:100%;border-collapse:collapse;font-size:10.5pt}th,td{border:1px solid #666;padding:2mm 3mm;text-align:left;vertical-align:top}th{background:#f0f0f0}.receipt-block{margin-top:8mm;border:2px solid #111;padding:5mm;page-break-inside:avoid}.signature-row{display:flex;gap:6mm;margin-top:5mm}.signature-cell{flex:1;border:1px solid #999;padding:3mm;min-height:22mm}.signature-cell .label{font-size:9pt;color:#555;margin-bottom:1.5mm}.small{font-size:9pt;color:#555}.qr-area{text-align:right}.qr-area img{width:32mm;height:32mm;border:1px solid #ddd;padding:1mm}.checklist td.tick{width:8mm;text-align:center}</style>
+</head><body>
+<div class="header"><div><h1>Payment Memo — Cover Sheet</h1><div class="meta"><div><strong>Transmittal No:</strong> <code>${escape(memo.transmittal_no || '')}</code></div><div><strong>Subject:</strong> ${escape(memo.subject || '')}</div><div><strong>Memo Date:</strong> ${memoDate}</div><div><strong>Department:</strong> ${escape(dept?.name || '—')}</div><div><strong>Submitted by:</strong> ${escape(submitter?.full_name || '—')}</div><div><strong>Printed on:</strong> ${today}</div></div></div><div class="qr-area"><img src="${qrUrl}" /><div class="small">Scan to open memo<br/>${escape(url)}</div></div></div>
+<h2>Physical Bundle Checklist</h2><table class="checklist"><thead><tr><th class="tick">✓</th><th>Document type</th><th>Notes</th></tr></thead><tbody><tr><td class="tick">☐</td><td>Original supplier invoice (stamped)</td><td>&nbsp;</td></tr><tr><td class="tick">☐</td><td>Original delivery note(s)</td><td>&nbsp;</td></tr><tr><td class="tick">☐</td><td>Goods received note (GRN)</td><td>&nbsp;</td></tr><tr><td class="tick">☐</td><td>Purchase order copy</td><td>&nbsp;</td></tr><tr><td class="tick">☐</td><td>Quotation(s)</td><td>&nbsp;</td></tr><tr><td class="tick">☐</td><td>Vendor bank-account confirmation</td><td>&nbsp;</td></tr><tr><td class="tick">☐</td><td>Other (specify):</td><td>&nbsp;</td></tr></tbody></table>
+<div class="receipt-block"><h2 style="margin-top:0">Finance Reception — Receipt of Originals</h2><p class="small">Bearer is delivering the originals listed above for memo <strong>${escape(memo.transmittal_no || '')}</strong>. Verify against the digital scans (scan QR) and stamp this section. Hand stamped copy back to bearer.</p><div class="signature-row"><div class="signature-cell"><div class="label">Received by (finance) — Name &amp; signature</div></div><div class="signature-cell"><div class="label">Date / time received</div></div><div class="signature-cell"><div class="label">Stamp</div></div></div></div>
+<script>window.onload=()=>setTimeout(()=>window.print(),200)</script>
+</body></html>`;
+                  const w = window.open('', '_blank', 'width=820,height=1100');
+                  if (!w) { alert('Please allow popups to print the cover sheet.'); return; }
+                  w.document.open(); w.document.write(html); w.document.close();
+                }}
+              >
+                <Printer className="h-3.5 w-3.5 mr-1" /> Print cover sheet
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="border border-foreground/30 bg-card print-border">
           {/* HEADER */}
