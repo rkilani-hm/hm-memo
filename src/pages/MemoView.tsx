@@ -810,7 +810,7 @@ const MemoView = () => {
               {recallMutation.isPending ? 'Recalling...' : 'Recall'}
             </Button>
           )}
-          {isAdmin && memo.status !== 'approved' && (
+          {isAdmin && (
             <Button
               variant="destructive"
               size="sm"
