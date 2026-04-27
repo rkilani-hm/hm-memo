@@ -151,18 +151,43 @@ payment memos unless this verification has just succeeded.
 
 ## Required Supabase secrets
 
-In addition to the existing `LOVABLE_API_KEY`, set:
+In addition to the existing keys, set whichever AI provider(s) you want to use:
 
 | Secret | Required for | Notes |
 | --- | --- | --- |
-| `AZURE_TENANT_ID` | `verify-mfa-and-sign` | Optional — if not set, the function reads `fraud_settings.azure_tenant_id` from the database instead. |
-| `AZURE_CLIENT_ID` | `verify-mfa-and-sign` | Same fallback as above. |
+| `LOVABLE_API_KEY` | Lovable AI provider | Already set if you previously used Lovable AI. |
+| `OPENAI_API_KEY` | OpenAI AI provider (new) | Enterprise OpenAI API key. Required if `ai_provider` = openai or openai_then_lovable. |
+| `AZURE_TENANT_ID` | `verify-mfa-and-sign` | Optional — falls back to `fraud_settings.azure_tenant_id`. |
+| `AZURE_CLIENT_ID` | `verify-mfa-and-sign` | Optional — falls back to `fraud_settings.azure_client_id`. |
 
-Setting them as secrets is the recommended path because:
-- They don't appear in any database row visible to authenticated users.
-- The function avoids one DB round-trip per MFA verification.
+At least ONE of `LOVABLE_API_KEY` or `OPENAI_API_KEY` must be set or the
+edge functions will refuse to start.
 
-`fraud_settings.azure_*` columns are still useful as the settings UI for non-secret reference.
+## AI provider configuration
+
+The admin page (Admin → Fraud & MFA → AI Provider section) lets you pick
+which AI powers `memo-ai-summary` and `memo-fraud-check`:
+
+- **OpenAI (your enterprise API key)** — uses `OPENAI_API_KEY`. Best
+  pick if you have an enterprise ChatGPT subscription, since it counts
+  against your existing quota rather than the Lovable Cloud meter.
+  Defaults: summary uses `gpt-4o-mini`, fraud-check vision uses `gpt-4o`.
+- **Lovable Cloud (default)** — uses `LOVABLE_API_KEY`. Default model
+  is `google/gemini-2.5-flash`.
+- **OpenAI → Lovable fallback** — tries OpenAI first; if OpenAI
+  rate-limits, errors, or its quota is exhausted, automatically retries
+  on Lovable. Recommended setting when you want OpenAI as primary but
+  don't want a single OpenAI hiccup to break a fraud scan.
+
+**Per-call model override.** The admin page also exposes optional model
+overrides — `ai_model_summary` and `ai_model_fraud`. Leave blank to use
+each provider's default. Setting them is useful for cost tuning
+(e.g. force `gpt-4o-mini` everywhere on OpenAI to save money on the
+vision pass).
+
+**Auditability.** Each fraud run row records which provider actually
+answered (`memo_fraud_runs.ai_provider_used`, `ai_model_used`) — so when
+fallback fired, you have an audit trail.
 
 ---
 

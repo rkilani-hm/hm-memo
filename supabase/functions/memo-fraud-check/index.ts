@@ -10,7 +10,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
   corsHeaders,
-  getEnv,
+  loadAiConfig,
   buildSupabase,
   authenticateUser,
   downloadAttachment,
@@ -51,9 +51,9 @@ serve(async (req) => {
   }
 
   try {
-    const { lovableKey } = getEnv();
     const { service: supabase, anon } = buildSupabase();
     const user = await authenticateUser(req, anon);
+    const aiConfig = await loadAiConfig(supabase);
 
     const { memo_id, mode } = await req.json();
     if (!memo_id) throw new Error("memo_id is required");
@@ -421,6 +421,8 @@ serve(async (req) => {
     let aiSummary = "";
     let aiSignals: Signal[] = [];
     let parsedExtraction: any = null;
+    let aiProviderUsed: string | null = null;
+    let aiModelUsed: string | null = null;
 
     if (mediaForAi.length > 0) {
       const memoIntro = `
@@ -503,7 +505,6 @@ CRITICAL RULES
         const userMessage = buildMultimodalUserMessage(memoIntro, mediaForAi);
 
         const ai = await callAi(
-          lovableKey,
           [
             {
               role: "system",
@@ -512,8 +513,19 @@ CRITICAL RULES
             },
             userMessage,
           ],
-          { responseFormat: "json_object" },
+          {
+            provider: aiConfig.provider,
+            model: aiConfig.modelFraud || undefined,
+            responseFormat: "json_object",
+            openaiKey: aiConfig.openaiKey,
+            lovableKey: aiConfig.lovableKey,
+          },
         );
+
+        // Record which provider actually answered (may differ from configured
+        // when fallback fired). Stored on the run row for audit purposes.
+        aiProviderUsed = ai.providerUsed;
+        aiModelUsed = ai.modelUsed;
 
         parsedExtraction = safeJsonParse(ai.text);
         if (parsedExtraction) {
@@ -668,6 +680,8 @@ CRITICAL RULES
         overall_risk: overall,
         ai_summary: aiSummary || null,
         raw_response: parsedExtraction || null,
+        ai_provider_used: aiProviderUsed,
+        ai_model_used: aiModelUsed,
       })
       .eq("id", runId);
 
@@ -681,6 +695,8 @@ CRITICAL RULES
         attachments_scanned: downloaded.length,
         download_failures: downloadFailures,
         extracted: parsedExtraction?.extracted || [],
+        ai_provider_used: aiProviderUsed,
+        ai_model_used: aiModelUsed,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

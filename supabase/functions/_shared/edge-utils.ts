@@ -13,19 +13,25 @@ export function getEnv(): {
   supabaseUrl: string;
   serviceKey: string;
   anonKey: string;
-  lovableKey: string;
+  lovableKey: string | null;
+  openaiKey: string | null;
 } {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY") || null;
+  const openaiKey = Deno.env.get("OPENAI_API_KEY") || null;
 
   if (!supabaseUrl) throw new Error("SUPABASE_URL is not configured");
   if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured");
   if (!anonKey) throw new Error("SUPABASE_ANON_KEY is not configured");
-  if (!lovableKey) throw new Error("LOVABLE_API_KEY is not configured");
+  // At least one AI provider must be configured. Specific selection is
+  // determined later from fraud_settings.ai_provider.
+  if (!lovableKey && !openaiKey) {
+    throw new Error("No AI provider configured: set LOVABLE_API_KEY or OPENAI_API_KEY");
+  }
 
-  return { supabaseUrl, serviceKey, anonKey, lovableKey };
+  return { supabaseUrl, serviceKey, anonKey, lovableKey, openaiKey };
 }
 
 export async function authenticateUser(
@@ -163,6 +169,10 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
 export interface AiCallResult {
   text: string;
   raw: any;
+  /** Which provider actually answered. Useful when fallback fired. */
+  providerUsed: "openai" | "lovable";
+  /** Which model actually answered. */
+  modelUsed: string;
 }
 
 export interface AiContentPart {
@@ -176,20 +186,67 @@ export interface AiMessage {
   content: string | AiContentPart[];
 }
 
-export async function callAi(
+export type AiProvider = "openai" | "lovable" | "openai_then_lovable";
+
+export interface AiCallOptions {
+  /** Which provider to use. If 'openai_then_lovable', tries OpenAI then Lovable on failure. */
+  provider?: AiProvider;
+  /** Override model name. Defaults: openai=gpt-4o-mini, lovable=google/gemini-2.5-flash. */
+  model?: string;
+  /** Force JSON-mode response. */
+  responseFormat?: "json_object" | "text";
+  /** Available API keys (caller passes both, or null where unavailable). */
+  openaiKey?: string | null;
+  lovableKey?: string | null;
+}
+
+const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+const DEFAULT_LOVABLE_MODEL = "google/gemini-2.5-flash";
+
+async function callOpenAi(
   apiKey: string,
   messages: AiMessage[],
-  opts: { model?: string; responseFormat?: "json_object" | "text" } = {},
+  model: string,
+  responseFormat?: "json_object" | "text",
 ): Promise<AiCallResult> {
-  const model = opts.model || "google/gemini-2.5-flash";
-  const body: Record<string, unknown> = {
-    model,
-    messages,
-  };
-  if (opts.responseFormat === "json_object") {
+  const body: Record<string, unknown> = { model, messages };
+  if (responseFormat === "json_object") {
     body.response_format = { type: "json_object" };
   }
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    if (res.status === 429) throw new Error("OpenAI rate limit exceeded");
+    if (res.status === 402 || res.status === 403) throw new Error("OpenAI access denied or quota exhausted");
+    const text = await res.text();
+    throw new Error(`OpenAI error ${res.status}: ${text.slice(0, 300)}`);
+  }
+  const json = await res.json();
+  const content = json.choices?.[0]?.message?.content || "";
+  return {
+    text: typeof content === "string" ? content : JSON.stringify(content),
+    raw: json,
+    providerUsed: "openai",
+    modelUsed: model,
+  };
+}
 
+async function callLovable(
+  apiKey: string,
+  messages: AiMessage[],
+  model: string,
+  responseFormat?: "json_object" | "text",
+): Promise<AiCallResult> {
+  const body: Record<string, unknown> = { model, messages };
+  if (responseFormat === "json_object") {
+    body.response_format = { type: "json_object" };
+  }
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -198,16 +255,72 @@ export async function callAi(
     },
     body: JSON.stringify(body),
   });
-
   if (!res.ok) {
-    if (res.status === 429) throw new Error("AI rate limit exceeded");
-    if (res.status === 402) throw new Error("AI credits exhausted");
+    if (res.status === 429) throw new Error("Lovable rate limit exceeded");
+    if (res.status === 402) throw new Error("Lovable credits exhausted");
     const text = await res.text();
-    throw new Error(`AI gateway error ${res.status}: ${text.slice(0, 300)}`);
+    throw new Error(`Lovable gateway error ${res.status}: ${text.slice(0, 300)}`);
   }
   const json = await res.json();
   const content = json.choices?.[0]?.message?.content || "";
-  return { text: typeof content === "string" ? content : JSON.stringify(content), raw: json };
+  return {
+    text: typeof content === "string" ? content : JSON.stringify(content),
+    raw: json,
+    providerUsed: "lovable",
+    modelUsed: model,
+  };
+}
+
+/**
+ * Provider-aware AI call. Caller passes the desired provider AND the keys
+ * available; this function picks the right path and applies fallback if
+ * configured. The returned result tells the caller which provider actually
+ * answered (important when the configured provider failed and fallback
+ * succeeded).
+ */
+export async function callAi(
+  messages: AiMessage[],
+  opts: AiCallOptions = {},
+): Promise<AiCallResult> {
+  const provider: AiProvider = opts.provider || "lovable";
+  const openaiKey = opts.openaiKey ?? null;
+  const lovableKey = opts.lovableKey ?? null;
+  const fmt = opts.responseFormat;
+
+  const errors: string[] = [];
+
+  if (provider === "openai" || provider === "openai_then_lovable") {
+    if (openaiKey) {
+      try {
+        const model = opts.model || DEFAULT_OPENAI_MODEL;
+        return await callOpenAi(openaiKey, messages, model, fmt);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        errors.push(`openai: ${msg}`);
+        if (provider === "openai") throw e;
+        // else fall through to Lovable
+      }
+    } else {
+      errors.push("openai: OPENAI_API_KEY is not configured");
+      if (provider === "openai") {
+        throw new Error("OPENAI_API_KEY is not configured but ai_provider='openai' is selected");
+      }
+    }
+  }
+
+  // Lovable path (either selected directly or as fallback)
+  if (lovableKey) {
+    try {
+      const model = opts.model || DEFAULT_LOVABLE_MODEL;
+      return await callLovable(lovableKey, messages, model, fmt);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`lovable: ${msg}`);
+      throw new Error(`AI call failed. ${errors.join(" | ")}`);
+    }
+  }
+
+  throw new Error(`AI call failed: no usable provider. ${errors.join(" | ")}`);
 }
 
 // Strip ```json fences and parse safely
@@ -270,5 +383,52 @@ export function buildSupabase(): { service: SupabaseClient; anon: SupabaseClient
   return {
     service: createClient(supabaseUrl, serviceKey),
     anon: createClient(supabaseUrl, anonKey),
+  };
+}
+
+// AI provider configuration helpers --------------------------------------
+
+export interface AiProviderConfig {
+  provider: AiProvider;
+  modelSummary: string | null;
+  modelFraud: string | null;
+  openaiKey: string | null;
+  lovableKey: string | null;
+}
+
+/**
+ * Load AI provider config: combines fraud_settings row + env-var keys.
+ * Falls back to lovable+default if the row is missing.
+ */
+export async function loadAiConfig(supabase: SupabaseClient): Promise<AiProviderConfig> {
+  const { openaiKey, lovableKey } = getEnv();
+  const { data } = await supabase
+    .from("fraud_settings")
+    .select("ai_provider, ai_model_summary, ai_model_fraud, ai_lovable_fallback")
+    .eq("id", 1)
+    .maybeSingle();
+
+  let provider: AiProvider = "lovable";
+  if (data?.ai_provider) {
+    if (data.ai_provider === "openai" || data.ai_provider === "openai_then_lovable" || data.ai_provider === "lovable") {
+      provider = data.ai_provider;
+    }
+  }
+
+  // If explicit 'openai' but lovable_fallback is enabled, treat as 'openai_then_lovable'.
+  if (provider === "openai" && data?.ai_lovable_fallback === true && lovableKey) {
+    provider = "openai_then_lovable";
+  }
+
+  // If selected provider has no key, transparently fall through to whichever does.
+  if (provider === "openai" && !openaiKey && lovableKey) provider = "lovable";
+  if (provider === "lovable" && !lovableKey && openaiKey) provider = "openai";
+
+  return {
+    provider,
+    modelSummary: data?.ai_model_summary || null,
+    modelFraud: data?.ai_model_fraud || null,
+    openaiKey,
+    lovableKey,
   };
 }

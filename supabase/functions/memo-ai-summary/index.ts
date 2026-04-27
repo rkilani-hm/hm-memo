@@ -15,7 +15,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
   corsHeaders,
-  getEnv,
+  loadAiConfig,
   buildSupabase,
   authenticateUser,
   downloadAttachment,
@@ -34,9 +34,10 @@ serve(async (req) => {
   }
 
   try {
-    const { lovableKey } = getEnv();
     const { service: supabase, anon } = buildSupabase();
     await authenticateUser(req, anon);
+
+    const aiConfig = await loadAiConfig(supabase);
 
     const { memo_id } = await req.json();
     if (!memo_id) throw new Error("memo_id is required");
@@ -216,12 +217,17 @@ Return EXACTLY this JSON shape:
     );
 
     const ai = await callAi(
-      lovableKey,
       [
         { role: "system", content: systemPrompt },
         userMessage,
       ],
-      { responseFormat: "json_object" },
+      {
+        provider: aiConfig.provider,
+        model: aiConfig.modelSummary || undefined,
+        responseFormat: "json_object",
+        openaiKey: aiConfig.openaiKey,
+        lovableKey: aiConfig.lovableKey,
+      },
     );
 
     const parsed = safeJsonParse(ai.text) || {
@@ -240,6 +246,8 @@ Return EXACTLY this JSON shape:
           attachments_read_by_ai: downloadedMedia.length,
           attachments_skipped: attachmentSkipReasons.length,
           fraud_signals_known: fraudSignals?.length || 0,
+          ai_provider_used: ai.providerUsed,
+          ai_model_used: ai.modelUsed,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },

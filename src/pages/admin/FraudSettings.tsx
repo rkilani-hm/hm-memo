@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, ShieldCheck, Smartphone, Loader2, AlertTriangle } from 'lucide-react';
+import { Shield, ShieldCheck, Smartphone, Loader2, AlertTriangle, Sparkles } from 'lucide-react';
 
 interface FraudSettings {
   id: number;
@@ -27,6 +28,10 @@ interface FraudSettings {
   azure_tenant_id: string | null;
   azure_client_id: string | null;
   azure_authority_url: string | null;
+  ai_provider: 'openai' | 'lovable' | 'openai_then_lovable';
+  ai_model_summary: string | null;
+  ai_model_fraud: string | null;
+  ai_lovable_fallback: boolean;
 }
 
 const FraudSettingsPage = () => {
@@ -75,6 +80,10 @@ const FraudSettingsPage = () => {
           azure_tenant_id: form.azure_tenant_id,
           azure_client_id: form.azure_client_id,
           azure_authority_url: form.azure_authority_url,
+          ai_provider: form.ai_provider,
+          ai_model_summary: form.ai_model_summary,
+          ai_model_fraud: form.ai_model_fraud,
+          ai_lovable_fallback: form.ai_lovable_fallback,
           updated_at: new Date().toISOString(),
           updated_by: user?.id,
         } as any)
@@ -204,6 +213,84 @@ const FraudSettingsPage = () => {
             <p className="text-[11px] text-muted-foreground">
               Submitter accounts younger than this raise a low-severity signal.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Provider */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" /> AI Provider
+          </CardTitle>
+          <CardDescription>
+            Choose which AI service powers the memo summary and the fraud
+            detection's vision pass. OpenAI uses your own API key directly
+            (counts against your enterprise quota); Lovable uses the Lovable
+            Cloud AI gateway.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Provider</Label>
+            <Select
+              value={form.ai_provider}
+              onValueChange={(v) => update({ ai_provider: v as FraudSettings['ai_provider'] })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="openai">OpenAI (your enterprise API key)</SelectItem>
+                <SelectItem value="lovable">Lovable Cloud (default)</SelectItem>
+                <SelectItem value="openai_then_lovable">OpenAI → Lovable fallback</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              For OpenAI to work, set an <code>OPENAI_API_KEY</code> secret on the
+              Supabase edge function environment. For Lovable to work, the
+              existing <code>LOVABLE_API_KEY</code> must be set. The
+              "OpenAI → Lovable fallback" option tries OpenAI first and only
+              falls back to Lovable if OpenAI fails (rate-limit, quota, or
+              network).
+            </p>
+          </div>
+
+          {form.ai_provider === 'openai' && (
+            <ToggleRow
+              label="Allow Lovable fallback when OpenAI fails"
+              description="If OpenAI is unreachable or rate-limits, automatically retry once on Lovable. Disable for strict OpenAI-only mode (any failure surfaces as an error)."
+              checked={form.ai_lovable_fallback}
+              onChange={(v) => update({ ai_lovable_fallback: v })}
+            />
+          )}
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Memo summary model (override)</Label>
+              <Input
+                value={form.ai_model_summary || ''}
+                onChange={(e) => update({ ai_model_summary: e.target.value || null })}
+                placeholder={form.ai_provider === 'lovable' ? 'google/gemini-2.5-flash' : 'gpt-4o-mini'}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Leave blank for the provider's default. Use <code>gpt-4o-mini</code> for cheap+fast,
+                <code> gpt-4o</code> for higher accuracy on long documents.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Fraud-check vision model (override)</Label>
+              <Input
+                value={form.ai_model_fraud || ''}
+                onChange={(e) => update({ ai_model_fraud: e.target.value || null })}
+                placeholder={form.ai_provider === 'lovable' ? 'google/gemini-2.5-flash' : 'gpt-4o'}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                The fraud check sends PDFs/images for visual tampering analysis,
+                so it benefits from a strong vision model. Recommended:
+                <code> gpt-4o</code> on OpenAI.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
