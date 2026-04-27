@@ -201,10 +201,24 @@ serve(async (req) => {
       }
     }
 
-    // ---- MFA proof: amr must contain "mfa" --------------------------------
+    // ---- MFA proof: token must assert MFA in one of two ways --------------
+    // (a) `amr` array contains "mfa" — i.e. MFA was performed THIS sign-in
+    // (b) `acr` claim equals "c1" (or any non-zero value) — i.e. the token
+    //     was issued under an Authentication Context that requires MFA
+    //     (Conditional Access auth-context-bound policies). Entra's MFA
+    //     recall behaviour means a freshly-issued token may not carry
+    //     amr=["mfa"] even though MFA was satisfied via session recall —
+    //     but it WILL carry the requested acr if the policy is configured
+    //     against an authentication context.
     const amr: string[] = Array.isArray(payload.amr) ? payload.amr : [];
-    if (!amr.includes("mfa")) {
-      throw new Error("Token does not assert MFA was performed (amr does not contain 'mfa')");
+    const acr: string | undefined = typeof payload.acr === "string" ? payload.acr : undefined;
+    const mfaViaAmr = amr.includes("mfa");
+    const mfaViaAcr = acr !== undefined && acr !== "0" && acr !== "";
+    if (!mfaViaAmr && !mfaViaAcr) {
+      throw new Error(
+        `v2/no-mfa-claim: Token does not assert MFA. amr=${JSON.stringify(amr)} acr=${JSON.stringify(acr)}. ` +
+        `Either Conditional Access didn't require MFA, or no Authentication Context is bound to the policy.`,
+      );
     }
 
     // ---- Freshness: auth_time within 5 minutes ---------------------------
