@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Shield, Download, ChevronDown, ChevronRight, Monitor, Smartphone, Tablet, FileText } from 'lucide-react';
+import { Shield, ShieldCheck, Download, ChevronDown, ChevronRight, Monitor, Smartphone, Tablet, FileText, Pen, Lock, KeyRound } from 'lucide-react';
 import { format } from 'date-fns';
 
 const ACTION_LABELS: Record<string, { label: string; color: string }> = {
@@ -295,6 +295,66 @@ const AuditLog = () => {
                           <TableRow>
                             <TableCell colSpan={10} className="bg-muted/30 p-4">
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                                {/* Authentication Factors — full-width, prominent at top */}
+                                {(() => {
+                                  const af = (entry.details as any)?.auth_factors;
+                                  if (!af) {
+                                    return (
+                                      <div className="col-span-2 md:col-span-4">
+                                        <p className="font-bold text-muted-foreground uppercase mb-1">Authentication Factors</p>
+                                        <div className="flex gap-1.5 flex-wrap">
+                                          {entry.password_verified && (
+                                            <Badge variant="outline" className="text-[10px] gap-1">
+                                              <KeyRound className="h-3 w-3" /> Password
+                                            </Badge>
+                                          )}
+                                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                                            (legacy entry — no detailed factor record)
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  return (
+                                    <div className="col-span-2 md:col-span-4">
+                                      <p className="font-bold text-muted-foreground uppercase mb-1">Authentication Factors</p>
+                                      <div className="flex gap-1.5 flex-wrap items-center">
+                                        {af.signature?.applied && (
+                                          <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-700 bg-emerald-500/5">
+                                            <Pen className="h-3 w-3" /> Signature applied
+                                          </Badge>
+                                        )}
+                                        {af.password?.verified && (
+                                          <Badge variant="outline" className="text-[10px] gap-1 border-blue-500/40 text-blue-700 bg-blue-500/5">
+                                            <KeyRound className="h-3 w-3" /> Password verified
+                                          </Badge>
+                                        )}
+                                        {af.mfa?.verified ? (
+                                          <Badge variant="outline" className="text-[10px] gap-1 border-violet-500/40 text-violet-700 bg-violet-500/5">
+                                            <ShieldCheck className="h-3 w-3" />
+                                            MFA: {af.mfa.method ? af.mfa.method.replace(/_/g, ' ') : 'verified'}
+                                            {af.mfa.upn ? ` (${af.mfa.upn})` : ''}
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground">
+                                            <Shield className="h-3 w-3" /> MFA not required
+                                          </Badge>
+                                        )}
+                                        {af.manual_paper && (
+                                          <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/40 text-amber-700 bg-amber-500/5">
+                                            <FileText className="h-3 w-3" />
+                                            Manual paper{af.manual_paper.registered_by_name ? ` by ${af.manual_paper.registered_by_name}` : ''}
+                                          </Badge>
+                                        )}
+                                        {af.mfa?.verified_at && (
+                                          <span className="text-[10px] text-muted-foreground ml-1">
+                                            MFA verified at {format(new Date(af.mfa.verified_at), 'dd MMM HH:mm:ss')}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                                 <div>
                                   <p className="font-bold text-muted-foreground uppercase mb-1">User Agent</p>
                                   <p className="break-all">{entry.user_agent_raw || '—'}</p>
@@ -306,10 +366,6 @@ const AuditLog = () => {
                                 <div>
                                   <p className="font-bold text-muted-foreground uppercase mb-1">Session ID</p>
                                   <p className="font-mono">{entry.session_id || '—'}</p>
-                                </div>
-                                <div>
-                                  <p className="font-bold text-muted-foreground uppercase mb-1">Password Verified</p>
-                                  <p>{entry.password_verified ? '✅ Yes' : '—'}</p>
                                 </div>
                                 <div>
                                   <p className="font-bold text-muted-foreground uppercase mb-1">Action Detail</p>

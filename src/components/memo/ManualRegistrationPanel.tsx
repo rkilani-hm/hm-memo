@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, FileText, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
+import { buildAuthFactors } from '@/lib/audit-auth-factors';
 
 interface ManualRegistrationPanelProps {
   step: {
@@ -134,6 +135,14 @@ const ManualRegistrationPanel = ({
       const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
 
       // Audit log
+      const manualFactors = buildAuthFactors({
+        signatureApplied: action === 'approved' && !!scanUrl,
+        passwordVerified: true,
+        mfaVerified: false,
+        manualPaper: true,
+        registeredByName: user?.email || null,
+      });
+
       await supabase.from('audit_log').insert({
         memo_id: step.memo_id,
         user_id: user.id,
@@ -147,7 +156,10 @@ const ManualRegistrationPanel = ({
         transmittal_no: memoTransmittalNo,
         password_verified: true,
         scan_attachment_url: scanUrl,
-        notes: notes || null,
+        notes: notes
+          ? `${manualFactors.notes} — ${notes}`
+          : manualFactors.notes,
+        details: { auth_factors: manualFactors.details, registrar_notes: notes || null },
         previous_status: 'pending',
         new_status: action,
         ip_address: clientIp,

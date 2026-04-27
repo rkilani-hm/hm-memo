@@ -7,6 +7,7 @@ import { fetchProfiles, fetchDepartments } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 import { saveApprovedMemoToSharePoint } from '@/lib/sharepoint-save';
+import { buildAuthFactors } from '@/lib/audit-auth-factors';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -301,16 +302,37 @@ const PendingApprovals = () => {
           .eq('id', memoId);
       }
 
-      // Audit log with device info + IP
+      // Audit log with device info + IP + authentication factors
       const deviceInfo = collectDeviceInfo();
       const clientIp = await getClientIp();
       const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
+
+      // Fetch the just-updated step so we can capture the mfa_* columns the
+      // verify-mfa-and-sign edge function wrote earlier in this approval.
+      const { data: signedStep } = await supabase
+        .from('approval_steps')
+        .select('mfa_verified, mfa_verified_at, mfa_method, mfa_provider')
+        .eq('id', stepId)
+        .maybeSingle();
+
+      const authFactors = buildAuthFactors({
+        signatureApplied: action === 'approved' && !!signatureUrl,
+        passwordVerified: true,
+        mfaVerified: !!(signedStep as any)?.mfa_verified,
+        mfaMethod: (signedStep as any)?.mfa_method,
+        mfaProvider: (signedStep as any)?.mfa_provider,
+        mfaVerifiedAt: (signedStep as any)?.mfa_verified_at,
+        mfaUpn: (myProfile as any)?.azure_ad_upn || (myProfile as any)?.email,
+      });
+
       await supabase.from('audit_log').insert({
         memo_id: memoId,
         user_id: user.id,
         action: `memo_${action}`,
-        details: { comments: comments || null },
+        details: { comments: comments || null, auth_factors: authFactors.details },
+        notes: authFactors.notes,
         signing_method: 'digital',
+        password_verified: true,
         ip_address: clientIp,
         ip_geolocation_city: geo.city,
         ip_geolocation_country: geo.country,

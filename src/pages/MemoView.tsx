@@ -9,6 +9,7 @@ import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/devi
 import { generateMemoPdf, prepareMemoData, type PrintPreferences, DEFAULT_PRINT_PREFERENCES } from '@/lib/memo-pdf';
 import { buildMemoHtml } from '@/lib/memo-pdf-html';
 import { saveApprovedMemoToSharePoint } from '@/lib/sharepoint-save';
+import { buildAuthFactors } from '@/lib/audit-auth-factors';
 import PrintPreviewDialog from '@/components/memo/PrintPreviewDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -520,6 +521,26 @@ const MemoView = () => {
       const deviceInfo = collectDeviceInfo();
       const clientIp = await getClientIp();
       const geo = clientIp ? await resolveIpGeolocation(clientIp) : { city: null, country: null };
+
+      // Fetch the just-updated step so we can capture the mfa_* columns the
+      // verify-mfa-and-sign edge function wrote earlier in this approval.
+      const { data: signedStep } = await supabase
+        .from('approval_steps')
+        .select('mfa_verified, mfa_verified_at, mfa_method, mfa_provider')
+        .eq('id', stepId)
+        .maybeSingle();
+
+      const myProfileForAudit = user ? getProfile(user.id) : null;
+      const authFactors = buildAuthFactors({
+        signatureApplied: action === 'approved' && !!signatureUrl,
+        passwordVerified: true,
+        mfaVerified: !!(signedStep as any)?.mfa_verified,
+        mfaMethod: (signedStep as any)?.mfa_method,
+        mfaProvider: (signedStep as any)?.mfa_provider,
+        mfaVerifiedAt: (signedStep as any)?.mfa_verified_at,
+        mfaUpn: (myProfileForAudit as any)?.azure_ad_upn || (myProfileForAudit as any)?.email,
+      });
+
       await supabase.from('audit_log').insert({
         memo_id: id,
         user_id: user.id,
@@ -532,7 +553,12 @@ const MemoView = () => {
         password_verified: true,
         previous_status: 'pending',
         new_status: action,
-        details: { comments: comments || null, step_action_type: stepActionType },
+        details: {
+          comments: comments || null,
+          step_action_type: stepActionType,
+          auth_factors: authFactors.details,
+        },
+        notes: authFactors.notes,
         ip_address: clientIp,
         ip_geolocation_city: geo.city,
         ip_geolocation_country: geo.country,
