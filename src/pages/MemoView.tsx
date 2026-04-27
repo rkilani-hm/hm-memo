@@ -28,6 +28,7 @@ import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import SignaturePad from '@/components/memo/SignaturePad';
 import SignedImage from '@/components/memo/SignedImage';
+import MfaStepUp from '@/components/memo/MfaStepUp';
 import AuditTrailTab from '@/components/memo/AuditTrailTab';
 import VersionHistory from '@/components/memo/VersionHistory';
 import ManualRegistrationPanel from '@/components/memo/ManualRegistrationPanel';
@@ -88,6 +89,24 @@ const MemoView = () => {
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [mfaVerified, setMfaVerified] = useState(false);
+
+  // Fetch fraud-settings to know if MFA is required for payment memos
+  const { data: fraudPolicy } = useQuery({
+    queryKey: ['fraud-policy'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('fraud_settings' as any)
+        .select('mfa_required_for_payments, mfa_required_for_high_risk, block_high_severity')
+        .eq('id', 1)
+        .maybeSingle();
+      return (data as any) || {
+        mfa_required_for_payments: false,
+        mfa_required_for_high_risk: false,
+        block_high_severity: false,
+      };
+    },
+  });
 
   const { data: memo, isLoading: memoLoading } = useQuery({
     queryKey: ['memo', id],
@@ -206,6 +225,15 @@ const MemoView = () => {
         throw new Error('Password verification failed');
       }
       setPasswordError('');
+
+      // MFA gate: for payment memos with MFA policy, refuse to apply signature
+      // unless the verify-mfa-and-sign edge function has already set
+      // mfa_verified=true on this step (which the MfaStepUp UI does).
+      const isPayment = !!memo?.memo_types?.includes('payments');
+      const mfaRequired = isPayment && !!fraudPolicy?.mfa_required_for_payments;
+      if (action === 'approved' && mfaRequired && !mfaVerified) {
+        throw new Error('Microsoft Authenticator MFA is required before signing this payment memo.');
+      }
 
       // Handle signature/initials based on step action type
       let signatureUrl: string | null = null;
@@ -535,6 +563,7 @@ const MemoView = () => {
     setPassword('');
     setPasswordError('');
     setSignatureMode('saved');
+    setMfaVerified(false);
   };
 
   const recallMutation = useMutation({
@@ -1479,6 +1508,36 @@ const MemoView = () => {
               );
             })()}
 
+            {/* MFA step-up — required for payment memos when policy is enabled.
+                On every payment memo we show one of: the MFA component (if
+                policy on), or a small banner explaining MFA is currently
+                disabled. */}
+            {actionDialog?.action === 'approved' && (() => {
+              const isPayment = !!memo?.memo_types?.includes('payments');
+              if (!isPayment) return null;
+              const policyOn = !!fraudPolicy?.mfa_required_for_payments;
+              const myProfile = user ? getProfile(user.id) : null;
+              if (!policyOn) {
+                return (
+                  <div className="rounded-md border border-muted bg-muted/30 p-2.5 text-[11px] text-muted-foreground">
+                    <strong>Note:</strong> this is a payment memo, but Microsoft
+                    Authenticator step-up MFA is currently disabled in
+                    Admin → Fraud & MFA settings. Approval will proceed with
+                    password + signature only.
+                  </div>
+                );
+              }
+              return (
+                <MfaStepUp
+                  memoId={id!}
+                  stepId={actionDialog.stepId}
+                  loginHint={(myProfile as any)?.email || user?.email}
+                  onVerified={() => setMfaVerified(true)}
+                  onReset={() => setMfaVerified(false)}
+                />
+              );
+            })()}
+
             {/* Password */}
             <div className="space-y-2">
               <Label>Login Password <span className="text-destructive">*</span></Label>
@@ -1516,12 +1575,18 @@ const MemoView = () => {
             <Button variant="outline" onClick={resetDialog}>Cancel</Button>
             <Button
               className={actionDialog ? actionColor[actionDialog.action] : ''}
-              disabled={
-                actionMutation.isPending ||
-                !password.trim() ||
-                (needsSigningAsset && !signatureDataUrl) ||
-                (actionDialog?.action !== 'approved' && !comments.trim())
-              }
+              disabled={(() => {
+                if (actionMutation.isPending) return true;
+                if (!password.trim()) return true;
+                if (needsSigningAsset && !signatureDataUrl) return true;
+                if (actionDialog?.action !== 'approved' && !comments.trim()) return true;
+                // MFA gate for payment memos
+                if (actionDialog?.action === 'approved' && fraudPolicy?.mfa_required_for_payments) {
+                  const isPayment = !!memo?.memo_types?.includes('payments');
+                  if (isPayment && !mfaVerified) return true;
+                }
+                return false;
+              })()}
               onClick={() => actionMutation.mutate()}
             >
               {actionMutation.isPending ? 'Processing...' : actionDialog ? actionLabel[actionDialog.action] : ''}
