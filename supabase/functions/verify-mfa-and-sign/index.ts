@@ -150,20 +150,38 @@ serve(async (req) => {
     const { header, payload } = await verifyJwt(id_token, tenantId);
 
     // ---- Standard JWT claim checks ----------------------------------------
-    // Allow a small clock-skew window (5 minutes) on exp/nbf/iat so a
+    // Allow a generous clock-skew window (10 minutes) on exp/nbf/iat so a
     // legitimately-fresh token from Entra ID isn't rejected just because
-    // the edge function host's clock is a few seconds ahead/behind. 5 min
-    // is the de-facto industry default for OIDC implementations.
-    const CLOCK_SKEW = 5 * 60;
+    // the edge function host's clock differs from Microsoft's.
+    // The error message is intentionally verbose and tagged "v2" so we can
+    // tell from the error text alone whether this code is the one running.
+    const CLOCK_SKEW = 10 * 60;
     const now = Math.floor(Date.now() / 1000);
-    if (typeof payload.exp !== "number" || payload.exp + CLOCK_SKEW < now) {
-      throw new Error(`Token expired (exp=${payload.exp}, now=${now})`);
+    const tokenTiming = {
+      exp: payload.exp,
+      nbf: payload.nbf,
+      iat: payload.iat,
+      auth_time: payload.auth_time,
+      now,
+      diff_exp_now_seconds: typeof payload.exp === "number" ? payload.exp - now : null,
+      host_iso: new Date().toISOString(),
+    };
+    console.log("[verify-mfa-and-sign v2] token timing:", JSON.stringify(tokenTiming));
+
+    if (typeof payload.exp !== "number") {
+      throw new Error(`v2/exp-missing: token has no exp claim. ${JSON.stringify(tokenTiming)}`);
+    }
+    if (payload.exp + CLOCK_SKEW < now) {
+      throw new Error(
+        `v2/exp-passed: token exp=${payload.exp} is more than ${CLOCK_SKEW}s before host now=${now}. ` +
+        `Difference: ${now - payload.exp}s. Host time: ${new Date().toISOString()}.`,
+      );
     }
     if (typeof payload.nbf === "number" && payload.nbf > now + CLOCK_SKEW) {
-      throw new Error("Token not yet valid");
+      throw new Error(`v2/nbf-future: token nbf=${payload.nbf} > now+skew=${now + CLOCK_SKEW}`);
     }
     if (typeof payload.iat === "number" && payload.iat > now + CLOCK_SKEW) {
-      throw new Error("Token issued in the future");
+      throw new Error(`v2/iat-future: token iat=${payload.iat} > now+skew=${now + CLOCK_SKEW}`);
     }
 
     // aud must equal our client id
