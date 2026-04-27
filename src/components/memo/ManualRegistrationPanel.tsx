@@ -98,9 +98,28 @@ const ManualRegistrationPanel = ({
           .eq('memo_id', step.memo_id)
           .order('step_order');
 
-        const nextStep = allSteps?.find(s => s.step_order > step.step_order && s.status === 'pending');
-        if (nextStep) {
-          await supabase.from('memos').update({ current_step: nextStep.step_order }).eq('id', step.memo_id);
+        // Apply our own status to the in-memory copy so the "any pending"
+        // check is correct even before the UPDATE round-trips back.
+        const stepsAfterUpdate = (allSteps || []).map((s) =>
+          s.id === step.id ? { ...s, status: 'approved' } : s,
+        );
+
+        // Memo is fully approved ONLY when no required step is still pending.
+        const anyRequiredPending = stepsAfterUpdate.some(
+          (s) => s.is_required && s.status === 'pending',
+        );
+
+        if (anyRequiredPending) {
+          // Surface the lowest pending step as the new current_step.
+          const lowestPending = stepsAfterUpdate
+            .filter((s) => s.status === 'pending')
+            .sort((a, b) => a.step_order - b.step_order)[0];
+          if (lowestPending) {
+            await supabase
+              .from('memos')
+              .update({ current_step: lowestPending.step_order })
+              .eq('id', step.memo_id);
+          }
         } else {
           await supabase.from('memos').update({ status: 'approved' as any }).eq('id', step.memo_id);
         }

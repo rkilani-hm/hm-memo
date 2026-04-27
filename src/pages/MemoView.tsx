@@ -260,6 +260,20 @@ const MemoView = () => {
         const currentStep = allSteps?.find((s) => s.id === stepId);
         const currentGroup = (currentStep as any)?.parallel_group;
 
+        // Treat the step we just approved as approved for the purposes of the
+        // "is the memo done?" check (the SELECT above may not yet reflect our
+        // own UPDATE because of read-after-write timing).
+        const stepsAfterUpdate = (allSteps || []).map((s) =>
+          s.id === stepId ? { ...s, status: 'approved' } : s,
+        );
+
+        // Memo is fully approved ONLY when no required step is still pending.
+        // Without this check, a later-step approver clicking before earlier
+        // approvers would prematurely mark the memo as approved.
+        const anyRequiredPending = stepsAfterUpdate.some(
+          (s) => s.is_required && s.status === 'pending',
+        );
+
         // Check if all parallel group members are done
         let groupComplete = true;
         if (currentGroup !== null && currentGroup !== undefined) {
@@ -273,23 +287,42 @@ const MemoView = () => {
             && ((s as any).parallel_group === null || (s as any).parallel_group !== currentGroup)
           );
 
-          if (nextStep) {
-            // Find all steps in next group
-            const nextGroup = (nextStep as any).parallel_group;
+          // Decide: are there *any* required steps still pending? If yes, the
+          // memo cannot be finalised — even if no later step exists (out-of-
+          // order approval case).
+          if (anyRequiredPending) {
+            // Find the lowest pending step to surface as current_step
+            const lowestPending = stepsAfterUpdate
+              .filter((s) => s.status === 'pending')
+              .sort((a, b) => a.step_order - b.step_order)[0];
+            const advanceTo = nextStep || lowestPending;
+
+            // Find all steps in the next group (if grouped)
+            const nextGroup = (advanceTo as any)?.parallel_group;
             const nextSteps = nextGroup !== null && nextGroup !== undefined
-              ? allSteps?.filter((s) => (s as any).parallel_group === nextGroup && s.status === 'pending') || [nextStep]
-              : [nextStep];
+              ? allSteps?.filter((s) => (s as any).parallel_group === nextGroup && s.status === 'pending') || (advanceTo ? [advanceTo] : [])
+              : (advanceTo ? [advanceTo] : []);
 
             await supabase
               .from('memos')
-              .update({ current_step: nextStep.step_order, status: 'in_review' })
+              .update({
+                current_step: advanceTo?.step_order ?? currentStep?.step_order ?? null,
+                status: 'in_review',
+              })
               .eq('id', id);
 
             const completedCount = allSteps?.filter(s => s.status === 'approved' || s.id === stepId).length || 0;
             const totalCount = allSteps?.length || 0;
 
+            // Notify next-step approver(s) only when this approval moved the
+            // workflow forward (i.e. nextStep exists). If the user approved
+            // out of order, the lowest pending step was already notified
+            // earlier — don't re-notify.
+            const shouldNotifyNext = !!nextStep;
+            const notifyTargets = shouldNotifyNext ? nextSteps : [];
+
             // Notify all next step approvers
-            for (const ns of nextSteps) {
+            for (const ns of notifyTargets) {
               const nextProfile = getProfile(ns.approver_user_id);
               const creatorProfile = memo ? getProfile(memo.from_user_id) : null;
               if (nextProfile && memo) {

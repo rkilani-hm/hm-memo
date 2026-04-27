@@ -195,17 +195,49 @@ const PendingApprovals = () => {
           .eq('memo_id', memoId)
           .order('step_order');
 
-        const currentStep = allSteps?.find((s) => s.id === stepId);
-        const nextStep = allSteps?.find(
-          (s) => s.step_order > (currentStep?.step_order || 0) && s.status === 'pending'
+        // The step we just signed has its server-side row still showing
+        // status='pending' in `allSteps` because we read it before the
+        // update propagates to the cache. Treat our own step as approved.
+        const stepsAfterUpdate = (allSteps || []).map((s) =>
+          s.id === stepId ? { ...s, status: 'approved' } : s,
         );
 
-        if (nextStep) {
+        // The memo is fully approved ONLY when no required step is still pending.
+        // This prevents the bug where the last-in-order approver clicking first
+        // marks the memo approved before earlier approvers have signed.
+        const requiredPending = stepsAfterUpdate.filter(
+          (s) => s.is_required && s.status === 'pending',
+        );
+
+        // For "current_step" advancement we still want to highlight whichever
+        // step is now next-in-line — defined as the lowest step_order with a
+        // pending status, so the approvals list shows it as actionable.
+        const lowestPending = stepsAfterUpdate
+          .filter((s) => s.status === 'pending')
+          .sort((a, b) => a.step_order - b.step_order)[0];
+
+        const currentStep = stepsAfterUpdate.find((s) => s.id === stepId);
+        // The next approver to notify is the lowest-step_order pending step
+        // that hasn't already been notified — i.e. the new next-in-line.
+        const nextStep = lowestPending || null;
+
+        if (requiredPending.length > 0) {
+          // Memo is not finalised yet — keep it in_review and surface the
+          // lowest pending step as current_step.
           await supabase
             .from('memos')
-            .update({ current_step: nextStep.step_order, status: 'in_review' })
+            .update({
+              current_step: nextStep?.step_order ?? (currentStep?.step_order ?? null),
+              status: 'in_review',
+            })
             .eq('id', memoId);
-          nextApproverStep = nextStep;
+          // Notify the next approver only if (a) someone is still pending and
+          // (b) they are at a step strictly later than the one just signed —
+          // i.e. the original sequential-flow case. Out-of-order signers
+          // shouldn't trigger duplicate "you're next" emails.
+          if (nextStep && nextStep.step_order > (currentStep?.step_order ?? 0)) {
+            nextApproverStep = nextStep;
+          }
         } else {
           await supabase
             .from('memos')
