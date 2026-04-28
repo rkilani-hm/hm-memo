@@ -110,7 +110,7 @@ export const DispatchDialog: React.FC<DispatchDialogProps> = ({
       const { data: roleRows, error: rolesErr } = await supabase
         .from('user_roles')
         .select('user_id, role')
-        .in('role', FINANCE_REVIEWER_ROLES as unknown as string[]);
+        .in('role', FINANCE_REVIEWER_ROLES as readonly any[] as any);
       if (rolesErr) throw rolesErr;
       const userIds = [...new Set((roleRows || []).map((r) => r.user_id))];
       if (userIds.length === 0) return [];

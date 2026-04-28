@@ -80,7 +80,7 @@ export const FinanceDispatchDelegationCard = () => {
       const { data: roleRows, error: rolesErr } = await supabase
         .from('user_roles')
         .select('user_id, role')
-        .in('role', FINANCE_REVIEWER_ROLES as unknown as string[]);
+        .in('role', FINANCE_REVIEWER_ROLES as readonly any[] as any);
       if (rolesErr) throw rolesErr;
 
       const userIds = [...new Set((roleRows || []).map((r) => r.user_id))]
