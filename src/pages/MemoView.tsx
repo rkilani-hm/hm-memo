@@ -1470,36 +1470,42 @@ const MemoView = () => {
         <div className="no-print max-w-4xl mx-auto mt-6">
           <Tabs defaultValue="comments">
             <TabsList>
-              <TabsTrigger value="comments">Comments</TabsTrigger>
-              <TabsTrigger value="audit-trail">Audit Trail</TabsTrigger>
-              <TabsTrigger value="versions">Version History</TabsTrigger>
+              {canSeeComments && <TabsTrigger value="comments">Comments</TabsTrigger>}
+              {canSeeAuditTrail && <TabsTrigger value="audit-trail">Audit Trail</TabsTrigger>}
+              {canSeeVersions && <TabsTrigger value="versions">Version History</TabsTrigger>}
             </TabsList>
-            <TabsContent value="comments" className="mt-4">
-              {approvalSteps.filter(s => s.comments).length > 0 ? (
-                <div className="space-y-2">
-                  {approvalSteps.filter(s => s.comments).map(s => {
-                    const approver = getProfile(s.approver_user_id);
-                    return (
-                      <div key={s.id} className="border rounded-md p-3">
-                        <p className="text-sm font-medium">{approver?.full_name || 'Unknown'}</p>
-                        <p className="text-sm text-muted-foreground">{s.comments}</p>
-                        {s.signed_at && (
-                          <p className="text-xs text-muted-foreground mt-1">{format(new Date(s.signed_at), 'dd MMM yyyy, HH:mm')}</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No comments yet.</p>
-              )}
-            </TabsContent>
-            <TabsContent value="audit-trail" className="mt-4">
-              <AuditTrailTab memoId={id} />
-            </TabsContent>
-            <TabsContent value="versions" className="mt-4">
-              <VersionHistory memoId={id} />
-            </TabsContent>
+            {canSeeComments && (
+              <TabsContent value="comments" className="mt-4">
+                {approvalSteps.filter(s => s.comments).length > 0 ? (
+                  <div className="space-y-2">
+                    {approvalSteps.filter(s => s.comments).map(s => {
+                      const approver = getProfile(s.approver_user_id);
+                      return (
+                        <div key={s.id} className="border rounded-md p-3">
+                          <p className="text-sm font-medium">{approver?.full_name || 'Unknown'}</p>
+                          <p className="text-sm text-muted-foreground">{s.comments}</p>
+                          {s.signed_at && (
+                            <p className="text-xs text-muted-foreground mt-1">{format(new Date(s.signed_at), 'dd MMM yyyy, HH:mm')}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No comments yet.</p>
+                )}
+              </TabsContent>
+            )}
+            {canSeeAuditTrail && (
+              <TabsContent value="audit-trail" className="mt-4">
+                <AuditTrailTab memoId={id} />
+              </TabsContent>
+            )}
+            {canSeeVersions && (
+              <TabsContent value="versions" className="mt-4">
+                <VersionHistory memoId={id} />
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       )}
