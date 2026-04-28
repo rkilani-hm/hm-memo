@@ -1249,6 +1249,10 @@ export type Database = {
         Args: { _delegate_id: string; _memo_id: string }
         Returns: boolean
       }
+      is_dispatcher_parent_of_step: {
+        Args: { _parent_step_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_memo_owner: {
         Args: { _memo_id: string; _user_id: string }
         Returns: boolean
