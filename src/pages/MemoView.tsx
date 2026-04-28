@@ -1093,10 +1093,14 @@ const MemoView = () => {
           {/* DESCRIPTION */}
           <div className="border-b border-foreground/30 px-4 py-3">
             <p className="text-xs font-bold uppercase mb-2">Description:</p>
-            <div
-              className="prose prose-sm max-w-none text-foreground memo-body-preview"
-              dangerouslySetInnerHTML={{ __html: memo.description || '<p>No description.</p>' }}
-            />
+            {canSeeBody ? (
+              <div
+                className="prose prose-sm max-w-none text-foreground memo-body-preview"
+                dangerouslySetInnerHTML={{ __html: memo.description || '<p>No description.</p>' }}
+              />
+            ) : (
+              <p className="text-sm italic text-muted-foreground">You do not have permission to view the memo body.</p>
+            )}
 
             {/* Sender Signature / Sign-off block */}
             <div className="flex justify-end mt-8 mb-4">
