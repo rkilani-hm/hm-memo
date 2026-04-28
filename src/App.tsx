@@ -28,6 +28,7 @@ import ApprovalPerformance from "@/pages/admin/ApprovalPerformance";
 import ReminderSettings from "@/pages/admin/ReminderSettings";
 import Authorization from "@/pages/admin/Authorization";
 import FraudSettings from "@/pages/admin/FraudSettings";
+import PermissionAudit from "@/pages/admin/PermissionAudit";
 import NoAccess from "@/pages/NoAccess";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Settings from "@/pages/Settings";
@@ -73,6 +74,7 @@ const App = () => (
                 <Route path="/admin/reminder-settings" element={<ProtectedRoute resourceKey="admin/reminder-settings" requiredRole="admin"><ReminderSettings /></ProtectedRoute>} />
                 <Route path="/admin/authorization" element={<ProtectedRoute resourceKey="admin/authorization" requiredRole="admin"><Authorization /></ProtectedRoute>} />
                 <Route path="/admin/fraud-settings" element={<ProtectedRoute resourceKey="admin/fraud-settings" requiredRole="admin"><FraudSettings /></ProtectedRoute>} />
+                <Route path="/admin/permission-audit" element={<ProtectedRoute resourceKey="admin/permission-audit" requiredRole="admin"><PermissionAudit /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

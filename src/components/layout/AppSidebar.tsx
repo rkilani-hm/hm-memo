@@ -35,6 +35,7 @@ import {
   Minus,
   Briefcase,
   Workflow,
+  History,
 } from 'lucide-react';
 
 // -------------------------------------------------------------------------
@@ -103,9 +104,10 @@ const adminGroups: NavGroup[] = [
     label: 'Security & Compliance',
     icon: Shield,
     items: [
-      { title: 'Fraud & MFA',     icon: ShieldCheck, path: '/admin/fraud-settings',  key: 'admin/fraud-settings' },
-      { title: 'Audit Log',       icon: ScrollText,  path: '/admin/audit-log',       key: 'admin/audit-log' },
-      { title: 'Audit Analytics', icon: BarChart3,   path: '/admin/audit-dashboard', key: 'admin/audit-dashboard' },
+      { title: 'Fraud & MFA',       icon: ShieldCheck, path: '/admin/fraud-settings',     key: 'admin/fraud-settings' },
+      { title: 'Permission Audit',  icon: History,     path: '/admin/permission-audit',   key: 'admin/permission-audit' },
+      { title: 'Audit Log',         icon: ScrollText,  path: '/admin/audit-log',          key: 'admin/audit-log' },
+      { title: 'Audit Analytics',   icon: BarChart3,   path: '/admin/audit-dashboard',    key: 'admin/audit-dashboard' },
     ],
   },
 ];
