@@ -1466,9 +1466,9 @@ const MemoView = () => {
       })()}
 
       {/* Audit Trail Tab */}
-      {memo && id && (
+      {memo && id && (canSeeComments || canSeeAuditTrail || canSeeVersions) && (
         <div className="no-print max-w-4xl mx-auto mt-6">
-          <Tabs defaultValue="comments">
+          <Tabs defaultValue={canSeeComments ? 'comments' : canSeeAuditTrail ? 'audit-trail' : 'versions'}>
             <TabsList>
               {canSeeComments && <TabsTrigger value="comments">Comments</TabsTrigger>}
               {canSeeAuditTrail && <TabsTrigger value="audit-trail">Audit Trail</TabsTrigger>}
