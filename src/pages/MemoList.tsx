@@ -1,5 +1,5 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchDepartments, fetchProfiles } from '@/lib/memo-api';
@@ -33,7 +33,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { FilePlus, Search, ChevronDown, ChevronRight, Building2, UserCheck, Globe2, Clock, CheckCircle2, XCircle, RotateCcw, Pen, Type } from 'lucide-react';
+import { FilePlus, Search, ChevronDown, ChevronRight, Building2, UserCheck, Globe2, Clock, CheckCircle2, XCircle, RotateCcw, Pen, Type, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState, useMemo } from 'react';
 
@@ -49,6 +49,28 @@ const statusColors: Record<string, string> = {
 const MemoList = () => {
   const { user, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await queryClient.invalidateQueries({
+        predicate: (q) => {
+          const key = q.queryKey?.[0];
+          return (
+            key === 'memos' ||
+            key === 'all-approval-steps' ||
+            key === 'profiles' ||
+            key === 'departments' ||
+            key === 'cross-dept-rules'
+          );
+        },
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [deptOpen, setDeptOpen] = useState(true);
@@ -418,10 +440,21 @@ const MemoList = () => {
           <h1 className="text-2xl font-bold text-foreground">My Memos</h1>
           <p className="text-sm text-muted-foreground">View and manage your memos</p>
         </div>
-        <Button onClick={() => navigate('/memos/create')}>
-          <FilePlus className="h-4 w-4 mr-2" />
-          Create Memo
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isRefreshing || authLoading}
+            title="Force re-fetch the memo list"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh memo list
+          </Button>
+          <Button onClick={() => navigate('/memos/create')}>
+            <FilePlus className="h-4 w-4 mr-2" />
+            Create Memo
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
