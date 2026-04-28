@@ -47,7 +47,7 @@ const statusColors: Record<string, string> = {
 };
 
 const MemoList = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -56,17 +56,20 @@ const MemoList = () => {
   const [crossDeptOpen, setCrossDeptOpen] = useState(true);
 
   const { data: departments = [] } = useQuery({
-    queryKey: ['departments'],
+    queryKey: ['departments', user?.id],
+    enabled: !!user?.id,
     queryFn: fetchDepartments,
   });
 
   const { data: allProfiles = [] } = useQuery({
-    queryKey: ['profiles'],
+    queryKey: ['profiles', user?.id],
+    enabled: !!user?.id,
     queryFn: fetchProfiles,
   });
 
-  const { data: memos = [], isLoading } = useQuery({
-    queryKey: ['memos'],
+  const { data: memos = [], isLoading: memosLoading } = useQuery({
+    queryKey: ['memos', user?.id],
+    enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('memos')
@@ -79,7 +82,8 @@ const MemoList = () => {
 
   // Fetch all approval steps for pending info
   const { data: allApprovalSteps = [] } = useQuery({
-    queryKey: ['all-approval-steps'],
+    queryKey: ['all-approval-steps', user?.id],
+    enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_steps')
@@ -119,7 +123,8 @@ const MemoList = () => {
 
   // Fetch cross-dept rules to determine visibility badges
   const { data: crossDeptRules = [] } = useQuery({
-    queryKey: ['cross-dept-rules'],
+    queryKey: ['cross-dept-rules', user?.id],
+    enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cross_department_rules')
@@ -404,6 +409,7 @@ const MemoList = () => {
   const filteredDept = filterMemos(deptMemos);
   const filteredAssigned = filterMemos(assignedMemos);
   const filteredCross = filterMemos(crossDeptMemos);
+  const isLoading = authLoading || memosLoading;
 
   return (
     <div className="space-y-6">
