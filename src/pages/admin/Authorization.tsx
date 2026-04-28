@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvalidatePermissions } from '@/hooks/usePermissions';
+import { routeAccessRules } from '@/lib/route-access-rules';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Shield, Building2, Users, Check, X, Minus } from 'lucide-react';
+import { Shield, Building2, Users, Check, X, Minus, Route as RouteIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Authorization = () => {
@@ -149,6 +149,7 @@ const Authorization = () => {
 
   const pageResources = resources.filter((r) => r.category === 'page');
   const contentResources = resources.filter((r) => r.category === 'content');
+  const resourceLabels = new Map(resources.map((r) => [r.resource_key, r.label]));
 
   const getDeptPermState = (key: string): boolean | null => {
     const p = deptPerms.find((dp) => dp.resource_key === key);
@@ -226,6 +227,53 @@ const Authorization = () => {
     </div>
   );
 
+  const renderRouteRules = () => (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <RouteIcon className="h-4 w-4 text-primary" />
+          Route Access Rules
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/50 border-b">
+                <th className="text-left px-4 py-2 font-medium">Route</th>
+                <th className="text-left px-4 py-2 font-medium">Screen</th>
+                <th className="text-left px-4 py-2 font-medium">Permission</th>
+                <th className="text-left px-4 py-2 font-medium">Role</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {routeAccessRules.map((rule) => (
+                <tr key={rule.path} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{rule.path}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="font-medium">{rule.label}</div>
+                    <div className="text-xs text-muted-foreground">{rule.area}</div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <Badge variant="outline" className="font-mono text-[10px]">{rule.resourceKey}</Badge>
+                    <div className="text-xs text-muted-foreground mt-1">{resourceLabels.get(rule.resourceKey) || 'Not listed in permissions'}</div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {rule.requiredRole ? (
+                      <Badge variant="secondary" className="capitalize">{rule.requiredRole}</Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No role required</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
@@ -247,6 +295,10 @@ const Authorization = () => {
           <TabsTrigger value="user" className="gap-1.5">
             <Users className="h-3.5 w-3.5" />
             By User
+          </TabsTrigger>
+          <TabsTrigger value="routes" className="gap-1.5">
+            <RouteIcon className="h-3.5 w-3.5" />
+            Route Rules
           </TabsTrigger>
         </TabsList>
 
@@ -316,6 +368,10 @@ const Authorization = () => {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="routes" className="space-y-4 mt-4">
+          {renderRouteRules()}
         </TabsContent>
       </Tabs>
     </div>
