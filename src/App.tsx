@@ -28,6 +28,8 @@ import ApprovalPerformance from "@/pages/admin/ApprovalPerformance";
 import ReminderSettings from "@/pages/admin/ReminderSettings";
 import Authorization from "@/pages/admin/Authorization";
 import FraudSettings from "@/pages/admin/FraudSettings";
+import NoAccess from "@/pages/NoAccess";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Settings from "@/pages/Settings";
 import HelpGuide from "@/pages/HelpGuide";
 import Notifications from "@/pages/Notifications";
@@ -49,28 +51,28 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/force-password-reset" element={<ForcePasswordReset />} />
               <Route element={<AppLayout />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/memos" element={<MemoList />} />
-                <Route path="/memos/create" element={<MemoCreate />} />
-                <Route path="/memos/:id/edit" element={<MemoEdit />} />
-                <Route path="/memos/:id" element={<MemoView />} />
-                <Route path="/approvals" element={<PendingApprovals />} />
-                <Route path="/finance/payments" element={<FinancePayments />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/help" element={<HelpGuide />} />
-                <Route path="/notifications" element={<Notifications />} />
-                <Route path="/admin/users" element={<UserManagement />} />
-                <Route path="/admin/departments" element={<DepartmentManagement />} />
-                <Route path="/admin/workflows" element={<WorkflowManagement />} />
-                <Route path="/admin/delegates" element={<DelegateManagement />} />
-                <Route path="/admin/audit-log" element={<AuditLog />} />
-                <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
-                <Route path="/admin/cross-dept-rules" element={<CrossDeptRules />} />
-                <Route path="/admin/approval-performance" element={<ApprovalPerformance />} />
-                <Route path="/admin/reminder-settings" element={<ReminderSettings />} />
-                <Route path="/admin/authorization" element={<Authorization />} />
-                <Route path="/admin/fraud-settings" element={<FraudSettings />} />
-                <Route path="/admin/audit-dashboard" element={<AuditDashboard />} />
+                <Route path="/" element={<ProtectedRoute resourceKey="dashboard"><Dashboard /></ProtectedRoute>} />
+                <Route path="/memos" element={<ProtectedRoute resourceKey="memos"><MemoList /></ProtectedRoute>} />
+                <Route path="/memos/create" element={<ProtectedRoute resourceKey="memos/create"><MemoCreate /></ProtectedRoute>} />
+                <Route path="/memos/:id/edit" element={<ProtectedRoute resourceKey="memos"><MemoEdit /></ProtectedRoute>} />
+                <Route path="/memos/:id" element={<ProtectedRoute resourceKey="memos"><MemoView /></ProtectedRoute>} />
+                <Route path="/approvals" element={<ProtectedRoute resourceKey="approvals"><PendingApprovals /></ProtectedRoute>} />
+                <Route path="/finance/payments" element={<ProtectedRoute resourceKey="finance/payments" requiredRole="finance"><FinancePayments /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute resourceKey="settings"><Settings /></ProtectedRoute>} />
+                <Route path="/help" element={<ProtectedRoute resourceKey="help"><HelpGuide /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute resourceKey="notifications"><Notifications /></ProtectedRoute>} />
+                <Route path="/no-access" element={<NoAccess />} />
+                <Route path="/admin/users" element={<ProtectedRoute resourceKey="admin/users" requiredRole="admin"><UserManagement /></ProtectedRoute>} />
+                <Route path="/admin/departments" element={<ProtectedRoute resourceKey="admin/departments" requiredRole="admin"><DepartmentManagement /></ProtectedRoute>} />
+                <Route path="/admin/workflows" element={<ProtectedRoute resourceKey="admin/workflows" requiredRole="admin"><WorkflowManagement /></ProtectedRoute>} />
+                <Route path="/admin/delegates" element={<ProtectedRoute resourceKey="admin/delegates" requiredRole="admin"><DelegateManagement /></ProtectedRoute>} />
+                <Route path="/admin/audit-log" element={<ProtectedRoute resourceKey="admin/audit-log" requiredRole="admin"><AuditLog /></ProtectedRoute>} />
+                <Route path="/admin/audit-dashboard" element={<ProtectedRoute resourceKey="admin/audit-dashboard" requiredRole="admin"><AuditDashboard /></ProtectedRoute>} />
+                <Route path="/admin/cross-dept-rules" element={<ProtectedRoute resourceKey="admin/cross-dept-rules" requiredRole="admin"><CrossDeptRules /></ProtectedRoute>} />
+                <Route path="/admin/approval-performance" element={<ProtectedRoute resourceKey="admin/approval-performance" requiredRole="admin"><ApprovalPerformance /></ProtectedRoute>} />
+                <Route path="/admin/reminder-settings" element={<ProtectedRoute resourceKey="admin/reminder-settings" requiredRole="admin"><ReminderSettings /></ProtectedRoute>} />
+                <Route path="/admin/authorization" element={<ProtectedRoute resourceKey="admin/authorization" requiredRole="admin"><Authorization /></ProtectedRoute>} />
+                <Route path="/admin/fraud-settings" element={<ProtectedRoute resourceKey="admin/fraud-settings" requiredRole="admin"><FraudSettings /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

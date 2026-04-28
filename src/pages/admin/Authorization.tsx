@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useInvalidatePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 const Authorization = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const invalidatePermissions = useInvalidatePermissions();
   const [selectedDeptId, setSelectedDeptId] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string>('');
 
@@ -107,7 +109,8 @@ const Authorization = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['department_permissions', selectedDeptId] });
-      toast({ title: 'Permission updated' });
+      invalidatePermissions();
+      toast({ title: 'Permission updated', description: 'Refresh the page if you don\'t see the change applied to navigation immediately.' });
     },
     onError: (err: any) => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -136,7 +139,8 @@ const Authorization = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user_permissions', selectedUserId] });
-      toast({ title: 'Permission updated' });
+      invalidatePermissions();
+      toast({ title: 'Permission updated', description: 'The user will see the change after their next page navigation or sign-in.' });
     },
     onError: (err: any) => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
