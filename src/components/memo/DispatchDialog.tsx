@@ -151,7 +151,14 @@ export const DispatchDialog: React.FC<DispatchDialogProps> = ({
     return s;
   }, [selectedIds, includeSelf, user]);
 
-  const canSubmit = !submitting && effectiveSelected.size > 0;
+  // The submit is always allowed once we're not already submitting —
+  // zero reviewers is now a valid state ("approve directly without
+  // forwarding for review"). The dispatch step in that case becomes
+  // the dispatcher's combined sign-off, and the memo advances to the
+  // next existing step (Hassan / GM / CEO / etc.) without spawning
+  // any reviewer steps.
+  const canSubmit = !submitting;
+  const isSelfApprove = effectiveSelected.size === 0;
 
   // ---- Toggle a user in the selection ----------------------------------
   const toggleUser = (uid: string) => {
@@ -182,8 +189,10 @@ export const DispatchDialog: React.FC<DispatchDialogProps> = ({
       }
 
       toast({
-        title: 'Memo dispatched',
-        description: `Sent to ${reviewerIds.length} reviewer${reviewerIds.length === 1 ? '' : 's'}. They will be notified shortly.`,
+        title: isSelfApprove ? 'Memo approved' : 'Memo dispatched',
+        description: isSelfApprove
+          ? 'You approved this memo directly. It will advance to the next step.'
+          : `Sent to ${reviewerIds.length} reviewer${reviewerIds.length === 1 ? '' : 's'}. They will be notified shortly.`,
       });
       setSelectedIds(new Set());
       setIncludeSelf(false);
@@ -216,7 +225,7 @@ export const DispatchDialog: React.FC<DispatchDialogProps> = ({
             )}
           </DialogTitle>
           <DialogDescription>
-            Pick the finance team member(s) who should initial this memo. Reviewers will work in parallel — each will get this memo in their queue independently. The memo advances to your sign-off step automatically once all picks complete.
+            Pick finance team member(s) who should initial this memo, OR leave the list empty to approve directly. Reviewers (when picked) work in parallel — each gets the memo in their queue independently. The memo advances to the next step once all reviewers complete, or immediately if you approve directly.
           </DialogDescription>
         </DialogHeader>
 
@@ -329,7 +338,9 @@ export const DispatchDialog: React.FC<DispatchDialogProps> = ({
           <Button onClick={handleDispatch} disabled={!canSubmit}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
             <Send className="h-4 w-4 mr-1.5" />
-            Dispatch{effectiveSelected.size > 0 ? ` to ${effectiveSelected.size}` : ''}
+            {isSelfApprove
+              ? 'Approve directly'
+              : `Dispatch to ${effectiveSelected.size}`}
           </Button>
         </DialogFooter>
       </DialogContent>

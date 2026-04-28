@@ -96,12 +96,18 @@ serve(async (req) => {
     if (!step_id || typeof step_id !== "string") {
       return errorResponse("step_id is required", 400);
     }
-    if (!Array.isArray(reviewer_user_ids) || reviewer_user_ids.length === 0) {
-      return errorResponse("reviewer_user_ids must be a non-empty array", 400);
+    // Zero reviewers is now valid: it means "the dispatcher approves
+    // directly without forwarding for review." The dispatch step also
+    // serves as the sign-off in that case (combined). One reviewer or
+    // many reviewers means the standard fork-and-join flow.
+    if (!Array.isArray(reviewer_user_ids)) {
+      return errorResponse("reviewer_user_ids must be an array (use [] to approve directly)", 400);
     }
     if (reviewer_user_ids.length > 20) {
       return errorResponse("Cannot dispatch to more than 20 reviewers", 400);
     }
+
+    const isSelfApprove = reviewer_user_ids.length === 0;
 
     // ---- Fetch the dispatch step ---------------------------------------
     const { data: dispatchStep, error: stepErr } = await adminClient
@@ -148,26 +154,28 @@ serve(async (req) => {
     }
 
     // ---- Validate every reviewer has a finance reviewer role -----------
-    // De-dupe the picked list (defensive)
-    const uniqueReviewerIds = [...new Set(reviewer_user_ids)];
+    // (skipped when self-approving, since there are no reviewers to validate)
+    const uniqueReviewerIds = isSelfApprove ? [] : [...new Set(reviewer_user_ids)];
 
-    const { data: reviewerRoles, error: rolesErr } = await adminClient
-      .from("user_roles")
-      .select("user_id, role")
-      .in("user_id", uniqueReviewerIds)
-      .in("role", FINANCE_REVIEWER_ROLES as unknown as string[]);
+    if (!isSelfApprove) {
+      const { data: reviewerRoles, error: rolesErr } = await adminClient
+        .from("user_roles")
+        .select("user_id, role")
+        .in("user_id", uniqueReviewerIds)
+        .in("role", FINANCE_REVIEWER_ROLES as unknown as string[]);
 
-    if (rolesErr) {
-      return errorResponse(`Failed to validate reviewer roles: ${rolesErr.message}`, 500);
-    }
+      if (rolesErr) {
+        return errorResponse(`Failed to validate reviewer roles: ${rolesErr.message}`, 500);
+      }
 
-    const validatedIds = new Set<string>((reviewerRoles || []).map((r: any) => r.user_id));
-    const invalidIds = uniqueReviewerIds.filter((id) => !validatedIds.has(id));
-    if (invalidIds.length > 0) {
-      return errorResponse(
-        `These users do not have a finance reviewer role: ${invalidIds.join(", ")}`,
-        400,
-      );
+      const validatedIds = new Set<string>((reviewerRoles || []).map((r: any) => r.user_id));
+      const invalidIds = uniqueReviewerIds.filter((id) => !validatedIds.has(id));
+      if (invalidIds.length > 0) {
+        return errorResponse(
+          `These users do not have a finance reviewer role: ${invalidIds.join(", ")}`,
+          400,
+        );
+      }
     }
 
     // ---- Capture caller's roles for signer_roles_at_signing ------------
@@ -198,35 +206,40 @@ serve(async (req) => {
     const newParallelGroup = existingGroups.length > 0 ? Math.max(...existingGroups) + 1 : 1;
 
     // ---- Renumber subsequent steps to free up the slot ------------------
-    // Step n.B: Postgres has no "transaction" via supabase-js client. We
-    // do best-effort sequencing and roll back on failure manually. For
-    // typical workflows the affected row count is tiny (3-5 rows).
-    const stepsToShift = (allSteps || []).filter((s: any) => s.step_order > dispatchOrder);
-
-    // Shift in reverse order so we don't conflict with unique constraints
-    // if any exist on (memo_id, step_order).
-    const shiftSorted = [...stepsToShift].sort(
-      (a: any, b: any) => b.step_order - a.step_order,
-    );
-
+    // Skipped when self-approving — no reviewer steps will be inserted,
+    // so no slot is needed. The dispatch step's existing step_order
+    // is preserved.
     const shiftedIds: { id: string; oldOrder: number; newOrder: number }[] = [];
-    for (const s of shiftSorted) {
-      const newOrder = (s as any).step_order + 1;
-      const { error: shiftErr } = await adminClient
-        .from("approval_steps")
-        .update({ step_order: newOrder })
-        .eq("id", (s as any).id);
-      if (shiftErr) {
-        // Roll back any already-shifted steps
-        for (const done of shiftedIds) {
-          await adminClient
-            .from("approval_steps")
-            .update({ step_order: done.oldOrder })
-            .eq("id", done.id);
+    if (!isSelfApprove) {
+      // Step n.B: Postgres has no "transaction" via supabase-js client. We
+      // do best-effort sequencing and roll back on failure manually. For
+      // typical workflows the affected row count is tiny (3-5 rows).
+      const stepsToShift = (allSteps || []).filter((s: any) => s.step_order > dispatchOrder);
+
+      // Shift in reverse order so we don't conflict with unique constraints
+      // if any exist on (memo_id, step_order).
+      const shiftSorted = [...stepsToShift].sort(
+        (a: any, b: any) => b.step_order - a.step_order,
+      );
+
+      for (const s of shiftSorted) {
+        const newOrder = (s as any).step_order + 1;
+        const { error: shiftErr } = await adminClient
+          .from("approval_steps")
+          .update({ step_order: newOrder })
+          .eq("id", (s as any).id);
+        if (shiftErr) {
+          // Roll back any already-shifted steps
+          for (const done of shiftedIds) {
+            await adminClient
+              .from("approval_steps")
+              .update({ step_order: done.oldOrder })
+              .eq("id", done.id);
+          }
+          return errorResponse(`Failed to renumber steps: ${shiftErr.message}`, 500);
         }
-        return errorResponse(`Failed to renumber steps: ${shiftErr.message}`, 500);
+        shiftedIds.push({ id: (s as any).id, oldOrder: (s as any).step_order, newOrder });
       }
-      shiftedIds.push({ id: (s as any).id, oldOrder: (s as any).step_order, newOrder });
     }
 
     // ---- Mark dispatch step approved -----------------------------------
@@ -258,71 +271,90 @@ serve(async (req) => {
     }
 
     // ---- Insert reviewer steps -----------------------------------------
-    const reviewerRows = uniqueReviewerIds.map((reviewerId) => ({
-      memo_id: dispatchStep.memo_id,
-      approver_user_id: reviewerId,
-      step_order: reviewerOrder,
-      parallel_group: newParallelGroup,
-      action_type: "initial" as const,
-      is_required: true,
-      status: "pending" as const,
-      parent_dispatch_step_id: step_id,
-      stage_level: dispatchStep.stage_level || "finance",
-      deadline: null,
-    }));
+    // Skipped when self-approving — the dispatch step itself serves as
+    // the dispatcher's sign-off, no children needed. The workflow
+    // engine sees the dispatch step as approved and naturally advances
+    // to the next existing step (Hassan, GM, etc.).
+    let insertedReviewerStepIds: string[] = [];
+    if (!isSelfApprove) {
+      const reviewerRows = uniqueReviewerIds.map((reviewerId) => ({
+        memo_id: dispatchStep.memo_id,
+        approver_user_id: reviewerId,
+        step_order: reviewerOrder,
+        parallel_group: newParallelGroup,
+        action_type: "initial" as const,
+        is_required: true,
+        status: "pending" as const,
+        parent_dispatch_step_id: step_id,
+        stage_level: dispatchStep.stage_level || "finance",
+        deadline: null,
+      }));
 
-    const { data: insertedRows, error: insertErr } = await adminClient
-      .from("approval_steps")
-      .insert(reviewerRows)
-      .select("id");
-
-    if (insertErr) {
-      // Roll back: revert dispatch step + renumber. Best-effort.
-      console.error("Reviewer insert failed; attempting rollback:", insertErr);
-      await adminClient
+      const { data: insertedRows, error: insertErr } = await adminClient
         .from("approval_steps")
-        .update({
-          status: "pending",
-          signed_at: null,
-          dispatched_at: null,
-          dispatched_to_user_ids: null,
-          dispatched_notes: null,
-          signer_roles_at_signing: null,
-        })
-        .eq("id", step_id);
-      for (const done of shiftedIds) {
+        .insert(reviewerRows)
+        .select("id");
+
+      if (insertErr) {
+        // Roll back: revert dispatch step + renumber. Best-effort.
+        console.error("Reviewer insert failed; attempting rollback:", insertErr);
         await adminClient
           .from("approval_steps")
-          .update({ step_order: done.oldOrder })
-          .eq("id", done.id);
+          .update({
+            status: "pending",
+            signed_at: null,
+            dispatched_at: null,
+            dispatched_to_user_ids: null,
+            dispatched_notes: null,
+            signer_roles_at_signing: null,
+          })
+          .eq("id", step_id);
+        for (const done of shiftedIds) {
+          await adminClient
+            .from("approval_steps")
+            .update({ step_order: done.oldOrder })
+            .eq("id", done.id);
+        }
+        return errorResponse(
+          `Failed to insert reviewer steps: ${insertErr.message}`,
+          500,
+        );
       }
-      return errorResponse(
-        `Failed to insert reviewer steps: ${insertErr.message}`,
-        500,
-      );
+
+      insertedReviewerStepIds = (insertedRows || []).map((r: any) => r.id);
     }
 
     // ---- Audit log entry ------------------------------------------------
     try {
+      const auditAction = isSelfApprove
+        ? "finance_dispatch_self_approved"
+        : "finance_dispatch";
+      const auditNotes = isSelfApprove
+        ? (notes
+            ? `Dispatcher approved directly without forwarding for review. Notes: ${notes}`
+            : "Dispatcher approved directly without forwarding for review.")
+        : (notes
+            ? `Dispatched to ${uniqueReviewerIds.length} reviewer(s). Notes: ${notes}`
+            : `Dispatched to ${uniqueReviewerIds.length} reviewer(s).`);
+
       await adminClient.from("audit_log").insert({
         memo_id: dispatchStep.memo_id,
         user_id: callerId,
-        action: "finance_dispatch",
-        action_detail: "dispatched_reviewers",
+        action: auditAction,
+        action_detail: isSelfApprove ? "self_approved" : "dispatched_reviewers",
         signing_method: "digital",
         previous_status: "pending",
         new_status: "approved",
         details: {
           dispatch_step_id: step_id,
           reviewer_user_ids: uniqueReviewerIds,
+          self_approved: isSelfApprove,
           notes: notes || null,
           on_behalf_of: callerId !== dispatchStep.approver_user_id
             ? dispatchStep.approver_user_id
             : null,
         },
-        notes: notes
-          ? `Dispatched to ${uniqueReviewerIds.length} reviewer(s). Notes: ${notes}`
-          : `Dispatched to ${uniqueReviewerIds.length} reviewer(s).`,
+        notes: auditNotes,
       });
     } catch (auditErr) {
       // Audit logging is best-effort
@@ -332,7 +364,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        reviewer_step_ids: (insertedRows || []).map((r: any) => r.id),
+        self_approved: isSelfApprove,
+        reviewer_step_ids: insertedReviewerStepIds,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

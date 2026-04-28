@@ -212,55 +212,120 @@ serve(async (req) => {
       .delete()
       .eq("memo_id", memo_id);
 
-    // For dispatch steps in the template, the approver_user_id wasn't
-    // chosen by the creator — we resolve it now from the role specified
-    // in dispatcher_pool_role (honoring active time-bounded delegations).
-    // We only need to call the RPC once per submission since all dispatch
-    // steps share the same role mapping.
-    let resolvedDispatcherId: string | null = null;
-    const templateHasDispatch = steps.some((s) => s.is_dispatcher === true);
-    if (templateHasDispatch) {
-      const { data: dispRpc, error: dispRpcErr } = await adminClient.rpc(
-        "effective_finance_dispatcher",
-      );
-      if (dispRpcErr) {
-        console.warn("effective_finance_dispatcher RPC error:", dispRpcErr);
-      }
-      resolvedDispatcherId = (dispRpc as string | null) || null;
+    // -------------------------------------------------------------------
+    // Role-based dispatcher detection (replaces previous template-flag
+    // detection). Any approval step whose approver holds the
+    // finance_dispatcher role automatically becomes a dispatch step at
+    // runtime. This means free-form workflows (creator picks Mohammed)
+    // and admin-saved presets (template includes Mohammed) both trigger
+    // dispatch behavior identically — the trigger is the ROLE, not the
+    // template.
+    //
+    // Time-bounded delegation: if Mohammed has an active delegation
+    // when the memo is submitted, the dispatch step's approver_user_id
+    // is rewritten to point at the delegate so the memo lands in the
+    // delegate's queue instead of Mohammed's. After the delegation
+    // window ends, NEW memos go back to Mohammed; in-flight memos
+    // already routed to the delegate stay there (the delegate's
+    // implicit dispatcher rights persist for the specific memos they
+    // were entrusted with).
+    // -------------------------------------------------------------------
 
-      if (!resolvedDispatcherId) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error:
-              "This workflow requires a Finance Dispatcher but no active user holds the finance_dispatcher role. " +
-              "Ask your administrator to assign the finance_dispatcher role to the appropriate user.",
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+    // Collect distinct approver IDs from all steps (skip template
+    // dispatcher placeholder steps that don't yet have an approver
+    // assigned — those are LEGACY and will be filtered out by the
+    // resolution code below)
+    const candidateApproverIds = [
+      ...new Set(
+        steps
+          .map((s) => s.approver_user_id)
+          .filter((v): v is string => !!v),
+      ),
+    ];
+
+    // Find which of these approvers are finance dispatchers
+    const dispatcherIds = new Set<string>();
+    if (candidateApproverIds.length > 0) {
+      const { data: dispatcherRows, error: dispErr } = await adminClient
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "finance_dispatcher")
+        .in("user_id", candidateApproverIds);
+      if (dispErr) {
+        console.warn("user_roles dispatcher lookup error:", dispErr);
+      } else {
+        for (const r of dispatcherRows || []) dispatcherIds.add((r as any).user_id);
       }
     }
 
-    // Create approval steps with action_type, parallel_group, is_required,
-    // deadline, plus dispatch metadata when applicable.
-    const approvalSteps = steps.map((step, index) => {
-      const isDispatch = step.is_dispatcher === true;
-      const approverId = isDispatch
-        ? (resolvedDispatcherId as string)
-        : step.approver_user_id;
-      return {
-        memo_id,
-        approver_user_id: approverId,
-        step_order: index + 1,
-        status: "pending" as const,
-        action_type: step.action_type || "signature",
-        parallel_group: step.parallel_group ?? null,
-        is_required: step.is_required !== false,
-        deadline: step.deadline || null,
-        stage_level: step.stage_level || null,
-        is_dispatcher: isDispatch,
-      };
-    });
+    // Resolve effective dispatcher (honors active delegation window)
+    // — only needed if at least one step has a dispatcher approver.
+    // We call the RPC once, the resulting user-id is used to rewrite
+    // any step that points at any dispatcher (see note: only ONE
+    // dispatcher exists in the codebase by convention; if multiple,
+    // the first one wins — collapsed into a single delegation lookup).
+    let effectiveDispatcherId: string | null = null;
+    if (dispatcherIds.size > 0) {
+      const { data: effRpc, error: effErr } = await adminClient.rpc(
+        "effective_finance_dispatcher",
+      );
+      if (effErr) {
+        console.warn("effective_finance_dispatcher RPC error:", effErr);
+      }
+      effectiveDispatcherId = (effRpc as string | null) || null;
+    }
+
+    // -------------------------------------------------------------------
+    // Build the final approval_steps rows
+    // -------------------------------------------------------------------
+    // For each template step:
+    //   - If approver is a dispatcher → mark is_dispatcher=true, and
+    //     rewrite approver_user_id to the effective dispatcher (which
+    //     may be a delegate) when one exists.
+    //   - Otherwise → standard step.
+    //
+    // Legacy template handling: steps that were marked is_dispatcher
+    // in the template (from the old pre-redesign templates we just
+    // deleted) but have no approver_user_id set are skipped silently
+    // — those templates shouldn't be in active use after this
+    // migration applies, but we handle them gracefully just in case.
+    const approvalSteps = steps
+      .filter((s) => !!s.approver_user_id) // skip approverless legacy steps
+      .map((step, index) => {
+        const approverIsDispatcher = dispatcherIds.has(step.approver_user_id);
+        const approverId = approverIsDispatcher && effectiveDispatcherId
+          ? effectiveDispatcherId
+          : step.approver_user_id;
+        return {
+          memo_id,
+          approver_user_id: approverId,
+          step_order: index + 1,
+          status: "pending" as const,
+          action_type: step.action_type || "signature",
+          parallel_group: step.parallel_group ?? null,
+          is_required: step.is_required !== false,
+          deadline: step.deadline || null,
+          stage_level: step.stage_level || null,
+          is_dispatcher: approverIsDispatcher,
+        };
+      });
+
+    if (approvalSteps.length === 0) {
+      // All template steps were approverless legacy dispatcher steps
+      // and got filtered out. Treat as no-workflow.
+      await adminClient
+        .from("memos")
+        .update({ status: "submitted", current_step: 0 })
+        .eq("id", memo_id);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          approval_steps_created: 0,
+          message: "Workflow has no concrete approvers; memo submitted without approval steps.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     const { error: stepsErr } = await adminClient
       .from("approval_steps")
