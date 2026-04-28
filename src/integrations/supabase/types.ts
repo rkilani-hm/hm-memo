@@ -1205,6 +1205,15 @@ export type Database = {
       }
     }
     Functions: {
+      admin_diagnose_memo_visibility: {
+        Args: never
+        Returns: {
+          caller_is_admin: boolean
+          caller_user_id: string
+          total_in_db: number
+          visible_to_caller: number
+        }[]
+      }
       effective_finance_dispatcher: { Args: never; Returns: string }
       get_next_transmittal_no: { Args: { dept_id: string }; Returns: string }
       has_cross_dept_access:
