@@ -11,6 +11,7 @@ import { generateMemoPdf, prepareMemoData, type PrintPreferences, DEFAULT_PRINT_
 import { buildMemoHtml } from '@/lib/memo-pdf-html';
 import { saveApprovedMemoToSharePoint } from '@/lib/sharepoint-save';
 import { buildAuthFactors } from '@/lib/audit-auth-factors';
+import DispatchDialog from '@/components/memo/DispatchDialog';
 import PrintPreviewDialog from '@/components/memo/PrintPreviewDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, FileDown, Edit, Undo2, Trash2, Banknote } from 'lucide-react';
+import { ArrowLeft, Printer, CheckCircle2, XCircle, Clock, RotateCcw, Pen, Type, FileDown, Edit, Undo2, Trash2, Banknote, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import SignaturePad from '@/components/memo/SignaturePad';
@@ -98,6 +99,7 @@ const MemoView = () => {
   const [passwordError, setPasswordError] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
+  const [dispatchDialogOpen, setDispatchDialogOpen] = useState(false);
   const [mfaVerified, setMfaVerified] = useState(false);
 
   // Fetch fraud-settings to know if MFA is required for payment memos
@@ -210,8 +212,39 @@ const MemoView = () => {
   const getProfile = (userId: string) => profiles.find((p) => p.user_id === userId);
   const getDept = (deptId: string) => departments.find((d) => d.id === deptId);
 
+  // Active delegation lookup: am I currently the effective finance dispatcher?
+  // This lets the delegate see dispatch steps that are technically assigned
+  // to Mohammed (or whoever the principal is) when an active delegation
+  // covers the current moment. RPC is cheap and the result is cached for
+  // 30s by React Query — fresh enough for this use case.
+  const { data: effectiveDispatcherId } = useQuery({
+    queryKey: ['effective-finance-dispatcher'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('effective_finance_dispatcher');
+      if (error) {
+        console.warn('effective_finance_dispatcher RPC error:', error);
+        return null;
+      }
+      return data as string | null;
+    },
+    staleTime: 30 * 1000,
+  });
+
   const myPendingStep = user
-    ? approvalSteps.find((s) => s.approver_user_id === user.id && s.status === 'pending')
+    ? approvalSteps.find((s) => {
+        // Direct assignment
+        if (s.approver_user_id === user.id && s.status === 'pending') return true;
+        // Delegated dispatch: current user is the effective dispatcher AND
+        // this is an unfilled dispatch step.
+        if (
+          (s as any).is_dispatcher === true &&
+          s.status === 'pending' &&
+          effectiveDispatcherId === user.id
+        ) {
+          return true;
+        }
+        return false;
+      })
     : null;
 
   const getStepActionType = (step: any): StepActionType => {
@@ -984,7 +1017,16 @@ const MemoView = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {myPendingStep && (
+          {myPendingStep && (myPendingStep as any).is_dispatcher ? (
+            <Button
+              size="sm"
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => setDispatchDialogOpen(true)}
+            >
+              <Send className="h-4 w-4 mr-1" />
+              Dispatch Reviewers
+            </Button>
+          ) : myPendingStep && (
             <>
               <Button
                 size="sm"
@@ -1871,6 +1913,22 @@ const MemoView = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dispatch Reviewers Dialog (Mohammed picks reviewers for finance routes) */}
+      {myPendingStep && (myPendingStep as any).is_dispatcher && (
+        <DispatchDialog
+          open={dispatchDialogOpen}
+          onOpenChange={setDispatchDialogOpen}
+          memoId={id!}
+          stepId={myPendingStep.id}
+          routeTag={(workflowTemplate as any)?.pdf_layout?.finance_route ?? null}
+          onDispatched={() => {
+            queryClient.invalidateQueries({ queryKey: ['memo', id] });
+            queryClient.invalidateQueries({ queryKey: ['approval-steps', id] });
+            queryClient.invalidateQueries({ queryKey: ['approvals'] });
+          }}
+        />
+      )}
 
       {/* Print Preview Dialog */}
       <PrintPreviewDialog

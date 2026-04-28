@@ -41,6 +41,7 @@ import {
   Eye,
   Clock,
   FileText,
+  Send,
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 
@@ -80,17 +81,45 @@ const PendingApprovals = () => {
       };
     },
   });
-  // Fetch approval steps assigned to current user
+  // Fetch approval steps assigned to current user, PLUS any pending
+  // dispatch steps where the current user is the active finance
+  // dispatcher (covers the delegation case where a memo's dispatch step
+  // is technically assigned to the principal but should be acted on by
+  // the delegate during their window).
   const { data: mySteps = [], isLoading } = useQuery({
     queryKey: ['my-approval-steps', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1. Direct assignments
+      const directQuery = supabase
         .from('approval_steps')
         .select('*')
         .eq('approver_user_id', user!.id)
         .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
+
+      // 2. Effective-dispatcher pending dispatch steps (catches the delegate case)
+      const { data: effRpc } = await supabase.rpc('effective_finance_dispatcher');
+      const effectiveDispatcher = effRpc as string | null;
+
+      let dispatchData: any[] = [];
+      if (effectiveDispatcher === user!.id) {
+        const { data: dispRows } = await supabase
+          .from('approval_steps')
+          .select('*')
+          .eq('is_dispatcher', true)
+          .eq('status', 'pending');
+        dispatchData = dispRows || [];
+      }
+
+      const { data: directData, error: directErr } = await directQuery;
+      if (directErr) throw directErr;
+
+      // De-dupe by id (in case the user is both directly assigned and the effective dispatcher)
+      const merged = new Map<string, any>();
+      for (const s of directData || []) merged.set(s.id, s);
+      for (const s of dispatchData) merged.set(s.id, s);
+      return [...merged.values()].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
     },
     enabled: !!user,
   });
@@ -526,58 +555,71 @@ const PendingApprovals = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button
-                            size="sm"
-                            className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-[hsl(var(--success-foreground))] h-8"
-                            onClick={() => {
-                              const myProfile = user ? getProfile(user.id) : null;
-                              if (myProfile?.signature_image_url) {
-                                setSignatureMode('saved');
-                                setSignatureDataUrl(myProfile.signature_image_url);
-                              } else {
-                                setSignatureMode('draw');
-                                setSignatureDataUrl(null);
-                              }
-                              setActionDialog({
-                                stepId: step.id,
-                                memoId: step.memo_id,
-                                action: 'approved',
-                              });
-                            }}
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            className="h-8"
-                            onClick={() =>
-                              setActionDialog({
-                                stepId: step.id,
-                                memoId: step.memo_id,
-                                action: 'rejected',
-                              })
-                            }
-                          >
-                            <XCircle className="h-3.5 w-3.5 mr-1" />
-                            Reject
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8"
-                            onClick={() =>
-                              setActionDialog({
-                                stepId: step.id,
-                                memoId: step.memo_id,
-                                action: 'rework',
-                              })
-                            }
-                          >
-                            <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                            Rework
-                          </Button>
+                          {(step as any).is_dispatcher ? (
+                            <Button
+                              size="sm"
+                              className="bg-primary hover:bg-primary/90 h-8"
+                              onClick={() => navigate(`/memos/${memo.id}`)}
+                            >
+                              <Send className="h-3.5 w-3.5 mr-1" />
+                              Dispatch
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-[hsl(var(--success-foreground))] h-8"
+                                onClick={() => {
+                                  const myProfile = user ? getProfile(user.id) : null;
+                                  if (myProfile?.signature_image_url) {
+                                    setSignatureMode('saved');
+                                    setSignatureDataUrl(myProfile.signature_image_url);
+                                  } else {
+                                    setSignatureMode('draw');
+                                    setSignatureDataUrl(null);
+                                  }
+                                  setActionDialog({
+                                    stepId: step.id,
+                                    memoId: step.memo_id,
+                                    action: 'approved',
+                                  });
+                                }}
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-8"
+                                onClick={() =>
+                                  setActionDialog({
+                                    stepId: step.id,
+                                    memoId: step.memo_id,
+                                    action: 'rejected',
+                                  })
+                                }
+                              >
+                                <XCircle className="h-3.5 w-3.5 mr-1" />
+                                Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                onClick={() =>
+                                  setActionDialog({
+                                    stepId: step.id,
+                                    memoId: step.memo_id,
+                                    action: 'rework',
+                                  })
+                                }
+                              >
+                                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                                Rework
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

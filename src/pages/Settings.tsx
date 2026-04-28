@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { User, Pen, Save, Upload, Trash2, Type, Printer } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { ChangePasswordCard } from '@/components/settings/ChangePasswordCard';
+import { FinanceDispatchDelegationCard } from '@/components/settings/FinanceDispatchDelegationCard';
 import SignedImage from '@/components/memo/SignedImage';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -616,6 +617,9 @@ const Settings = () => {
 
       {/* Change Password */}
       <ChangePasswordCard />
+
+      {/* Finance Dispatch Delegation — only renders for finance_dispatcher role holders */}
+      <FinanceDispatchDelegationCard />
 
       {/* Actions */}
       <div className="flex justify-between">
