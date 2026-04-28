@@ -1215,6 +1215,17 @@ export type Database = {
         }[]
       }
       effective_finance_dispatcher: { Args: never; Returns: string }
+      get_finance_reviewer_pool: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          is_active: boolean
+          job_title: string
+          roles: string[]
+          user_id: string
+        }[]
+      }
       get_next_transmittal_no: { Args: { dept_id: string }; Returns: string }
       has_cross_dept_access:
         | {
