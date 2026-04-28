@@ -155,6 +155,225 @@ function buildL1SignOffHtml(
     </div>`;
 }
 
+// =====================================================================
+// Finance dispatch PDF rendering
+// =====================================================================
+// When a memo flows through one of the new finance routes (AP / AR /
+// Budget) we render a three-column signature grid:
+//
+//   Column A — Finance Team. Variable rows, time-ordered. Each row is
+//              one finance signer. Empty when no finance signers exist.
+//   Column B — General Manager. Always reserved. Empty if memo doesn't
+//              escalate that high.
+//   Column C — CEO / Chairman. Always reserved. Empty if memo doesn't
+//              escalate that high.
+//
+// Department Head signs in the memo BODY, not in this grid. Mohammed's
+// dispatch step is not printed (it's routing, not approval).
+//
+// Column placement is determined by signer_roles_at_signing — the
+// snapshot captured when the user signed. Stable forever even if roles
+// are reassigned later.
+// =====================================================================
+
+const FINANCE_REVIEWER_ROLES_FOR_PDF = [
+  'finance_dispatcher',
+  'finance_manager',
+  'ap_accountant',
+  'ar_accountant',
+  'budget_controller',
+  'finance', // legacy role kept for older signed steps
+] as const;
+
+const GM_ROLES_FOR_PDF = ['gm', 'general_manager'] as const;
+const CEO_ROLES_FOR_PDF = ['ceo', 'chairman'] as const;
+
+/** Returns true if any step in the chain belongs to the new finance dispatch flow. */
+function memoUsesFinanceDispatch(steps: Tables<'approval_steps'>[]): boolean {
+  return steps.some((s) => {
+    if ((s as any).is_dispatcher === true) return true;
+    if ((s as any).parent_dispatch_step_id) return true;
+    const roles = ((s as any).signer_roles_at_signing as string[] | null) || [];
+    return roles.some((r) => (FINANCE_REVIEWER_ROLES_FOR_PDF as readonly string[]).includes(r));
+  });
+}
+
+/** Classify a step into A (finance) / B (GM) / C (CEO) / null (skip). */
+function classifyStepForPdf(
+  step: Tables<'approval_steps'>,
+  profiles: Profile[],
+): 'A' | 'B' | 'C' | null {
+  // Never print dispatch routing events
+  if ((step as any).is_dispatcher === true) return null;
+
+  const snapshot = ((step as any).signer_roles_at_signing as string[] | null) || [];
+  const isFinance = snapshot.some((r) => (FINANCE_REVIEWER_ROLES_FOR_PDF as readonly string[]).includes(r));
+  if (isFinance) return 'A';
+
+  const isGm = snapshot.some((r) => (GM_ROLES_FOR_PDF as readonly string[]).includes(r));
+  if (isGm) return 'B';
+
+  const isCeo = snapshot.some((r) => (CEO_ROLES_FOR_PDF as readonly string[]).includes(r));
+  if (isCeo) return 'C';
+
+  // No snapshot — unsigned step OR pre-snapshot-feature step. Fall back
+  // to inspecting stage_level + the approver's profile job_title.
+  const stage = (step as any).stage_level?.toLowerCase?.() || '';
+  if (stage.includes('finance')) return 'A';
+  if (stage === 'gm' || stage.includes('general manager')) return 'B';
+  if (stage === 'ceo' || stage.includes('ceo') || stage.includes('chairman')) return 'C';
+
+  // Last resort: profile job title contains a strong hint
+  const approver = getProfile(profiles, step.approver_user_id);
+  const title = (approver?.job_title || '').toLowerCase();
+  if (title.includes('accountant') || title.includes('finance') || title.includes('budget')) return 'A';
+  if (title === 'general manager' || title === 'gm') return 'B';
+  if (title === 'ceo' || title === 'chairman') return 'C';
+
+  // Unknown — exclude from this grid; the renderer will note nothing.
+  return null;
+}
+
+/** Friendly role label for the small subtitle line in column A */
+function financeRoleLabelForPdf(snapshot: string[] | null): string {
+  if (!snapshot || snapshot.length === 0) return 'Finance';
+  if (snapshot.includes('finance_dispatcher')) return 'Finance Asst. Manager';
+  if (snapshot.includes('finance_manager')) return 'Finance Manager';
+  if (snapshot.includes('ap_accountant')) return 'AP Accountant';
+  if (snapshot.includes('ar_accountant')) return 'AR Accountant';
+  if (snapshot.includes('budget_controller')) return 'Budget Controller';
+  if (snapshot.includes('finance')) return 'Finance';
+  return 'Finance';
+}
+
+/**
+ * Build a single sub-row inside Column A. Compact layout (signature
+ * smaller than buildApprovalCellContent's default to fit multiple
+ * signers stacked vertically without overflowing the column).
+ */
+function buildFinanceSubRowHtml(
+  step: Tables<'approval_steps'>,
+  profiles: Profile[],
+  sigDataUrls: Record<string, string | null>,
+): string {
+  const approver = getProfile(profiles, step.approver_user_id);
+  const sigUrl = sigDataUrls[step.id] || null;
+  const isInitial = (step as any).action_type === 'initial';
+  const isApproved = step.status === 'approved';
+
+  let sigHtml = '';
+  if (sigUrl) {
+    sigHtml = `<img src="${sigUrl}" style="max-width:60pt;max-height:${isInitial ? '18pt' : '22pt'};object-fit:contain;display:block;margin:0 auto;" />`;
+  } else if (isInitial && isApproved) {
+    sigHtml = `<span style="font-size:12pt;font-weight:bold;font-style:italic;color:#1B3A5C;">${approver?.initials || '✓'}</span>`;
+  } else if (isApproved) {
+    sigHtml = `<span style="font-size:6pt;font-style:italic;color:#666;">[Digitally Approved]</span>`;
+  }
+
+  const dateStr = step.signed_at ? format(new Date(step.signed_at), 'dd MMM yyyy') : '';
+  const name = approver?.full_name || 'Unknown';
+  const roleLabel = financeRoleLabelForPdf((step as any).signer_roles_at_signing as string[] | null);
+
+  return `
+    <div style="padding:3pt;border-bottom:0.3pt solid #ddd;page-break-inside:avoid;">
+      <div style="text-align:center;min-height:18pt;">${sigHtml}</div>
+      <div style="border-bottom:0.3pt solid #999;width:80%;margin:1pt auto;"></div>
+      <p style="font-size:5.5pt;font-weight:bold;margin:0;line-height:1.1;text-align:center;word-wrap:break-word;">${name}</p>
+      <p style="font-size:5pt;color:#666;margin:0;line-height:1.05;text-align:center;">${roleLabel}</p>
+      ${dateStr ? `<p style="font-size:5pt;margin:0;line-height:1.05;text-align:center;">${dateStr}</p>` : ''}
+    </div>`;
+}
+
+/** Build a single signature cell for column B or C (single signer, taller layout) */
+function buildSingleColumnCellHtml(
+  step: Tables<'approval_steps'> | undefined,
+  profiles: Profile[],
+  sigDataUrls: Record<string, string | null>,
+  registeredByProfiles: Record<string, Profile | undefined>,
+  actionLabel: string,
+): string {
+  return buildApprovalCellContent(step, profiles, sigDataUrls, registeredByProfiles, actionLabel);
+}
+
+/**
+ * The three-column renderer for memos that flowed through a finance
+ * dispatch route. Column A always present (blank if no finance
+ * signers). Column B always present (blank if no GM signer).
+ * Column C always present (blank if no CEO/Chairman signer).
+ */
+function buildFinanceDispatchApprovalsHtml(
+  steps: Tables<'approval_steps'>[],
+  profiles: Profile[],
+  sigDataUrls: Record<string, string | null>,
+  registeredByProfiles: Record<string, Profile | undefined>,
+): string {
+  // Bucket steps by column. Skip dispatch steps and unclassifiable steps.
+  const colA: Tables<'approval_steps'>[] = [];
+  let colB: Tables<'approval_steps'> | undefined;
+  let colC: Tables<'approval_steps'> | undefined;
+
+  for (const s of steps) {
+    const cls = classifyStepForPdf(s, profiles);
+    if (cls === 'A') colA.push(s);
+    else if (cls === 'B' && !colB) colB = s; // first GM signer wins
+    else if (cls === 'C' && !colC) colC = s; // first CEO signer wins
+    // null = skip
+  }
+
+  // Time-order column A by signed_at (signed steps first, then unsigned by
+  // step_order as a stable secondary key)
+  colA.sort((a, b) => {
+    const aSigned = a.signed_at ? new Date(a.signed_at).getTime() : Number.MAX_SAFE_INTEGER;
+    const bSigned = b.signed_at ? new Date(b.signed_at).getTime() : Number.MAX_SAFE_INTEGER;
+    if (aSigned !== bSigned) return aSigned - bSigned;
+    return (a.step_order || 0) - (b.step_order || 0);
+  });
+
+  // Column A content: stack of sub-rows, OR an empty placeholder
+  const columnAContent = colA.length === 0
+    ? `<div style="padding:8pt;text-align:center;color:#999;font-size:6pt;font-style:italic;">No finance review required</div>`
+    : colA.map((s) => buildFinanceSubRowHtml(s, profiles, sigDataUrls)).join('');
+
+  // Column B content
+  const columnBContent = colB
+    ? buildSingleColumnCellHtml(colB, profiles, sigDataUrls, registeredByProfiles, 'APPROVE')
+    : `<div style="padding:8pt;text-align:center;color:#999;font-size:6pt;font-style:italic;">No GM approval required</div>`;
+
+  // Column C content
+  const columnCContent = colC
+    ? buildSingleColumnCellHtml(colC, profiles, sigDataUrls, registeredByProfiles, 'APPROVE')
+    : `<div style="padding:8pt;text-align:center;color:#999;font-size:6pt;font-style:italic;">No CEO/Chairman approval required</div>`;
+
+  return `
+    <div style="margin:16px 0;page-break-inside:avoid;">
+      <div style="background:#CC0000;color:#fff;text-align:center;padding:8px;font-weight:bold;font-size:11pt;letter-spacing:2px;text-transform:uppercase;">
+        Approvals
+      </div>
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+        <thead>
+          <tr>
+            <th style="border:0.5pt solid #000;padding:4pt;background:#f3f4f6;font-size:7pt;font-weight:bold;letter-spacing:0.5px;text-transform:uppercase;width:33.33%;">Finance Team</th>
+            <th style="border:0.5pt solid #000;padding:4pt;background:#f3f4f6;font-size:7pt;font-weight:bold;letter-spacing:0.5px;text-transform:uppercase;width:33.33%;">General Manager</th>
+            <th style="border:0.5pt solid #000;padding:4pt;background:#f3f4f6;font-size:7pt;font-weight:bold;letter-spacing:0.5px;text-transform:uppercase;width:33.33%;">CEO / Chairman</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="border:0.5pt solid #000;vertical-align:top;padding:0;">
+              ${columnAContent}
+            </td>
+            <td style="border:0.5pt solid #000;vertical-align:top;padding:0;min-height:54pt;">
+              ${columnBContent}
+            </td>
+            <td style="border:0.5pt solid #000;vertical-align:top;padding:0;min-height:54pt;">
+              ${columnCContent}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
 /** Build the staged approvals table using pdf_layout config */
 function buildStagedApprovalsHtml(
   approvalSteps: Tables<'approval_steps'>[],
@@ -163,6 +382,23 @@ function buildStagedApprovalsHtml(
   registeredByProfiles: Record<string, Profile | undefined>,
   pdfLayout?: PdfLayout | null
 ): string {
+  // ---------------------------------------------------------------------
+  // New finance-dispatch layout: three fixed columns (A=finance,
+  // B=GM, C=CEO/Chairman). Triggered when ANY step in the chain
+  // either is a dispatch step or has a finance role recorded in
+  // signer_roles_at_signing. Falls through to existing logic for
+  // memos that don't touch finance — those continue to render
+  // exactly as they do today.
+  // ---------------------------------------------------------------------
+  if (memoUsesFinanceDispatch(approvalSteps)) {
+    return buildFinanceDispatchApprovalsHtml(
+      approvalSteps,
+      profiles,
+      sigDataUrls,
+      registeredByProfiles,
+    );
+  }
+
   // If a pdf_layout is provided, use it
   if (pdfLayout && pdfLayout.grid) {
     return buildLayoutBasedApprovalsHtml(approvalSteps, profiles, sigDataUrls, registeredByProfiles, pdfLayout);
