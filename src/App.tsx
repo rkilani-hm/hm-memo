@@ -31,6 +31,7 @@ import FraudSettings from "@/pages/admin/FraudSettings";
 import PermissionAudit from "@/pages/admin/PermissionAudit";
 import NoAccess from "@/pages/NoAccess";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { routeGuard } from "@/lib/route-access-rules";
 import Settings from "@/pages/Settings";
 import HelpGuide from "@/pages/HelpGuide";
 import Notifications from "@/pages/Notifications";
@@ -52,29 +53,29 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/force-password-reset" element={<ForcePasswordReset />} />
               <Route element={<AppLayout />}>
-                <Route path="/" element={<ProtectedRoute resourceKey="dashboard"><Dashboard /></ProtectedRoute>} />
-                <Route path="/memos" element={<ProtectedRoute resourceKey="memos"><MemoList /></ProtectedRoute>} />
-                <Route path="/memos/create" element={<ProtectedRoute resourceKey="memos/create"><MemoCreate /></ProtectedRoute>} />
-                <Route path="/memos/:id/edit" element={<ProtectedRoute resourceKey="memos"><MemoEdit /></ProtectedRoute>} />
-                <Route path="/memos/:id" element={<ProtectedRoute resourceKey="memos"><MemoView /></ProtectedRoute>} />
-                <Route path="/approvals" element={<ProtectedRoute resourceKey="approvals"><PendingApprovals /></ProtectedRoute>} />
-                <Route path="/finance/payments" element={<ProtectedRoute resourceKey="finance/payments" requiredRole="finance"><FinancePayments /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute resourceKey="settings"><Settings /></ProtectedRoute>} />
-                <Route path="/help" element={<ProtectedRoute resourceKey="help"><HelpGuide /></ProtectedRoute>} />
-                <Route path="/notifications" element={<ProtectedRoute resourceKey="notifications"><Notifications /></ProtectedRoute>} />
+                <Route path="/" element={<ProtectedRoute {...routeGuard("/")}><Dashboard /></ProtectedRoute>} />
+                <Route path="/memos" element={<ProtectedRoute {...routeGuard("/memos")}><MemoList /></ProtectedRoute>} />
+                <Route path="/memos/create" element={<ProtectedRoute {...routeGuard("/memos/create")}><MemoCreate /></ProtectedRoute>} />
+                <Route path="/memos/:id/edit" element={<ProtectedRoute {...routeGuard("/memos/:id/edit")}><MemoEdit /></ProtectedRoute>} />
+                <Route path="/memos/:id" element={<ProtectedRoute {...routeGuard("/memos/:id")}><MemoView /></ProtectedRoute>} />
+                <Route path="/approvals" element={<ProtectedRoute {...routeGuard("/approvals")}><PendingApprovals /></ProtectedRoute>} />
+                <Route path="/finance/payments" element={<ProtectedRoute {...routeGuard("/finance/payments")}><FinancePayments /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute {...routeGuard("/settings")}><Settings /></ProtectedRoute>} />
+                <Route path="/help" element={<ProtectedRoute {...routeGuard("/help")}><HelpGuide /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute {...routeGuard("/notifications")}><Notifications /></ProtectedRoute>} />
                 <Route path="/no-access" element={<NoAccess />} />
-                <Route path="/admin/users" element={<ProtectedRoute resourceKey="admin/users" requiredRole="admin"><UserManagement /></ProtectedRoute>} />
-                <Route path="/admin/departments" element={<ProtectedRoute resourceKey="admin/departments" requiredRole="admin"><DepartmentManagement /></ProtectedRoute>} />
-                <Route path="/admin/workflows" element={<ProtectedRoute resourceKey="admin/workflows" requiredRole="admin"><WorkflowManagement /></ProtectedRoute>} />
-                <Route path="/admin/delegates" element={<ProtectedRoute resourceKey="admin/delegates" requiredRole="admin"><DelegateManagement /></ProtectedRoute>} />
-                <Route path="/admin/audit-log" element={<ProtectedRoute resourceKey="admin/audit-log" requiredRole="admin"><AuditLog /></ProtectedRoute>} />
-                <Route path="/admin/audit-dashboard" element={<ProtectedRoute resourceKey="admin/audit-dashboard" requiredRole="admin"><AuditDashboard /></ProtectedRoute>} />
-                <Route path="/admin/cross-dept-rules" element={<ProtectedRoute resourceKey="admin/cross-dept-rules" requiredRole="admin"><CrossDeptRules /></ProtectedRoute>} />
-                <Route path="/admin/approval-performance" element={<ProtectedRoute resourceKey="admin/approval-performance" requiredRole="admin"><ApprovalPerformance /></ProtectedRoute>} />
-                <Route path="/admin/reminder-settings" element={<ProtectedRoute resourceKey="admin/reminder-settings" requiredRole="admin"><ReminderSettings /></ProtectedRoute>} />
-                <Route path="/admin/authorization" element={<ProtectedRoute resourceKey="admin/authorization" requiredRole="admin"><Authorization /></ProtectedRoute>} />
-                <Route path="/admin/fraud-settings" element={<ProtectedRoute resourceKey="admin/fraud-settings" requiredRole="admin"><FraudSettings /></ProtectedRoute>} />
-                <Route path="/admin/permission-audit" element={<ProtectedRoute resourceKey="admin/permission-audit" requiredRole="admin"><PermissionAudit /></ProtectedRoute>} />
+                <Route path="/admin/users" element={<ProtectedRoute {...routeGuard("/admin/users")}><UserManagement /></ProtectedRoute>} />
+                <Route path="/admin/departments" element={<ProtectedRoute {...routeGuard("/admin/departments")}><DepartmentManagement /></ProtectedRoute>} />
+                <Route path="/admin/workflows" element={<ProtectedRoute {...routeGuard("/admin/workflows")}><WorkflowManagement /></ProtectedRoute>} />
+                <Route path="/admin/delegates" element={<ProtectedRoute {...routeGuard("/admin/delegates")}><DelegateManagement /></ProtectedRoute>} />
+                <Route path="/admin/audit-log" element={<ProtectedRoute {...routeGuard("/admin/audit-log")}><AuditLog /></ProtectedRoute>} />
+                <Route path="/admin/audit-dashboard" element={<ProtectedRoute {...routeGuard("/admin/audit-dashboard")}><AuditDashboard /></ProtectedRoute>} />
+                <Route path="/admin/cross-dept-rules" element={<ProtectedRoute {...routeGuard("/admin/cross-dept-rules")}><CrossDeptRules /></ProtectedRoute>} />
+                <Route path="/admin/approval-performance" element={<ProtectedRoute {...routeGuard("/admin/approval-performance")}><ApprovalPerformance /></ProtectedRoute>} />
+                <Route path="/admin/reminder-settings" element={<ProtectedRoute {...routeGuard("/admin/reminder-settings")}><ReminderSettings /></ProtectedRoute>} />
+                <Route path="/admin/authorization" element={<ProtectedRoute {...routeGuard("/admin/authorization")}><Authorization /></ProtectedRoute>} />
+                <Route path="/admin/fraud-settings" element={<ProtectedRoute {...routeGuard("/admin/fraud-settings")}><FraudSettings /></ProtectedRoute>} />
+                <Route path="/admin/permission-audit" element={<ProtectedRoute {...routeGuard("/admin/permission-audit")}><PermissionAudit /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
