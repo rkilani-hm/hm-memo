@@ -272,6 +272,17 @@ const MemoView = () => {
         }
       }
 
+      // Capture the signer's roles at this moment for the PDF renderer.
+      // This snapshot is stable forever — even if roles are later
+      // reassigned, the PDF will always show this signature in the
+      // correct column based on what the signer's role WAS when they
+      // signed.
+      const { data: callerRoleRows } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+      const signerRolesAtSigning = (callerRoleRows || []).map((r: any) => r.role);
+
       // Update approval step
       const { error: stepError } = await supabase
         .from('approval_steps')
@@ -282,7 +293,8 @@ const MemoView = () => {
           password_verified: true,
           signature_image_url: signatureUrl,
           signing_method: signatureUrl ? 'digital' : null,
-        })
+          signer_roles_at_signing: signerRolesAtSigning,
+        } as any)
         .eq('id', stepId);
       if (stepError) throw stepError;
 

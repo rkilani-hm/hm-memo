@@ -15,6 +15,17 @@ interface WorkflowStep {
   parallel_group?: number | null;
   deadline?: string | null;
   stage_level?: string | null;
+  // Finance-dispatch templates: when is_dispatcher is true the step's
+  // approver_user_id is resolved at submit time from the role specified
+  // in dispatcher_pool_role (typically 'finance_dispatcher'). Honors
+  // active time-bounded delegations via the
+  // effective_finance_dispatcher() RPC.
+  is_dispatcher?: boolean;
+  dispatcher_pool_role?: string;
+  // Tag identifying which finance route this step belongs to
+  // ('AP' | 'AR' | 'Budget'). Used by the dispatch UI to pre-suggest
+  // reviewers and by reporting.
+  route_tag?: string;
 }
 
 // Resolve IP to city/country via ip-api.com (non-blocking, best-effort)
@@ -201,18 +212,55 @@ serve(async (req) => {
       .delete()
       .eq("memo_id", memo_id);
 
-    // Create approval steps with action_type, parallel_group, is_required, deadline
-    const approvalSteps = steps.map((step, index) => ({
-      memo_id,
-      approver_user_id: step.approver_user_id,
-      step_order: index + 1,
-      status: "pending" as const,
-      action_type: step.action_type || "signature",
-      parallel_group: step.parallel_group ?? null,
-      is_required: step.is_required !== false,
-      deadline: step.deadline || null,
-      stage_level: step.stage_level || null,
-    }));
+    // For dispatch steps in the template, the approver_user_id wasn't
+    // chosen by the creator — we resolve it now from the role specified
+    // in dispatcher_pool_role (honoring active time-bounded delegations).
+    // We only need to call the RPC once per submission since all dispatch
+    // steps share the same role mapping.
+    let resolvedDispatcherId: string | null = null;
+    const templateHasDispatch = steps.some((s) => s.is_dispatcher === true);
+    if (templateHasDispatch) {
+      const { data: dispRpc, error: dispRpcErr } = await adminClient.rpc(
+        "effective_finance_dispatcher",
+      );
+      if (dispRpcErr) {
+        console.warn("effective_finance_dispatcher RPC error:", dispRpcErr);
+      }
+      resolvedDispatcherId = (dispRpc as string | null) || null;
+
+      if (!resolvedDispatcherId) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error:
+              "This workflow requires a Finance Dispatcher but no active user holds the finance_dispatcher role. " +
+              "Ask your administrator to assign the finance_dispatcher role to the appropriate user.",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    // Create approval steps with action_type, parallel_group, is_required,
+    // deadline, plus dispatch metadata when applicable.
+    const approvalSteps = steps.map((step, index) => {
+      const isDispatch = step.is_dispatcher === true;
+      const approverId = isDispatch
+        ? (resolvedDispatcherId as string)
+        : step.approver_user_id;
+      return {
+        memo_id,
+        approver_user_id: approverId,
+        step_order: index + 1,
+        status: "pending" as const,
+        action_type: step.action_type || "signature",
+        parallel_group: step.parallel_group ?? null,
+        is_required: step.is_required !== false,
+        deadline: step.deadline || null,
+        stage_level: step.stage_level || null,
+        is_dispatcher: isDispatch,
+      };
+    });
 
     const { error: stepsErr } = await adminClient
       .from("approval_steps")
