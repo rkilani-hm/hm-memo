@@ -50,9 +50,11 @@ import {
 
 const FINANCE_REVIEWER_ROLES = [
   'finance_dispatcher',
+  'finance_manager',
   'ap_accountant',
   'ar_accountant',
   'budget_controller',
+  'finance',
 ] as const;
 
 type FinanceRole = typeof FINANCE_REVIEWER_ROLES[number];
@@ -77,6 +79,8 @@ interface DispatchDialogProps {
 
 const ROLE_META: Record<FinanceRole, { label: string; icon: any; cls: string }> = {
   finance_dispatcher: { label: 'Dispatcher',     icon: Crown,        cls: 'border-amber-500/40 text-amber-700 bg-amber-500/5' },
+  finance_manager:    { label: 'Finance Mgr',    icon: Crown,        cls: 'border-amber-500/40 text-amber-700 bg-amber-500/5' },
+  finance:            { label: 'Finance',        icon: Briefcase,    cls: 'border-slate-500/40 text-slate-700 bg-slate-500/5' },
   ap_accountant:      { label: 'AP',             icon: Briefcase,    cls: 'border-blue-500/40 text-blue-700 bg-blue-500/5' },
   ar_accountant:      { label: 'AR',             icon: TrendingUp,   cls: 'border-emerald-500/40 text-emerald-700 bg-emerald-500/5' },
   budget_controller:  { label: 'Budget',         icon: PiggyBank,    cls: 'border-violet-500/40 text-violet-700 bg-violet-500/5' },
@@ -106,41 +110,18 @@ export const DispatchDialog: React.FC<DispatchDialogProps> = ({
     queryKey: ['finance-reviewer-pool', open],
     enabled: open,
     queryFn: async () => {
-      // Step 1: roles
-      const { data: roleRows, error: rolesErr } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('role', FINANCE_REVIEWER_ROLES as readonly any[] as any);
-      if (rolesErr) throw rolesErr;
-      const userIds = [...new Set((roleRows || []).map((r) => r.user_id))];
-      if (userIds.length === 0) return [];
-
-      // Step 2: profiles for those users
-      const { data: profileRows, error: profilesErr } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, email, job_title, is_active')
-        .in('user_id', userIds)
-        .eq('is_active', true);
-      if (profilesErr) throw profilesErr;
-
-      // Roll up roles per user
-      const rolesByUser = new Map<string, FinanceRole[]>();
-      for (const r of roleRows || []) {
-        const arr = rolesByUser.get(r.user_id) || [];
-        arr.push(r.role as FinanceRole);
-        rolesByUser.set(r.user_id, arr);
-      }
-
-      return (profileRows || [])
-        .map((p) => ({
-          user_id: p.user_id,
-          full_name: p.full_name || p.email || 'Unknown',
-          email: p.email || '',
-          job_title: p.job_title,
-          is_active: p.is_active,
-          roles: rolesByUser.get(p.user_id) || [],
-        }))
-        .sort((a, b) => a.full_name.localeCompare(b.full_name));
+      // Use SECURITY DEFINER RPC so non-admin dispatchers can see the
+      // full finance team (regular user_roles RLS hides other users' roles).
+      const { data, error } = await supabase.rpc('get_finance_reviewer_pool');
+      if (error) throw error;
+      return (data || []).map((r: any) => ({
+        user_id: r.user_id,
+        full_name: r.full_name || r.email || 'Unknown',
+        email: r.email || '',
+        job_title: r.job_title,
+        is_active: r.is_active,
+        roles: (r.roles || []) as FinanceRole[],
+      }));
     },
   });
 
