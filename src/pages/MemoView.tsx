@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { fetchProfiles, fetchDepartments, getAttachmentSignedUrl } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
@@ -76,6 +77,12 @@ const MemoView = () => {
   const navigate = useNavigate();
   const { user, profile, hasRole } = useAuth();
   const isAdmin = hasRole('admin');
+  const { hasPermission } = usePermissions();
+  const canSeeBody = hasPermission('content/memo_body');
+  const canSeeAttachments = hasPermission('content/attachments');
+  const canSeeAuditTrail = hasPermission('content/audit_trail');
+  const canSeeVersions = hasPermission('content/version_history');
+  const canSeeComments = hasPermission('content/comments');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -1086,10 +1093,14 @@ const MemoView = () => {
           {/* DESCRIPTION */}
           <div className="border-b border-foreground/30 px-4 py-3">
             <p className="text-xs font-bold uppercase mb-2">Description:</p>
-            <div
-              className="prose prose-sm max-w-none text-foreground memo-body-preview"
-              dangerouslySetInnerHTML={{ __html: memo.description || '<p>No description.</p>' }}
-            />
+            {canSeeBody ? (
+              <div
+                className="prose prose-sm max-w-none text-foreground memo-body-preview"
+                dangerouslySetInnerHTML={{ __html: memo.description || '<p>No description.</p>' }}
+              />
+            ) : (
+              <p className="text-sm italic text-muted-foreground">You do not have permission to view the memo body.</p>
+            )}
 
             {/* Sender Signature / Sign-off block */}
             <div className="flex justify-end mt-8 mb-4">
@@ -1381,7 +1392,7 @@ const MemoView = () => {
           })()}
 
           {/* Attachments (screen only) */}
-          {attachments.length > 0 && (
+          {canSeeAttachments && attachments.length > 0 && (
             <div className="no-print px-4 pb-4">
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Attachments</p>
               <ul className="space-y-1 text-sm">
@@ -1455,40 +1466,46 @@ const MemoView = () => {
       })()}
 
       {/* Audit Trail Tab */}
-      {memo && id && (
+      {memo && id && (canSeeComments || canSeeAuditTrail || canSeeVersions) && (
         <div className="no-print max-w-4xl mx-auto mt-6">
-          <Tabs defaultValue="comments">
+          <Tabs defaultValue={canSeeComments ? 'comments' : canSeeAuditTrail ? 'audit-trail' : 'versions'}>
             <TabsList>
-              <TabsTrigger value="comments">Comments</TabsTrigger>
-              <TabsTrigger value="audit-trail">Audit Trail</TabsTrigger>
-              <TabsTrigger value="versions">Version History</TabsTrigger>
+              {canSeeComments && <TabsTrigger value="comments">Comments</TabsTrigger>}
+              {canSeeAuditTrail && <TabsTrigger value="audit-trail">Audit Trail</TabsTrigger>}
+              {canSeeVersions && <TabsTrigger value="versions">Version History</TabsTrigger>}
             </TabsList>
-            <TabsContent value="comments" className="mt-4">
-              {approvalSteps.filter(s => s.comments).length > 0 ? (
-                <div className="space-y-2">
-                  {approvalSteps.filter(s => s.comments).map(s => {
-                    const approver = getProfile(s.approver_user_id);
-                    return (
-                      <div key={s.id} className="border rounded-md p-3">
-                        <p className="text-sm font-medium">{approver?.full_name || 'Unknown'}</p>
-                        <p className="text-sm text-muted-foreground">{s.comments}</p>
-                        {s.signed_at && (
-                          <p className="text-xs text-muted-foreground mt-1">{format(new Date(s.signed_at), 'dd MMM yyyy, HH:mm')}</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No comments yet.</p>
-              )}
-            </TabsContent>
-            <TabsContent value="audit-trail" className="mt-4">
-              <AuditTrailTab memoId={id} />
-            </TabsContent>
-            <TabsContent value="versions" className="mt-4">
-              <VersionHistory memoId={id} />
-            </TabsContent>
+            {canSeeComments && (
+              <TabsContent value="comments" className="mt-4">
+                {approvalSteps.filter(s => s.comments).length > 0 ? (
+                  <div className="space-y-2">
+                    {approvalSteps.filter(s => s.comments).map(s => {
+                      const approver = getProfile(s.approver_user_id);
+                      return (
+                        <div key={s.id} className="border rounded-md p-3">
+                          <p className="text-sm font-medium">{approver?.full_name || 'Unknown'}</p>
+                          <p className="text-sm text-muted-foreground">{s.comments}</p>
+                          {s.signed_at && (
+                            <p className="text-xs text-muted-foreground mt-1">{format(new Date(s.signed_at), 'dd MMM yyyy, HH:mm')}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No comments yet.</p>
+                )}
+              </TabsContent>
+            )}
+            {canSeeAuditTrail && (
+              <TabsContent value="audit-trail" className="mt-4">
+                <AuditTrailTab memoId={id} />
+              </TabsContent>
+            )}
+            {canSeeVersions && (
+              <TabsContent value="versions" className="mt-4">
+                <VersionHistory memoId={id} />
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       )}
