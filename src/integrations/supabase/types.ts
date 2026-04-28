@@ -22,7 +22,11 @@ export type Database = {
           created_at: string
           date_of_physical_signing: string | null
           deadline: string | null
+          dispatched_at: string | null
+          dispatched_notes: string | null
+          dispatched_to_user_ids: string[] | null
           id: string
+          is_dispatcher: boolean
           is_required: boolean
           memo_id: string
           mfa_auth_time: string | null
@@ -32,12 +36,14 @@ export type Database = {
           mfa_verified: boolean | null
           mfa_verified_at: string | null
           parallel_group: number | null
+          parent_dispatch_step_id: string | null
           password_verified: boolean | null
           registered_by_user_id: string | null
           registration_notes: string | null
           scan_attachment_url: string | null
           signature_image_url: string | null
           signed_at: string | null
+          signer_roles_at_signing: Json | null
           signing_method: string | null
           stage_level: string | null
           status: Database["public"]["Enums"]["approval_status"]
@@ -51,7 +57,11 @@ export type Database = {
           created_at?: string
           date_of_physical_signing?: string | null
           deadline?: string | null
+          dispatched_at?: string | null
+          dispatched_notes?: string | null
+          dispatched_to_user_ids?: string[] | null
           id?: string
+          is_dispatcher?: boolean
           is_required?: boolean
           memo_id: string
           mfa_auth_time?: string | null
@@ -61,12 +71,14 @@ export type Database = {
           mfa_verified?: boolean | null
           mfa_verified_at?: string | null
           parallel_group?: number | null
+          parent_dispatch_step_id?: string | null
           password_verified?: boolean | null
           registered_by_user_id?: string | null
           registration_notes?: string | null
           scan_attachment_url?: string | null
           signature_image_url?: string | null
           signed_at?: string | null
+          signer_roles_at_signing?: Json | null
           signing_method?: string | null
           stage_level?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
@@ -80,7 +92,11 @@ export type Database = {
           created_at?: string
           date_of_physical_signing?: string | null
           deadline?: string | null
+          dispatched_at?: string | null
+          dispatched_notes?: string | null
+          dispatched_to_user_ids?: string[] | null
           id?: string
+          is_dispatcher?: boolean
           is_required?: boolean
           memo_id?: string
           mfa_auth_time?: string | null
@@ -90,12 +106,14 @@ export type Database = {
           mfa_verified?: boolean | null
           mfa_verified_at?: string | null
           parallel_group?: number | null
+          parent_dispatch_step_id?: string | null
           password_verified?: boolean | null
           registered_by_user_id?: string | null
           registration_notes?: string | null
           scan_attachment_url?: string | null
           signature_image_url?: string | null
           signed_at?: string | null
+          signer_roles_at_signing?: Json | null
           signing_method?: string | null
           stage_level?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
@@ -115,6 +133,13 @@ export type Database = {
             columns: ["memo_id"]
             isOneToOne: false
             referencedRelation: "v_payment_handoff_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_steps_parent_dispatch_step_id_fkey"
+            columns: ["parent_dispatch_step_id"]
+            isOneToOne: false
+            referencedRelation: "approval_steps"
             referencedColumns: ["id"]
           },
         ]
@@ -271,6 +296,9 @@ export type Database = {
           is_active: boolean
           principal_user_id: string
           revoked_at: string | null
+          scope: string
+          valid_from: string | null
+          valid_to: string | null
         }
         Insert: {
           assigned_by_user_id: string
@@ -280,6 +308,9 @@ export type Database = {
           is_active?: boolean
           principal_user_id: string
           revoked_at?: string | null
+          scope?: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Update: {
           assigned_by_user_id?: string
@@ -289,6 +320,9 @@ export type Database = {
           is_active?: boolean
           principal_user_id?: string
           revoked_at?: string | null
+          scope?: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Relationships: []
       }
@@ -1171,6 +1205,7 @@ export type Database = {
       }
     }
     Functions: {
+      effective_finance_dispatcher: { Args: never; Returns: string }
       get_next_transmittal_no: { Args: { dept_id: string }; Returns: string }
       has_cross_dept_access:
         | {
@@ -1215,7 +1250,17 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "department_head" | "staff" | "approver"
+      app_role:
+        | "admin"
+        | "department_head"
+        | "staff"
+        | "approver"
+        | "finance_dispatcher"
+        | "finance_manager"
+        | "ap_accountant"
+        | "ar_accountant"
+        | "budget_controller"
+        | "finance"
       approval_status:
         | "pending"
         | "approved"
@@ -1367,7 +1412,18 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "department_head", "staff", "approver"],
+      app_role: [
+        "admin",
+        "department_head",
+        "staff",
+        "approver",
+        "finance_dispatcher",
+        "finance_manager",
+        "ap_accountant",
+        "ar_accountant",
+        "budget_controller",
+        "finance",
+      ],
       approval_status: ["pending", "approved", "rejected", "rework", "skipped"],
       memo_status: [
         "draft",
