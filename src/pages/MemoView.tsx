@@ -97,6 +97,7 @@ const MemoView = () => {
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
   const [mfaVerified, setMfaVerified] = useState(false);
 
   // Fetch fraud-settings to know if MFA is required for payment memos
@@ -405,12 +406,97 @@ const MemoView = () => {
 
             // Notify creator: fully approved
             if (memo) {
+              const isPaymentMemo = !!memo.memo_types?.includes('payments');
+              const creatorProfile = profiles.find((p) => p.user_id === memo.from_user_id);
+
+              // In-app notification (always)
+              const fullyApprovedMessage = isPaymentMemo
+                ? `Your payment memo ${memo.transmittal_no} — "${memo.subject}" is fully approved. Please print the cover sheet from the memo page and deliver the original documents to Finance Reception.`
+                : `Your memo ${memo.transmittal_no} — "${memo.subject}" has been fully approved by all approvers on ${format(new Date(), 'dd MMM yyyy HH:mm')}. You may now proceed.`;
+
               supabase.from('notifications').insert({
                 user_id: memo.from_user_id,
                 memo_id: id,
                 type: 'step_update',
-                message: `Your memo ${memo.transmittal_no} — "${memo.subject}" has been fully approved by all approvers on ${format(new Date(), 'dd MMM yyyy HH:mm')}. You may now proceed.`,
+                message: fullyApprovedMessage,
               }).then(({ error }) => { if (error) console.warn(error); });
+
+              // Email — payment memo gets the originals-handoff template,
+              // non-payment memo gets the standard "approved" status email.
+              if (creatorProfile) {
+                if (isPaymentMemo) {
+                  import('@/lib/email-notifications').then(({ notifyPaymentMemoApprovedToCreator }) =>
+                    notifyPaymentMemoApprovedToCreator({
+                      creatorEmail: creatorProfile.email,
+                      creatorName: creatorProfile.full_name,
+                      memoSubject: memo.subject,
+                      transmittalNo: memo.transmittal_no,
+                      memoId: id!,
+                    }).catch((e) => console.warn('payment-approved creator email failed:', e)),
+                  );
+                } else {
+                  import('@/lib/email-notifications').then(({ notifyMemoStatus }) =>
+                    notifyMemoStatus({
+                      creatorEmail: creatorProfile.email,
+                      creatorName: creatorProfile.full_name,
+                      memoSubject: memo.subject,
+                      transmittalNo: memo.transmittal_no,
+                      status: 'approved',
+                      approverName: profiles.find((p) => p.user_id === user.id)?.full_name || 'An approver',
+                      memoId: id!,
+                    }).catch((e) => console.warn('approved status email failed:', e)),
+                  );
+                }
+              }
+
+              // Notify finance team if it's a payment memo. Pulls users with
+              // 'finance' role; sends one consolidated email + an in-app
+              // notification per finance user. Best effort — must not block
+              // the approval response to the approver who just clicked.
+              if (isPaymentMemo) {
+                (async () => {
+                  try {
+                    const { data: financeRoles } = await supabase
+                      .from('user_roles')
+                      .select('user_id')
+                      .eq('role', 'finance');
+                    const financeIds = (financeRoles || []).map((r: any) => r.user_id);
+                    if (financeIds.length === 0) {
+                      console.warn('No users with finance role — skipping finance notification');
+                      return;
+                    }
+                    const { data: financeProfiles } = await supabase
+                      .from('profiles')
+                      .select('user_id, full_name, email')
+                      .in('user_id', financeIds)
+                      .eq('is_active', true);
+
+                    // In-app notifications (one per finance user)
+                    for (const fp of financeProfiles || []) {
+                      supabase.from('notifications').insert({
+                        user_id: fp.user_id,
+                        memo_id: id,
+                        type: 'finance_handoff',
+                        message: `[Finance] Payment memo ${memo.transmittal_no} — "${memo.subject}" is fully approved. Awaiting originals from ${creatorProfile?.full_name || 'creator'}.`,
+                      }).then(({ error }) => { if (error) console.warn(error); });
+                    }
+
+                    // Single consolidated email to all finance users
+                    if ((financeProfiles || []).length > 0) {
+                      const { notifyFinanceOnPaymentMemoApproved } = await import('@/lib/email-notifications');
+                      await notifyFinanceOnPaymentMemoApproved({
+                        financeRecipients: (financeProfiles || []).map((p: any) => ({ email: p.email, name: p.full_name })),
+                        memoSubject: memo.subject,
+                        transmittalNo: memo.transmittal_no,
+                        fromName: creatorProfile?.full_name || 'Unknown',
+                        memoId: id!,
+                      });
+                    }
+                  } catch (e) {
+                    console.warn('finance team notification failed:', e);
+                  }
+                })();
+              }
 
               // Auto-save approved memo PDF to SharePoint (non-blocking)
               (async () => {
@@ -646,18 +732,82 @@ const MemoView = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (params: { reason?: string } = {}) => {
       if (!memo || !user || !id) return;
       if (!isAdmin) {
         throw new Error('Only administrators can delete memos.');
       }
+
+      const creatorProfile = profiles.find((p) => p.user_id === memo.from_user_id);
+      const adminProfile = profiles.find((p) => p.user_id === user.id);
+
+      // Step 1: write the deletion audit event BEFORE removing the memo.
+      // This row survives the deletion (we no longer drop audit_log rows).
+      try {
+        await supabase.from('audit_log').insert({
+          memo_id: id,
+          user_id: user.id,
+          action: 'memo_deleted',
+          action_detail: 'permanent_delete',
+          previous_status: memo.status,
+          new_status: 'deleted',
+          transmittal_no: memo.transmittal_no,
+          notes: params.reason
+            ? `Memo permanently deleted by admin. Reason: ${params.reason}`
+            : 'Memo permanently deleted by admin. No reason provided.',
+          details: {
+            creator_user_id: memo.from_user_id,
+            creator_name: creatorProfile?.full_name || null,
+            subject: memo.subject,
+            memo_types: memo.memo_types,
+            reason: params.reason || null,
+          },
+        } as any);
+      } catch (e) {
+        console.warn('audit_log memo_deleted entry failed:', e);
+      }
+
+      // Step 2: send creator notifications (in-app + email) BEFORE deleting,
+      // so the in-app notification still exists for them to read.
+      if (creatorProfile && memo.from_user_id !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: memo.from_user_id,
+          memo_id: null, // memo about to disappear; null so the link doesn't 404
+          type: 'memo_deleted',
+          message:
+            `Your memo ${memo.transmittal_no} — "${memo.subject}" was permanently deleted by ${adminProfile?.full_name || 'an administrator'}.${params.reason ? ` Reason: ${params.reason}` : ''}`,
+        });
+
+        // Email — best effort, must not block deletion
+        try {
+          const { notifyMemoDeleted } = await import('@/lib/email-notifications');
+          await notifyMemoDeleted({
+            creatorEmail: creatorProfile.email,
+            creatorName: creatorProfile.full_name,
+            memoSubject: memo.subject,
+            transmittalNo: memo.transmittal_no,
+            deletedByName: adminProfile?.full_name || 'An administrator',
+            reason: params.reason,
+          });
+        } catch (e) {
+          console.warn('notifyMemoDeleted email failed:', e);
+        }
+      }
+
+      // Step 3: actually delete. NOTE: we do NOT delete audit_log rows
+      // anymore — preserving the trail is non-negotiable for compliance.
+      // The memo_id FK on audit_log is left orphaned; the audit page
+      // already handles missing memo gracefully.
       await supabase.from('approval_steps').delete().eq('memo_id', id);
       await supabase.from('memo_attachments').delete().eq('memo_id', id);
       await supabase.from('memo_versions').delete().eq('memo_id', id);
-      await supabase.from('notifications').delete().eq('memo_id', id);
-      await supabase.from('audit_log').delete().eq('memo_id', id);
+      // notifications: keep the just-inserted memo_deleted row for the creator;
+      // delete the rest (which would 404 on click anyway).
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('memo_id', id);
 
-      // Delete the memo itself
       const { error } = await supabase.from('memos').delete().eq('id', id);
       if (error) throw error;
     },
@@ -1733,18 +1883,32 @@ const MemoView = () => {
               Are you sure you want to permanently delete memo <strong>{memo.transmittal_no}</strong>?
             </p>
             <p className="text-sm text-muted-foreground">
-              This will remove the memo and all associated data including approval steps, attachments, version history, notifications, and audit logs. This action cannot be undone.
+              This will remove the memo, its approval steps, attachments, version history, and pending notifications. The audit log is preserved for compliance — only the memo's content is destroyed. This action cannot be undone.
             </p>
+            <div className="space-y-2 pt-2">
+              <Label htmlFor="deleteReason">Reason for deletion (optional but recommended)</Label>
+              <Textarea
+                id="deleteReason"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="e.g. duplicate submission, wrong vendor, replaced by memo XXX-2026-0123…"
+                rows={3}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                The reason will be sent to the memo creator and recorded in the audit log.
+              </p>
+            </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => { setDeleteDialogOpen(false); setDeleteReason(''); }}>
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={() => {
                 setDeleteDialogOpen(false);
-                deleteMutation.mutate();
+                deleteMutation.mutate({ reason: deleteReason.trim() || undefined });
+                setDeleteReason('');
               }}
               disabled={deleteMutation.isPending}
             >

@@ -134,6 +134,34 @@ export default function FinancePayments() {
         ip_geolocation_country: geo.country,
         ...deviceInfo,
       } as any);
+
+      // Notify creator (in-app + email) — best effort, must not block.
+      const creatorProfile = getProfile(params.row.from_user_id);
+      const receiverProfile = getProfile(user.id);
+      if (creatorProfile && params.row.from_user_id !== user.id) {
+        supabase.from('notifications').insert({
+          user_id: params.row.from_user_id,
+          memo_id: params.row.id,
+          type: 'finance_originals_received',
+          message: `Finance has confirmed receipt of originals for ${params.row.transmittal_no} — "${params.row.subject}". Awaiting payment release.`,
+        }).then(({ error }) => { if (error) console.warn(error); });
+
+        try {
+          const { notifyOriginalsReceived } = await import('@/lib/email-notifications');
+          await notifyOriginalsReceived({
+            creatorEmail: creatorProfile.email,
+            creatorName: creatorProfile.full_name,
+            memoSubject: params.row.subject,
+            transmittalNo: params.row.transmittal_no,
+            receivedByName: receiverProfile?.full_name || 'Finance',
+            receivedAt: now,
+            notes: params.notes || undefined,
+            memoId: params.row.id,
+          });
+        } catch (e) {
+          console.warn('notifyOriginalsReceived email failed:', e);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-handoff-queue'] });
@@ -191,6 +219,36 @@ export default function FinancePayments() {
         ip_geolocation_country: geo.country,
         ...deviceInfo,
       } as any);
+
+      // Notify creator (in-app + email) — best effort.
+      const creatorProfile = getProfile(params.row.from_user_id);
+      const releaserProfile = getProfile(user.id);
+      if (creatorProfile && params.row.from_user_id !== user.id) {
+        supabase.from('notifications').insert({
+          user_id: params.row.from_user_id,
+          memo_id: params.row.id,
+          type: 'finance_payment_released',
+          message: `Payment released for ${params.row.transmittal_no} — "${params.row.subject}". Method: ${params.method.replace('_', ' ')}, reference: ${params.reference}.`,
+        }).then(({ error }) => { if (error) console.warn(error); });
+
+        try {
+          const { notifyPaymentReleased } = await import('@/lib/email-notifications');
+          await notifyPaymentReleased({
+            creatorEmail: creatorProfile.email,
+            creatorName: creatorProfile.full_name,
+            memoSubject: params.row.subject,
+            transmittalNo: params.row.transmittal_no,
+            releasedByName: releaserProfile?.full_name || 'Finance',
+            paidAt: now,
+            paymentMethod: params.method,
+            paymentReference: params.reference || null,
+            paymentNotes: params.notes || null,
+            memoId: params.row.id,
+          });
+        } catch (e) {
+          console.warn('notifyPaymentReleased email failed:', e);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-handoff-queue'] });
