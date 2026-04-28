@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvalidatePermissions } from '@/hooks/usePermissions';
+import { routeAccessRules } from '@/lib/route-access-rules';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Shield, Building2, Users, Check, X, Minus } from 'lucide-react';
+import { Shield, Building2, Users, Check, X, Minus, Route as RouteIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Authorization = () => {
