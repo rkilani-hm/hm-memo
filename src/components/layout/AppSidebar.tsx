@@ -276,8 +276,8 @@ const AppSidebar = () => {
           </CollapsibleSection>
         )}
 
-        {/* Finance — only for finance/admin */}
-        {(hasRole('finance') || hasRole('admin')) && visibleFinance.length > 0 && (
+        {/* Finance — visible by role or explicit Authorization permission */}
+        {visibleFinance.length > 0 && (
           <CollapsibleSection
             id="finance"
             label="Finance"
