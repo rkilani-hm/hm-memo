@@ -28,12 +28,35 @@
 //   POST /functions/v1/dispatch-step
 //   {
 //     "step_id":        "uuid",                   // the dispatch step
-//     "reviewer_user_ids": ["uuid", "uuid", ...], // 1..N reviewers
+//     "reviewer_user_ids": ["uuid", "uuid", ...], // 0..N reviewers — empty array = self-approve
 //     "notes":          "optional dispatcher notes"
 //   }
 //
+// Behavior
+// ========
+//   reviewer_user_ids = []     (self-approve / combined sign-off)
+//     → dispatch step is approved with caller's signature snapshot.
+//     → No reviewer steps spawned. No additional sign-off step.
+//     → Memo advances to the NEXT existing step in the chain
+//       (Hassan / GM / CEO / etc.) automatically.
+//
+//   reviewer_user_ids = [...]  (multi-reviewer dispatch)
+//     → dispatch step is approved (acts as the "I dispatched" record).
+//     → N reviewer steps are inserted at (dispatchOrder + 1), sharing
+//       a parallel_group so they run concurrently.
+//     → A sign-off step (action_type: signature) is inserted at
+//       (dispatchOrder + 2), assigned to the dispatcher. Memo returns
+//       to the dispatcher's queue once all reviewers complete, where
+//       they sign off and advance the memo to the NEXT existing step.
+//     → Subsequent steps in the original chain are renumbered by +2.
+//
 // Response (success):
-//   { "success": true, "reviewer_step_ids": ["uuid", "uuid", ...] }
+//   {
+//     "success": true,
+//     "self_approved": boolean,                          // true if 0 reviewers
+//     "reviewer_step_ids": ["uuid", ...],                // [] if self-approved
+//     "signoff_step_id": "uuid" | null                    // null if self-approved
+//   }
 //
 // Response (error):
 //   { "success": false, "error": "human-readable message" }
@@ -198,6 +221,13 @@ serve(async (req) => {
 
     const dispatchOrder = dispatchStep.step_order;
     const reviewerOrder = dispatchOrder + 1;
+    // When reviewers are picked, we ALSO spawn a sign-off step
+    // immediately after them so Mohammed gets the memo back in his
+    // queue once reviewers complete. The sign-off step lives at
+    // (dispatchOrder + 2). When self-approving (no reviewers), we
+    // skip both reviewer and sign-off step — the dispatch step
+    // itself is the combined dispatch+sign-off.
+    const signoffOrder = dispatchOrder + 2;
 
     // Pick a fresh parallel_group value (max existing + 1, or 1 if none)
     const existingGroups = (allSteps || [])
@@ -205,10 +235,10 @@ serve(async (req) => {
       .filter((g: number | null): g is number => g !== null);
     const newParallelGroup = existingGroups.length > 0 ? Math.max(...existingGroups) + 1 : 1;
 
-    // ---- Renumber subsequent steps to free up the slot ------------------
-    // Skipped when self-approving — no reviewer steps will be inserted,
-    // so no slot is needed. The dispatch step's existing step_order
-    // is preserved.
+    // ---- Renumber subsequent steps to free up the slot(s) --------------
+    // Self-approve: skip — no slot needed.
+    // Multi-reviewer: shift by +2 to make room for the reviewer slot
+    // (dispatchOrder + 1) AND the sign-off slot (dispatchOrder + 2).
     const shiftedIds: { id: string; oldOrder: number; newOrder: number }[] = [];
     if (!isSelfApprove) {
       // Step n.B: Postgres has no "transaction" via supabase-js client. We
@@ -223,7 +253,7 @@ serve(async (req) => {
       );
 
       for (const s of shiftSorted) {
-        const newOrder = (s as any).step_order + 1;
+        const newOrder = (s as any).step_order + 2;
         const { error: shiftErr } = await adminClient
           .from("approval_steps")
           .update({ step_order: newOrder })
@@ -270,12 +300,18 @@ serve(async (req) => {
       );
     }
 
-    // ---- Insert reviewer steps -----------------------------------------
-    // Skipped when self-approving — the dispatch step itself serves as
-    // the dispatcher's sign-off, no children needed. The workflow
-    // engine sees the dispatch step as approved and naturally advances
-    // to the next existing step (Hassan, GM, etc.).
+    // ---- Insert reviewer steps + Mohammed sign-off step ----------------
+    // Self-approve case: skipped entirely. The dispatch step itself
+    //   serves as the dispatcher's combined sign-off.
+    // Multi-reviewer case: spawn N reviewer steps at (dispatchOrder + 1),
+    //   sharing a fresh parallel_group so they all run concurrently.
+    //   ALSO spawn a sign-off step at (dispatchOrder + 2), assigned to
+    //   the dispatcher (Mohammed/delegate), action_type 'signature'.
+    //   The workflow engine's existing parallel-group "join" logic
+    //   advances the memo to the sign-off step automatically once all
+    //   reviewers complete.
     let insertedReviewerStepIds: string[] = [];
+    let insertedSignoffStepId: string | null = null;
     if (!isSelfApprove) {
       const reviewerRows = uniqueReviewerIds.map((reviewerId) => ({
         memo_id: dispatchStep.memo_id,
@@ -290,7 +326,26 @@ serve(async (req) => {
         deadline: null,
       }));
 
-      const { data: insertedRows, error: insertErr } = await adminClient
+      // Sign-off step: same dispatcher as caller, runs AFTER all
+      // reviewers complete. Not flagged as is_dispatcher (it's a
+      // normal signature step) — that flag is only for the initial
+      // dispatch step. parent_dispatch_step_id IS set to link the
+      // sign-off back to its origin for audit/PDF clarity, even though
+      // it's not a "child reviewer" step in the parallel-group sense.
+      const signoffRow = {
+        memo_id: dispatchStep.memo_id,
+        approver_user_id: callerId,
+        step_order: signoffOrder,
+        parallel_group: null, // sequential after reviewers
+        action_type: "signature" as const,
+        is_required: true,
+        status: "pending" as const,
+        parent_dispatch_step_id: step_id,
+        stage_level: dispatchStep.stage_level || "finance",
+        deadline: null,
+      };
+
+      const { data: insertedReviewerRows, error: insertErr } = await adminClient
         .from("approval_steps")
         .insert(reviewerRows)
         .select("id");
@@ -321,7 +376,50 @@ serve(async (req) => {
         );
       }
 
-      insertedReviewerStepIds = (insertedRows || []).map((r: any) => r.id);
+      insertedReviewerStepIds = (insertedReviewerRows || []).map((r: any) => r.id);
+
+      // Now insert the sign-off step. If THIS fails, we have to roll
+      // back the reviewer rows too.
+      const { data: insertedSignoffRows, error: signoffErr } = await adminClient
+        .from("approval_steps")
+        .insert([signoffRow])
+        .select("id");
+
+      if (signoffErr) {
+        console.error("Sign-off insert failed; attempting rollback:", signoffErr);
+        // Delete reviewer rows we just inserted
+        if (insertedReviewerStepIds.length > 0) {
+          await adminClient
+            .from("approval_steps")
+            .delete()
+            .in("id", insertedReviewerStepIds);
+        }
+        // Revert dispatch step
+        await adminClient
+          .from("approval_steps")
+          .update({
+            status: "pending",
+            signed_at: null,
+            dispatched_at: null,
+            dispatched_to_user_ids: null,
+            dispatched_notes: null,
+            signer_roles_at_signing: null,
+          })
+          .eq("id", step_id);
+        // Revert renumber
+        for (const done of shiftedIds) {
+          await adminClient
+            .from("approval_steps")
+            .update({ step_order: done.oldOrder })
+            .eq("id", done.id);
+        }
+        return errorResponse(
+          `Failed to insert sign-off step: ${signoffErr.message}`,
+          500,
+        );
+      }
+
+      insertedSignoffStepId = (insertedSignoffRows || [])[0]?.id || null;
     }
 
     // ---- Audit log entry ------------------------------------------------
@@ -366,6 +464,7 @@ serve(async (req) => {
         success: true,
         self_approved: isSelfApprove,
         reviewer_step_ids: insertedReviewerStepIds,
+        signoff_step_id: insertedSignoffStepId,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
