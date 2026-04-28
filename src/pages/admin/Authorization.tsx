@@ -297,6 +297,10 @@ const Authorization = () => {
             <Users className="h-3.5 w-3.5" />
             By User
           </TabsTrigger>
+          <TabsTrigger value="routes" className="gap-1.5">
+            <RouteIcon className="h-3.5 w-3.5" />
+            Route Rules
+          </TabsTrigger>
         </TabsList>
 
         {/* Department tab */}
@@ -365,6 +369,10 @@ const Authorization = () => {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="routes" className="space-y-4 mt-4">
+          {renderRouteRules()}
         </TabsContent>
       </Tabs>
     </div>
