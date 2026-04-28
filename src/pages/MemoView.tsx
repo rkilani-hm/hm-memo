@@ -1392,7 +1392,7 @@ const MemoView = () => {
           })()}
 
           {/* Attachments (screen only) */}
-          {attachments.length > 0 && (
+          {canSeeAttachments && attachments.length > 0 && (
             <div className="no-print px-4 pb-4">
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Attachments</p>
               <ul className="space-y-1 text-sm">
