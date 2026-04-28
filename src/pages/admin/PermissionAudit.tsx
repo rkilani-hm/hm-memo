@@ -135,7 +135,7 @@ const PermissionAudit = () => {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['permission_audit', days, scopeFilter, actionFilter],
     queryFn: async () => {
-      let q = supabase
+      let q = (supabase as any)
         .from('permission_audit')
         .select('*')
         .order('occurred_at', { ascending: false })

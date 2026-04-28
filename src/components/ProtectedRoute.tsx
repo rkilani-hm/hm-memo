@@ -44,13 +44,18 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ resourceKey, requiredRo
     );
   }
 
-  // Role check (admin always passes)
-  if (requiredRole && !hasRole('admin') && !hasRole(requiredRole as any)) {
+  // Permission check first — an explicit allow can satisfy access on its own.
+  const permissionAllowed = hasPermission(resourceKey);
+
+  // Role check: if a role is required, the user must EITHER have that role
+  // (admin always passes) OR have an explicit permission grant for this
+  // resource. This lets admins use the Authorization screen to grant
+  // page-by-page access without handing out a full role.
+  if (requiredRole && !hasRole('admin') && !hasRole(requiredRole as any) && !permissionAllowed) {
     return <Navigate to="/no-access" state={{ from: location.pathname, reason: 'role' }} replace />;
   }
 
-  // Permission check
-  if (!hasPermission(resourceKey)) {
+  if (!permissionAllowed) {
     return <Navigate to="/no-access" state={{ from: location.pathname, reason: 'permission' }} replace />;
   }
 
