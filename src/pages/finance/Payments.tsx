@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { fetchProfiles, fetchDepartments } from '@/lib/memo-api';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 import { useToast } from '@/hooks/use-toast';
@@ -54,6 +55,7 @@ const stageLabels: Record<HandoffStage, { label: string; color: string }> = {
 
 export default function FinancePayments() {
   const { user, hasRole, profile } = useAuth();
+  const { hasPermission } = usePermissions();
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -68,8 +70,8 @@ export default function FinancePayments() {
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNotes,     setPaymentNotes] = useState('');
 
-  // Permission gate
-  const isFinance = hasRole('finance') || hasRole('admin');
+  // Permission gate: explicit Authorization access is enough, even without the finance role.
+  const canAccessPayments = hasRole('finance') || hasRole('admin') || hasPermission('finance/payments');
 
   // Profile + dept lookups
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
@@ -83,7 +85,7 @@ export default function FinancePayments() {
   // Main query — pulls all approved payment memos and slices into stages
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['payment-handoff-queue'],
-    enabled: isFinance,
+    enabled: canAccessPayments,
     queryFn: async (): Promise<PaymentMemoRow[]> => {
       const { data, error } = await supabase
         .from('v_payment_handoff_queue' as any)
@@ -230,7 +232,7 @@ export default function FinancePayments() {
   );
 
   // ---- Render -------------------------------------------------------------
-  if (!isFinance) {
+  if (!canAccessPayments) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground">
         <ShieldX className="h-5 w-5 mr-2" />
