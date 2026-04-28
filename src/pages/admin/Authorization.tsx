@@ -150,6 +150,7 @@ const Authorization = () => {
 
   const pageResources = resources.filter((r) => r.category === 'page');
   const contentResources = resources.filter((r) => r.category === 'content');
+  const resourceLabels = new Map(resources.map((r) => [r.resource_key, r.label]));
 
   const getDeptPermState = (key: string): boolean | null => {
     const p = deptPerms.find((dp) => dp.resource_key === key);
@@ -225,6 +226,53 @@ const Authorization = () => {
         </table>
       </div>
     </div>
+  );
+
+  const renderRouteRules = () => (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <RouteIcon className="h-4 w-4 text-primary" />
+          Route Access Rules
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/50 border-b">
+                <th className="text-left px-4 py-2 font-medium">Route</th>
+                <th className="text-left px-4 py-2 font-medium">Screen</th>
+                <th className="text-left px-4 py-2 font-medium">Permission</th>
+                <th className="text-left px-4 py-2 font-medium">Role</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {routeAccessRules.map((rule) => (
+                <tr key={rule.path} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{rule.path}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="font-medium">{rule.label}</div>
+                    <div className="text-xs text-muted-foreground">{rule.area}</div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <Badge variant="outline" className="font-mono text-[10px]">{rule.resourceKey}</Badge>
+                    <div className="text-xs text-muted-foreground mt-1">{resourceLabels.get(rule.resourceKey) || 'Not listed in permissions'}</div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {rule.requiredRole ? (
+                      <Badge variant="secondary" className="capitalize">{rule.requiredRole}</Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No role required</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 
   return (
