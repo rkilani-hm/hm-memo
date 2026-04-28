@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, Pencil, UserX, UserCheck, KeyRound } from 'lucide-react';
+import { UserPlus, Pencil, UserX, UserCheck, KeyRound, Lock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Constants } from '@/integrations/supabase/types';
 
@@ -30,6 +30,13 @@ const UserManagement = () => {
   const [departmentId, setDepartmentId] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [selectedRoles, setSelectedRoles] = useState<AppRole[]>(['staff']);
+
+  // "Set new password" admin dialog (separate from the full edit dialog so
+  // admins have a one-click path to reset a forgotten password without
+  // touching the user's other fields).
+  const [resetPwUser, setResetPwUser] = useState<{ user_id: string; full_name: string; email: string } | null>(null);
+  const [resetPwValue, setResetPwValue] = useState('');
+  const [resetPwForceChange, setResetPwForceChange] = useState(true);
 
   const { data: profiles = [], isLoading } = useQuery({
     queryKey: ['profiles-all'],
@@ -144,6 +151,62 @@ const UserManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles-all'] });
       toast({ title: 'Password reset required', description: 'User will be forced to reset password at next login.' });
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  // Direct admin password reset: admin types a new password and the user
+  // can immediately use it. Useful when a user has lost access to email
+  // (so the email-link recovery flow won't work).
+  const setPasswordMutation = useMutation({
+    mutationFn: async () => {
+      if (!resetPwUser) throw new Error('No user selected');
+      if (resetPwValue.length < 8) throw new Error('New password must be at least 8 characters');
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          action: 'update_user',
+          user_id: resetPwUser.user_id,
+          full_name: resetPwUser.full_name,        // required by edge fn shape
+          email: resetPwUser.email,
+          password: resetPwValue,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (resetPwForceChange) {
+        await supabase
+          .from('profiles')
+          .update({ force_password_reset: true })
+          .eq('user_id', resetPwUser.user_id);
+      }
+
+      // Audit log — best effort
+      try {
+        const { data: { user: actor } } = await supabase.auth.getUser();
+        if (actor) {
+          await supabase.from('audit_log').insert({
+            user_id: actor.id,
+            action: 'password_reset_by_admin',
+            action_detail: resetPwForceChange ? 'with_force_reset_on_next_login' : 'set_directly',
+            on_behalf_of_user_id: resetPwUser.user_id,
+            on_behalf_of_name: resetPwUser.full_name,
+            notes: `Admin set a new password for ${resetPwUser.email}.${resetPwForceChange ? ' Force-reset enabled.' : ''}`,
+          } as any);
+        }
+      } catch (e) {
+        console.warn('audit_log password_reset_by_admin entry failed:', e);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles-all'] });
+      toast({
+        title: 'Password reset',
+        description: `New password set for ${resetPwUser?.full_name}. Share it with them through a secure channel.`,
+      });
+      setResetPwUser(null);
+      setResetPwValue('');
+      setResetPwForceChange(true);
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -342,6 +405,27 @@ const UserManagement = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  onClick={() => {
+                                    setResetPwUser({
+                                      user_id: p.user_id,
+                                      full_name: p.full_name,
+                                      email: p.email,
+                                    });
+                                    setResetPwValue('');
+                                    setResetPwForceChange(true);
+                                  }}
+                                  title="Set new password"
+                                >
+                                  <Lock className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Set a new password for this user</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => forceResetMutation.mutate(p.user_id)}
                                   title="Force password reset"
                                   disabled={p.force_password_reset}
@@ -376,6 +460,57 @@ const UserManagement = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Set-new-password admin dialog */}
+      <Dialog open={!!resetPwUser} onOpenChange={(o) => { if (!o) { setResetPwUser(null); setResetPwValue(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-4 w-4" /> Set new password
+            </DialogTitle>
+          </DialogHeader>
+          {resetPwUser && (
+            <div className="space-y-4">
+              <div className="rounded-md bg-muted/30 p-3 text-sm">
+                Setting a new password for <strong>{resetPwUser.full_name}</strong> ({resetPwUser.email}).
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="adminNewPw">New password</Label>
+                <Input
+                  id="adminNewPw"
+                  type="password"
+                  value={resetPwValue}
+                  onChange={(e) => setResetPwValue(e.target.value)}
+                  placeholder="Minimum 8 characters"
+                  autoComplete="new-password"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Share the new password with the user through a secure channel (in person, sealed envelope, or signed-in chat). Avoid email.
+                </p>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={resetPwForceChange}
+                  onChange={(e) => setResetPwForceChange(e.target.checked)}
+                />
+                Require user to change this password at next login (recommended)
+              </label>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setResetPwUser(null); setResetPwValue(''); }}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => setPasswordMutation.mutate()}
+                  disabled={resetPwValue.length < 8 || setPasswordMutation.isPending}
+                >
+                  {setPasswordMutation.isPending ? 'Saving…' : 'Set password'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
