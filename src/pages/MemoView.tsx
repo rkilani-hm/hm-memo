@@ -77,6 +77,12 @@ const MemoView = () => {
   const navigate = useNavigate();
   const { user, profile, hasRole } = useAuth();
   const isAdmin = hasRole('admin');
+  const { hasPermission } = usePermissions();
+  const canSeeBody = hasPermission('content/memo_body');
+  const canSeeAttachments = hasPermission('content/attachments');
+  const canSeeAuditTrail = hasPermission('content/audit_trail');
+  const canSeeVersions = hasPermission('content/version_history');
+  const canSeeComments = hasPermission('content/comments');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
