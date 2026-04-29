@@ -1272,6 +1272,22 @@ export type Database = {
         Args: { _dept_id: string; _user_id: string }
         Returns: boolean
       }
+      simulate_workflow_chain: {
+        Args: { p_template_id: string }
+        Returns: {
+          action_type: string
+          effective_approver_id: string
+          effective_approver_name: string
+          is_dispatcher: boolean
+          label: string
+          rewrite_reason: string
+          step_order: number
+          template_approver_id: string
+          template_approver_name: string
+          warnings: string[]
+          was_rewritten: boolean
+        }[]
+      }
     }
     Enums: {
       app_role:
