@@ -158,7 +158,14 @@ const MemoCreate = () => {
         .from('memos')
         .insert({
           transmittal_no: transmittalNo,
-          from_user_id: user.id,
+          // CRITICAL: from_user_id is the FORM-SELECTED author of the memo
+          // (e.g. Rami when Monia is creating on his behalf). It must NOT
+          // default to the logged-in user (user.id) — that conflates the
+          // person who pressed Submit with the person whose name and
+          // signature appear on the memo body. Falls back to user.id only
+          // if no fromUserId was selected (shouldn't happen for properly
+          // filled forms, but the form may default to logged-in user).
+          from_user_id: fromUserId || user.id,
           to_user_id: toUserId || null,
           department_id: deptId,
           subject: subject.trim() || 'Untitled Memo',
