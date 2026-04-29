@@ -1,100 +1,156 @@
 @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700&display=swap');
 
+/* ─────────────────────────────────────────────────────────────
+ * Century Gothic — Al Hamra brand-mandated typeface
+ *
+ * Drop the licensed font files into /public/fonts/ with these names:
+ *   century-gothic-regular.woff2
+ *   century-gothic-regular.woff
+ *   century-gothic-bold.woff2
+ *   century-gothic-bold.woff
+ *
+ * If the files are missing the browser will silently fall back to
+ * 'Libre Franklin' / Arial, so this @font-face block is safe to
+ * deploy before the fonts are in place.
+ * ───────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Century Gothic';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/century-gothic-regular.woff2') format('woff2'),
+       url('/fonts/century-gothic-regular.woff')  format('woff');
+}
+@font-face {
+  font-family: 'Century Gothic';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/century-gothic-bold.woff2') format('woff2'),
+       url('/fonts/century-gothic-bold.woff')  format('woff');
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Al Hamra Real Estate - Design System
-   Primary: Navy Blue, Accent: Gold, Clean corporate aesthetic
-   Font: Century Gothic with Libre Franklin fallback
-*/
+/* ──────────────────────────────────────────────────────────────
+ * Al Hamra brand palette (per Identity Guidelines, 2026 refresh)
+ *
+ *   Primary  red    #CD1719   hsl(359, 80%, 45%)
+ *   Mid grey       #B2B2B2   hsl(0, 0%, 70%)
+ *   Near black     #1D1D1B   hsl(60, 5%, 11%)   ← used sparingly
+ *                                                  (we substitute
+ *                                                   #3A3A3A below
+ *                                                   for dark surfaces)
+ *   Light grey     #EDEDED   hsl(0, 0%, 93%)
+ *
+ * Per design directive: avoid pure black anywhere in the UI. The
+ * sidebar / dark surfaces use a neutral warm grey
+ * (hsl(0, 0%, 23%)  ≈  #3A3A3A) instead of the previous navy.
+ *
+ * Font: Century Gothic Bold (heads) + Century Gothic Regular (body).
+ * ────────────────────────────────────────────────────────────── */
 
 @layer base {
   :root {
+    /* Page surface */
     --background: 0 0% 100%;
-    --foreground: 213 45% 15%;
+    --foreground: 0 0% 18%;
 
+    /* Cards + popovers */
     --card: 0 0% 100%;
-    --card-foreground: 213 45% 15%;
-
+    --card-foreground: 0 0% 18%;
     --popover: 0 0% 100%;
-    --popover-foreground: 213 45% 15%;
+    --popover-foreground: 0 0% 18%;
 
-    --primary: 213 52% 23%;
+    /* Brand red — primary action color */
+    --primary: 359 80% 45%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 216 20% 95%;
-    --secondary-foreground: 213 52% 23%;
+    /* Light neutrals for secondary surfaces */
+    --secondary: 0 0% 93%;
+    --secondary-foreground: 0 0% 18%;
+    --muted: 0 0% 93%;
+    --muted-foreground: 0 0% 40%;
 
-    --muted: 216 20% 95%;
-    --muted-foreground: 213 15% 47%;
-
-    --accent: 38 66% 48%;
+    /* Accent — also brand red, used for highlights/links/icons.
+       Brand guide doesn't define a complementary accent so red
+       does double duty. */
+    --accent: 359 80% 45%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    /* Destructive / errors — same brand red */
+    --destructive: 359 80% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 20% 89%;
-    --input: 214 20% 89%;
-    --ring: 213 52% 23%;
+    /* Borders + form fields */
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 359 80% 45%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 213 52% 18%;
-    --sidebar-foreground: 213 20% 90%;
-    --sidebar-primary: 38 66% 48%;
+    /* Sidebar — warm dark grey, NOT black, NOT navy */
+    --sidebar-background: 0 0% 23%;
+    --sidebar-foreground: 0 0% 92%;
+    --sidebar-primary: 359 80% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 213 52% 25%;
-    --sidebar-accent-foreground: 213 20% 90%;
-    --sidebar-border: 213 40% 28%;
-    --sidebar-ring: 38 66% 48%;
+    --sidebar-accent: 0 0% 30%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 359 80% 45%;
 
-    --success: 142 71% 35%;
+    /* Status colors — deliberately preserved at brand-neutral hues
+       so success/warning/info read as semantic, not "off-brand red".
+       Tweaked to softer, less saturated tones to sit comfortably
+       next to the brand red without clashing. */
+    --success: 142 60% 35%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --info: 199 89% 48%;
+    --warning-foreground: 0 0% 18%;
+    --info: 210 50% 45%;
     --info-foreground: 0 0% 100%;
   }
 
   .dark {
-    --background: 213 52% 10%;
-    --foreground: 213 20% 90%;
+    /* Dark mode — dark warm greys throughout, no black */
+    --background: 0 0% 13%;
+    --foreground: 0 0% 92%;
 
-    --card: 213 52% 14%;
-    --card-foreground: 213 20% 90%;
+    --card: 0 0% 17%;
+    --card-foreground: 0 0% 92%;
 
-    --popover: 213 52% 14%;
-    --popover-foreground: 213 20% 90%;
+    --popover: 0 0% 17%;
+    --popover-foreground: 0 0% 92%;
 
-    --primary: 38 66% 48%;
+    --primary: 359 80% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 213 40% 20%;
-    --secondary-foreground: 213 20% 90%;
+    --secondary: 0 0% 22%;
+    --secondary-foreground: 0 0% 92%;
 
-    --muted: 213 40% 20%;
-    --muted-foreground: 213 15% 55%;
+    --muted: 0 0% 22%;
+    --muted-foreground: 0 0% 68%;
 
-    --accent: 38 66% 48%;
+    --accent: 359 80% 50%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 359 80% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 213 40% 22%;
-    --input: 213 40% 22%;
-    --ring: 38 66% 48%;
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: 359 80% 50%;
 
-    --sidebar-background: 213 52% 8%;
-    --sidebar-foreground: 213 20% 85%;
-    --sidebar-primary: 38 66% 48%;
+    --sidebar-background: 0 0% 11%;
+    --sidebar-foreground: 0 0% 88%;
+    --sidebar-primary: 359 80% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 213 52% 15%;
-    --sidebar-accent-foreground: 213 20% 85%;
-    --sidebar-border: 213 40% 18%;
-    --sidebar-ring: 38 66% 48%;
+    --sidebar-accent: 0 0% 18%;
+    --sidebar-accent-foreground: 0 0% 88%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 359 80% 50%;
   }
 }
 
