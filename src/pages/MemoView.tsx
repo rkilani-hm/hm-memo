@@ -1578,37 +1578,94 @@ const MemoView = () => {
                 userRolesByUserId,
               );
 
-              // Render a single sub-row inside Column 1 (compact —
-              // multiple finance signers stack vertically). Reuses the
-              // existing renderApprovalCell so style + status indicators
-              // stay consistent with the rest of the page.
-              const renderFinanceStackEntry = (step: typeof approvalSteps[0]) => (
-                <div key={step.id} className="border-b border-foreground/15 last:border-b-0">
-                  {renderApprovalCell(step)}
-                  {/* Role label under the standard cell (signed_roles snapshot
-                      preferred; falls back to live user_roles for pending) */}
-                  <div className="px-3 pb-2 -mt-1">
-                    <p className="text-[10px] text-muted-foreground italic">
-                      {financeRoleLabel(effectiveRolesForStep(step, userRolesByUserId))}
-                    </p>
+              // Compact entry for the inner 2-up grid in Column 1.
+              // Slimmer than renderApprovalCell — no min-h-[120px], no
+              // status badge row (status icon shown next to name only),
+              // smaller signature area.
+              const renderFinanceCompactCell = (step: typeof approvalSteps[0]) => {
+                const approver = getProfile(step.approver_user_id);
+                const sat = getStepActionType(step);
+                const dateStr = step.signed_at ? format(new Date(step.signed_at), 'dd/MM/yyyy') : '';
+                const roleLabel = financeRoleLabel(effectiveRolesForStep(step, userRolesByUserId));
+                const isApproved = step.status === 'approved';
+
+                return (
+                  <div key={step.id} className="p-1.5 flex flex-col items-center text-center min-h-[64px]">
+                    {/* Signature area — small */}
+                    <div className="flex-1 flex items-center justify-center min-h-[20px] w-full">
+                      {(step as any).signing_method === 'manual_paper' && isApproved ? (
+                        <p className="text-[8px] font-bold text-accent">📄 PAPER</p>
+                      ) : step.signature_image_url ? (
+                        <SignedImage
+                          storagePath={step.signature_image_url}
+                          alt={`${approver?.full_name || 'Approver'} signature`}
+                          className={sat === 'initial' ? 'h-5 object-contain' : 'h-7 object-contain'}
+                          fallback={
+                            isApproved && sat === 'initial'
+                              ? <span className="text-sm font-bold italic text-primary">{approver?.initials || '✓'}</span>
+                              : isApproved
+                                ? <span className="text-[9px] italic text-muted-foreground">[Digitally Approved]</span>
+                                : null
+                          }
+                        />
+                      ) : isApproved && sat === 'initial' ? (
+                        <span className="text-sm font-bold italic text-primary">{approver?.initials || '✓'}</span>
+                      ) : isApproved ? (
+                        <span className="text-[9px] italic text-muted-foreground">[Digitally Approved]</span>
+                      ) : (
+                        <span className="text-[9px] italic text-muted-foreground/60">pending</span>
+                      )}
+                    </div>
+                    {/* Name + role + date — tight */}
+                    <div className="border-t border-foreground/15 mt-1 pt-0.5 w-full">
+                      <p className="text-[10px] font-bold leading-tight truncate" title={approver?.full_name || ''}>
+                        {approver?.full_name || 'Unknown'}
+                      </p>
+                      <p className="text-[8px] italic text-muted-foreground leading-tight">{roleLabel}</p>
+                      {dateStr && (
+                        <p className="text-[8px] text-muted-foreground/80 leading-tight">{dateStr}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
+                );
+              };
+
+              // Pair finance signers two-per-row. Order is preserved
+              // from bucketStepsForFinanceGrid (reviewers → dispatcher
+              // → manager). Reading order: left-to-right, top-to-bottom.
+              const financePairRows: typeof approvalSteps[0][][] = [];
+              for (let i = 0; i < colA.length; i += 2) {
+                financePairRows.push(colA.slice(i, i + 2));
+              }
 
               return (
                 <div className="mt-4 mx-4 mb-4">
                   <div className="bg-destructive text-destructive-foreground text-center py-2 font-bold text-lg tracking-widest uppercase">
                     Approvals
                   </div>
-                  <div className="grid grid-cols-3 border border-t-0 border-foreground/30 min-h-[140px]">
-                    {/* Column 1: Finance team, stacked */}
+                  <div className="grid grid-cols-3 border border-t-0 border-foreground/30">
+                    {/* Column 1: Finance team — inner 2-up grid */}
                     <div className="border-r border-foreground/30">
                       {colA.length === 0 ? (
                         <div className="p-3 text-center text-xs text-muted-foreground italic">
                           No finance review required
                         </div>
                       ) : (
-                        colA.map(renderFinanceStackEntry)
+                        <div>
+                          {financePairRows.map((pair, rowIdx) => (
+                            <div
+                              key={rowIdx}
+                              className={`grid grid-cols-2 ${rowIdx < financePairRows.length - 1 ? 'border-b border-foreground/15' : ''}`}
+                            >
+                              <div className="border-r border-foreground/15">
+                                {renderFinanceCompactCell(pair[0])}
+                              </div>
+                              <div>
+                                {pair[1] ? renderFinanceCompactCell(pair[1]) : null}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                     {/* Column 2: GM */}

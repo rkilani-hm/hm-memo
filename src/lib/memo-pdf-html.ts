@@ -195,9 +195,15 @@ function buildL1SignOffHtml(
 // =====================================================================
 
 /**
- * Build a single sub-row inside Column A. Compact layout (signature
- * smaller than buildApprovalCellContent's default to fit multiple
- * signers stacked vertically without overflowing the column).
+ * Build a compact sub-cell for Column 1's inner 2-up grid.
+ *
+ * Each finance signer occupies one cell of a 2-column inner grid
+ * (filled left-to-right, top-to-bottom). Tighter than the legacy
+ * stacked layout — see Options 1+2 from the spacing redesign.
+ *
+ * Total height per cell ~ 38pt (down from ~55pt) and pairing two
+ * signers per row halves the vertical space again. A 4-finance-
+ * signer column drops from ~220pt to ~76pt.
  */
 function buildFinanceSubRowHtml(
   step: Tables<'approval_steps'>,
@@ -212,30 +218,31 @@ function buildFinanceSubRowHtml(
 
   let sigHtml = '';
   if (sigUrl) {
-    sigHtml = `<img src="${sigUrl}" style="max-width:60pt;max-height:${isInitial ? '18pt' : '22pt'};object-fit:contain;display:block;margin:0 auto;" />`;
+    // Tightened: 14pt for initials (was 18), 18pt for full sigs (was 22).
+    sigHtml = `<img src="${sigUrl}" style="max-width:50pt;max-height:${isInitial ? '14pt' : '18pt'};object-fit:contain;display:block;margin:0 auto;" />`;
   } else if (isInitial && isApproved) {
-    sigHtml = `<span style="font-size:12pt;font-weight:bold;font-style:italic;color:#1B3A5C;">${approver?.initials || '✓'}</span>`;
+    sigHtml = `<span style="font-size:10pt;font-weight:bold;font-style:italic;color:#1B3A5C;">${approver?.initials || '✓'}</span>`;
   } else if (isApproved) {
-    sigHtml = `<span style="font-size:6pt;font-style:italic;color:#666;">[Digitally Approved]</span>`;
+    sigHtml = `<span style="font-size:5pt;font-style:italic;color:#666;">[Digitally Approved]</span>`;
   }
 
   const dateStr = step.signed_at ? format(new Date(step.signed_at), 'dd MMM yyyy') : '';
   const name = approver?.full_name || 'Unknown';
-  // Use the same role-resolution logic as classification: snapshot
-  // first, live user_roles fallback. So pending reviewer steps show
-  // 'AP Accountant' / 'Budget Controller' rather than the generic
-  // 'Finance'.
   const effectiveRoles = effectiveRolesForStep(step, userRolesByUserId);
   const roleLabel = financeRoleLabel(effectiveRoles);
 
+  // Compact cell: signature, name, role, date — same vertical
+  // structure as before, but every dimension trimmed. The outer
+  // 2-up grid (in buildFinanceDispatchApprovalsHtml) puts two of
+  // these side by side per row.
   return `
-    <div style="padding:3pt;border-bottom:0.3pt solid #ddd;page-break-inside:avoid;">
-      <div style="text-align:center;min-height:18pt;">${sigHtml}</div>
-      <div style="border-bottom:0.3pt solid #999;width:80%;margin:1pt auto;"></div>
-      <p style="font-size:5.5pt;font-weight:bold;margin:0;line-height:1.1;text-align:center;word-wrap:break-word;">${name}</p>
-      <p style="font-size:5pt;color:#666;margin:0;line-height:1.05;text-align:center;">${roleLabel}</p>
-      ${dateStr ? `<p style="font-size:5pt;margin:0;line-height:1.05;text-align:center;">${dateStr}</p>` : ''}
-    </div>`;
+    <td style="border:0.3pt solid #ddd;padding:2pt;width:50%;vertical-align:top;page-break-inside:avoid;">
+      <div style="text-align:center;min-height:14pt;">${sigHtml}</div>
+      <div style="border-bottom:0.2pt solid #999;width:75%;margin:0.5pt auto;"></div>
+      <p style="font-size:5pt;font-weight:bold;margin:0;line-height:1.05;text-align:center;word-wrap:break-word;">${name}</p>
+      <p style="font-size:4.5pt;color:#666;margin:0;line-height:1;text-align:center;font-style:italic;">${roleLabel}</p>
+      ${dateStr ? `<p style="font-size:4.5pt;margin:0;line-height:1;text-align:center;color:#888;">${dateStr}</p>` : ''}
+    </td>`;
 }
 
 /** Build a single signature cell for column B or C (single signer, taller layout) */
@@ -266,10 +273,31 @@ function buildFinanceDispatchApprovalsHtml(
   // in-page renderer in MemoView. See finance-dispatch-grid.ts.
   const { colA, colB, colC } = bucketStepsForFinanceGrid(steps, userRolesByUserId);
 
-  // Column A content: stack of sub-rows, OR an empty placeholder
-  const columnAContent = colA.length === 0
-    ? `<div style="padding:8pt;text-align:center;color:#999;font-size:6pt;font-style:italic;">No finance review required</div>`
-    : colA.map((s) => buildFinanceSubRowHtml(s, profiles, sigDataUrls, userRolesByUserId)).join('');
+  // Column A content: 2-up inner grid (signers paired side-by-side)
+  // OR an empty placeholder. Reading order: left-to-right, then
+  // top-to-bottom — i.e. cell [0][0], [0][1], [1][0], [1][1], ...
+  // Role-hierarchy ordering of colA is preserved (reviewers first,
+  // then dispatcher, then finance manager) and just walks through
+  // the grid cells in that order.
+  let columnAContent: string;
+  if (colA.length === 0) {
+    columnAContent = `<div style="padding:8pt;text-align:center;color:#999;font-size:6pt;font-style:italic;">No finance review required</div>`;
+  } else {
+    // Pair into rows of 2. If odd, last row has one cell + an empty
+    // placeholder cell to keep the grid even.
+    const rowsHtml: string[] = [];
+    for (let i = 0; i < colA.length; i += 2) {
+      const left = buildFinanceSubRowHtml(colA[i], profiles, sigDataUrls, userRolesByUserId);
+      const right = i + 1 < colA.length
+        ? buildFinanceSubRowHtml(colA[i + 1], profiles, sigDataUrls, userRolesByUserId)
+        : `<td style="border:0.3pt solid #ddd;padding:2pt;width:50%;"></td>`;
+      rowsHtml.push(`<tr>${left}${right}</tr>`);
+    }
+    columnAContent = `
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+        <tbody>${rowsHtml.join('')}</tbody>
+      </table>`;
+  }
 
   // Column B content
   const columnBContent = colB
