@@ -326,7 +326,7 @@ const UserManagement = () => {
                 <Label>Roles</Label>
                 <div className="grid grid-cols-2 gap-2">
                   {ALL_ROLES.map((role) => {
-                    const isDispatcherRole = (role as string) === 'finance_dispatcher';
+                    const isDispatcherRole = role === 'finance_dispatcher';
                     const blockedByUniqueness = isDispatcherRole && someoneElseIsDispatcher;
                     return (
                       <label
