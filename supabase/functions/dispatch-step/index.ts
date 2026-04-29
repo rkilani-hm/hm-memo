@@ -312,6 +312,8 @@ serve(async (req) => {
         dispatched_to_user_ids: uniqueReviewerIds,
         dispatched_notes: notes || null,
         signer_roles_at_signing: callerRoles,
+        signature_image_url: dispatchSignatureUrl,
+        signing_method: dispatchSignatureUrl ? "digital" : null,
       })
       .eq("id", step_id);
 
