@@ -1304,8 +1304,6 @@ export type Database = {
         | "ar_accountant"
         | "budget_controller"
         | "finance"
-        | "general_manager"
-        | "ceo"
       approval_status:
         | "pending"
         | "approved"
@@ -1468,8 +1466,6 @@ export const Constants = {
         "ar_accountant",
         "budget_controller",
         "finance",
-        "general_manager",
-        "ceo",
       ],
       approval_status: ["pending", "approved", "rejected", "rework", "skipped"],
       memo_status: [
