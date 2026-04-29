@@ -302,19 +302,47 @@ serve(async (req) => {
     }
 
     // ---- Mark dispatch step approved -----------------------------------
+    // Two cases (locked design 2026-04-29):
+    //
+    //   isSelfApprove (reviewer_user_ids = []):
+    //     → Dispatch step IS the dispatcher's approval. Capture the
+    //       signature payload (signed_at, signer_roles_at_signing,
+    //       signature_image_url) on this step. No sign-off step is
+    //       spawned. The memo advances to the next existing step.
+    //
+    //   isSelfApprove = false (reviewers > 0):
+    //     → Dispatch step is a ROUTING audit event, not a signature.
+    //       Mark it approved (so it's no longer pending and won't
+    //       block the workflow) but do NOT capture signed_at /
+    //       signer_roles_at_signing / signature_image_url. The
+    //       sign-off step (spawned below at dispatchOrder+2) is
+    //       where the dispatcher actually signs later, after
+    //       reviewers complete.
+    //
+    // dispatched_at + dispatched_to_user_ids + dispatched_notes are
+    // ALWAYS set — those are dispatch-event audit fields independent
+    // of whether a signature was captured.
     const now = new Date().toISOString();
+    const dispatchUpdate: Record<string, any> = {
+      status: "approved",
+      dispatched_at: now,
+      dispatched_to_user_ids: uniqueReviewerIds,
+      dispatched_notes: notes || null,
+    };
+    if (isSelfApprove) {
+      dispatchUpdate.signed_at = now;
+      dispatchUpdate.signer_roles_at_signing = callerRoles;
+      dispatchUpdate.signature_image_url = dispatchSignatureUrl;
+      dispatchUpdate.signing_method = dispatchSignatureUrl ? "digital" : null;
+    }
+    // else: dispatch step has NO signature payload. The downstream
+    // sign-off step (spawned below) will carry the signature when
+    // the dispatcher signs after reviewers complete. The PDF
+    // renderer's classifyStepForPdf() returns null for steps where
+    // is_dispatcher = true, so this routing event won't print.
     const { error: dispatchUpdateErr } = await adminClient
       .from("approval_steps")
-      .update({
-        status: "approved",
-        signed_at: now,
-        dispatched_at: now,
-        dispatched_to_user_ids: uniqueReviewerIds,
-        dispatched_notes: notes || null,
-        signer_roles_at_signing: callerRoles,
-        signature_image_url: dispatchSignatureUrl,
-        signing_method: dispatchSignatureUrl ? "digital" : null,
-      })
+      .update(dispatchUpdate)
       .eq("id", step_id);
 
     if (dispatchUpdateErr) {

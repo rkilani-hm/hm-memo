@@ -320,12 +320,64 @@ function buildFinanceDispatchApprovalsHtml(
     // null = skip
   }
 
-  // Time-order column A by signed_at (signed steps first, then unsigned by
-  // step_order as a stable secondary key)
+  // -------------------------------------------------------------------
+  // Sort column A by ROLE HIERARCHY, not by signed_at time.
+  // Per business rules (locked 2026-04-29):
+  //
+  //   Order:  Reviewers (AP/AR/Budget) → Dispatcher → Finance Manager
+  //
+  // Rationale: the Finance team's stamp on a payment memo follows a
+  // logical hierarchy. Junior accountants verify first, the Finance
+  // Asst. Manager (dispatcher) signs off on their work, and the
+  // Finance Manager signs last as the senior authority. Time order
+  // approximated this when the workflow ran sequentially, but the
+  // dispatch-with-reviewers flow can produce out-of-order signatures
+  // (e.g. a reviewer who signs at 4pm before the dispatcher who only
+  // signs at 5pm — both in the same physical column). Role hierarchy
+  // is deterministic regardless of when each person actually signed.
+  //
+  // Step ties (same role) fall back to step_order for stability.
+  // -------------------------------------------------------------------
+  const roleHierarchyRank = (step: Tables<'approval_steps'>): number => {
+    const snapshot = ((step as any).signer_roles_at_signing as string[] | null) || [];
+    const approverProfile = getProfile(profiles, step.approver_user_id);
+    const title = (approverProfile?.job_title || '').toLowerCase();
+
+    // Reviewer roles (top of column — junior staff verify first)
+    if (
+      snapshot.includes('ap_accountant') ||
+      snapshot.includes('ar_accountant') ||
+      snapshot.includes('budget_controller') ||
+      title.includes('accountant') ||
+      title.includes('budget')
+    ) {
+      return 1;
+    }
+    // Dispatcher (middle — senior reviewer)
+    if (
+      snapshot.includes('finance_dispatcher') ||
+      title.includes('asst manager') ||
+      title.includes('assistant manager')
+    ) {
+      return 2;
+    }
+    // Finance Manager (bottom — final authority)
+    if (
+      snapshot.includes('finance_manager') ||
+      title === 'finance manager' ||
+      title === 'sr. manager-finance & accounts' ||
+      title.includes('finance manager')
+    ) {
+      return 3;
+    }
+    // Unknown finance signer — sort to the end of column A
+    return 4;
+  };
+
   colA.sort((a, b) => {
-    const aSigned = a.signed_at ? new Date(a.signed_at).getTime() : Number.MAX_SAFE_INTEGER;
-    const bSigned = b.signed_at ? new Date(b.signed_at).getTime() : Number.MAX_SAFE_INTEGER;
-    if (aSigned !== bSigned) return aSigned - bSigned;
+    const aRank = roleHierarchyRank(a);
+    const bRank = roleHierarchyRank(b);
+    if (aRank !== bRank) return aRank - bRank;
     return (a.step_order || 0) - (b.step_order || 0);
   });
 
@@ -383,35 +435,26 @@ function buildStagedApprovalsHtml(
   pdfLayout?: PdfLayout | null
 ): string {
   // ---------------------------------------------------------------------
-  // RENDERER PRECEDENCE (order matters, do not reorder)
+  // RENDERER PRECEDENCE (locked design — see decision log 2026-04-29)
   //
-  // 1. User-configured PDF layout grid → use it. The layout editor in
-  //    the dynamic workflow builder lets users explicitly place each
-  //    approver in a specific cell of the signature grid (e.g. "GM
-  //    goes in column B, CEO in column C"). When the user has done
-  //    that work, their choice MUST win — otherwise their explicit
-  //    placements get silently overridden by auto-layout heuristics.
+  // 1. memoUsesFinanceDispatch → three-column auto-layout always wins.
+  //    Per business rules, columns are STRICTLY role-determined:
+  //      Column 1 = Finance team (reviewers → dispatcher → finance manager)
+  //      Column 2 = GM
+  //      Column 3 = CEO / Chairman
+  //    Monia's per-cell layout choices in the dynamic builder are
+  //    ignored for finance memos because the columns are not free
+  //    placement — they're fixed by role. This avoids the "Mohammed
+  //    appears in two columns" bug where the layout editor placed
+  //    the dispatcher in cell [0,0] and his runtime-spawned sign-off
+  //    step landed elsewhere.
   //
-  // 2. Otherwise, if the chain involves the new finance-dispatch flow
-  //    (any signed step has a finance role, or any step is a dispatch
-  //    step), use the three-fixed-column auto-layout (A=Finance,
-  //    B=GM, C=CEO/Chairman). This is the fallback for memos that
-  //    didn't get a custom layout but flowed through finance.
+  // 2. Otherwise, if the user configured a custom grid (any non-null
+  //    cell), honor it. This is for non-finance memos where the
+  //    creator placed each approver in a specific cell.
   //
-  // 3. Otherwise, fall through to legacy stage-level / generic
-  //    rendering for memos predating both systems.
-  //
-  // We detect "user configured a grid" by checking that at least one
-  // cell has a non-null slot — DEFAULT_PDF_LAYOUT is all nulls.
+  // 3. Otherwise, legacy stage-level / generic fallback.
   // ---------------------------------------------------------------------
-
-  const userConfiguredGrid = !!pdfLayout?.grid && pdfLayout.grid.some(
-    (row) => row.some((cell) => cell !== null && cell !== undefined),
-  );
-
-  if (userConfiguredGrid) {
-    return buildLayoutBasedApprovalsHtml(approvalSteps, profiles, sigDataUrls, registeredByProfiles, pdfLayout!);
-  }
 
   if (memoUsesFinanceDispatch(approvalSteps)) {
     return buildFinanceDispatchApprovalsHtml(
@@ -420,6 +463,14 @@ function buildStagedApprovalsHtml(
       sigDataUrls,
       registeredByProfiles,
     );
+  }
+
+  const userConfiguredGrid = !!pdfLayout?.grid && pdfLayout.grid.some(
+    (row) => row.some((cell) => cell !== null && cell !== undefined),
+  );
+
+  if (userConfiguredGrid) {
+    return buildLayoutBasedApprovalsHtml(approvalSteps, profiles, sigDataUrls, registeredByProfiles, pdfLayout!);
   }
 
   // (No fallback to legacy pdf_layout check needed — the
