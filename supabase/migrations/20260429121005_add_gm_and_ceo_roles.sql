@@ -1,0 +1,45 @@
+-- =====================================================================
+-- Add general_manager and ceo signing roles
+--
+-- Why
+-- ===
+-- The renderer (src/lib/finance-dispatch-grid.ts) classifies approval
+-- steps into the three-column signature grid by user role:
+--   Column 1 = finance roles (already in the enum)
+--   Column 2 = general_manager / gm
+--   Column 3 = ceo / chairman
+--
+-- Until now the enum only had finance roles, so there was no way to
+-- mark a user as a Column 2 or Column 3 signer. Memos that escalated
+-- to a department director (e.g. Kinan Mardini, Director-ICT, who acts
+-- as the GM-level signer on certain ICT memos) had nothing in Column 2
+-- of the printed grid because no role matched.
+--
+-- This migration adds the two roles. Once a user is assigned
+-- 'general_manager', they appear in Column 2 of any memo they're an
+-- approver on. Same for 'ceo' and Column 3.
+--
+-- Naming
+-- ======
+-- Names chosen to match the renderer's existing recognized values
+-- (GM_ROLES = ['gm', 'general_manager'], CEO_ROLES = ['ceo', 'chairman'])
+-- so no renderer change is needed. The renderer accepts BOTH 'gm' and
+-- 'general_manager' as Column 2 signals; we add 'general_manager' as
+-- the canonical enum value because it's more descriptive in admin UIs.
+--
+-- These are SIGNING roles, not job descriptions. A user can be a
+-- Director by job title and be assigned 'general_manager' for signing
+-- purposes — that means "this user can sign in the GM column of memos."
+--
+-- Idempotency
+-- ===========
+-- ALTER TYPE ADD VALUE IF NOT EXISTS makes this safe to re-run.
+-- =====================================================================
+
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'general_manager';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'ceo';
+
+-- Optional: register them as permission resources so admins can see
+-- them in the permission audit page if that page lists role names.
+-- (Skipping for now — these are classification labels, not granular
+-- permissions, so they don't need a permission_resources entry.)
