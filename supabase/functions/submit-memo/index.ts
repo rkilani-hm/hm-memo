@@ -258,44 +258,90 @@ serve(async (req) => {
       }
     }
 
-    // Resolve effective dispatcher (honors active delegation window)
-    // — only needed if at least one step has a dispatcher approver.
-    // We call the RPC once, the resulting user-id is used to rewrite
-    // any step that points at any dispatcher (see note: only ONE
-    // dispatcher exists in the codebase by convention; if multiple,
-    // the first one wins — collapsed into a single delegation lookup).
-    let effectiveDispatcherId: string | null = null;
+    // -------------------------------------------------------------------
+    // Per-principal delegation lookup
+    // -------------------------------------------------------------------
+    // CRITICAL FIX (2026-04-29): the previous implementation called
+    // effective_finance_dispatcher() ONCE and applied its result to
+    // every step that had a dispatcher-role approver. That was wrong
+    // for two reasons:
+    //
+    //   1. effective_finance_dispatcher() returns the FIRST dispatcher
+    //      in the table (by created_at). If multiple users hold the
+    //      role (intentionally or by accident — e.g. Rami had it
+    //      assigned by mistake), every other dispatcher in the chain
+    //      got rewritten to that first one. Result: the wrong user
+    //      appeared multiple times in the chain, and legitimate
+    //      approvers disappeared.
+    //
+    //   2. Even with only one principal, the rewrite fired regardless
+    //      of whether a delegation was actually active. Mohammed's
+    //      step would correctly stay as Mohammed (no delegation = no
+    //      change), but the rewrite pattern was fragile.
+    //
+    // New behavior: for each step whose approver holds the
+    // finance_dispatcher role, look up delegations specifically for
+    // THAT approver (as principal). If an active in-window delegation
+    // exists, rewrite to the delegate. Otherwise, leave the step
+    // pointing at the original approver.
+    //
+    // This means:
+    //   - Mohammed (real principal, no delegation) → step stays as Mohammed.
+    //   - Mohammed (real principal, active delegation to Sara) → step rewrites to Sara.
+    //   - Rami (stray role, not a real dispatcher) → no delegation exists for him, step stays as Rami.
+    //   - Future second principal with their own delegation → resolved independently of others.
+
+    const delegationByPrincipal = new Map<string, string>(); // principal_id -> delegate_id
     if (dispatcherIds.size > 0) {
-      const { data: effRpc, error: effErr } = await adminClient.rpc(
-        "effective_finance_dispatcher",
-      );
-      if (effErr) {
-        console.warn("effective_finance_dispatcher RPC error:", effErr);
+      const principalIds = [...dispatcherIds];
+      const nowIso = new Date().toISOString();
+      const { data: delegations, error: delErr } = await adminClient
+        .from("delegate_assignments")
+        .select("principal_user_id, delegate_user_id, valid_from, valid_to, is_active, revoked_at")
+        .in("principal_user_id", principalIds)
+        .eq("scope", "finance_dispatcher")
+        .eq("is_active", true)
+        .is("revoked_at", null);
+      if (delErr) {
+        console.warn("delegate_assignments lookup error:", delErr);
+      } else {
+        for (const d of delegations || []) {
+          const row = d as any;
+          // Filter for active window in JS (handles null bounds)
+          const fromOk = !row.valid_from || row.valid_from <= nowIso;
+          const toOk = !row.valid_to || row.valid_to >= nowIso;
+          if (fromOk && toOk && !delegationByPrincipal.has(row.principal_user_id)) {
+            // First active delegation per principal wins (table-order arbitrary
+            // but consistent; ideally only one active delegation per principal exists)
+            delegationByPrincipal.set(row.principal_user_id, row.delegate_user_id);
+          }
+        }
       }
-      effectiveDispatcherId = (effRpc as string | null) || null;
     }
 
     // -------------------------------------------------------------------
     // Build the final approval_steps rows
     // -------------------------------------------------------------------
     // For each template step:
-    //   - If approver is a dispatcher → mark is_dispatcher=true, and
-    //     rewrite approver_user_id to the effective dispatcher (which
-    //     may be a delegate) when one exists.
-    //   - Otherwise → standard step.
+    //   - If approver holds the finance_dispatcher role:
+    //       - mark is_dispatcher = true (so MemoView shows the
+    //         "Dispatch Reviewers" button instead of "Approve")
+    //       - if there's an active delegation for THIS specific
+    //         approver, rewrite approver_user_id to the delegate
+    //       - otherwise, leave approver_user_id as is
+    //   - Otherwise → standard step, approver untouched.
     //
     // Legacy template handling: steps that were marked is_dispatcher
     // in the template (from the old pre-redesign templates we just
-    // deleted) but have no approver_user_id set are skipped silently
-    // — those templates shouldn't be in active use after this
-    // migration applies, but we handle them gracefully just in case.
+    // deleted) but have no approver_user_id set are skipped silently.
     const approvalSteps = steps
       .filter((s) => !!s.approver_user_id) // skip approverless legacy steps
       .map((step, index) => {
         const approverIsDispatcher = dispatcherIds.has(step.approver_user_id);
-        const approverId = approverIsDispatcher && effectiveDispatcherId
-          ? effectiveDispatcherId
-          : step.approver_user_id;
+        const delegate = approverIsDispatcher
+          ? delegationByPrincipal.get(step.approver_user_id) || null
+          : null;
+        const approverId = delegate || step.approver_user_id;
         return {
           memo_id,
           approver_user_id: approverId,
