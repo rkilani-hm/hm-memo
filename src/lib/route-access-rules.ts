@@ -31,6 +31,7 @@ export const routeAccessRules: RouteAccessRule[] = [
   { path: '/admin/authorization', label: 'Authorization', area: 'Administration', resourceKey: 'admin/authorization', requiredRole: 'admin' },
   { path: '/admin/fraud-settings', label: 'Fraud & MFA', area: 'Administration', resourceKey: 'admin/fraud-settings', requiredRole: 'admin' },
   { path: '/admin/permission-audit', label: 'Permission Audit', area: 'Administration', resourceKey: 'admin/permission-audit', requiredRole: 'admin' },
+  { path: '/admin/workflow-preview', label: 'Workflow Preview', area: 'Administration', resourceKey: 'admin/workflow-preview', requiredRole: 'admin' },
 ];
 
 export const getRouteAccessRule = (path: string) => routeAccessRules.find((rule) => rule.path === path);

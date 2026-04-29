@@ -378,6 +378,64 @@ serve(async (req) => {
       .insert(approvalSteps);
     if (stepsErr) throw stepsErr;
 
+    // -------------------------------------------------------------------
+    // Diagnostic: log any workflow rewrites to audit_log
+    // -------------------------------------------------------------------
+    // When a step's effective approver differs from what the template
+    // originally specified (e.g. delegation kicked in), record a single
+    // 'workflow_rewrite' audit_log entry with the before/after diff.
+    // Makes future debugging of 'why is this person in the chain?' a
+    // 5-second query on audit_log instead of an hour of tracing code.
+    //
+    // Best-effort: failure to write the audit log doesn't fail the
+    // memo submission, just logs a warning.
+    try {
+      const templateSteps = steps.filter((s) => !!s.approver_user_id);
+      const rewrites: Array<{
+        step_order: number;
+        template_approver_id: string;
+        effective_approver_id: string;
+        is_dispatcher: boolean;
+        reason: string;
+      }> = [];
+
+      for (let i = 0; i < approvalSteps.length; i++) {
+        const finalRow = approvalSteps[i];
+        const templateRow = templateSteps[i];
+        if (!templateRow) continue;
+        if (finalRow.approver_user_id !== templateRow.approver_user_id) {
+          rewrites.push({
+            step_order: finalRow.step_order,
+            template_approver_id: templateRow.approver_user_id,
+            effective_approver_id: finalRow.approver_user_id,
+            is_dispatcher: finalRow.is_dispatcher,
+            reason: finalRow.is_dispatcher
+              ? "Active finance_dispatcher delegation rewrote approver"
+              : "Approver rewritten (no known reason — investigate)",
+          });
+        }
+      }
+
+      if (rewrites.length > 0) {
+        await adminClient.from("audit_log").insert({
+          memo_id,
+          user_id: user.id,
+          action: "workflow_rewrite",
+          action_detail: "submit_memo_rewrite",
+          previous_status: "draft",
+          new_status: "in_review",
+          notes: `submit-memo rewrote ${rewrites.length} step approver(s) at submission time.`,
+          details: {
+            workflow_template_id: workflow?.id || null,
+            workflow_template_name: workflow?.name || null,
+            rewrites,
+          },
+        } as any);
+      }
+    } catch (auditErr) {
+      console.warn("workflow_rewrite audit log failed:", auditErr);
+    }
+
     // Update memo status + store workflow template id
     await adminClient
       .from("memos")

@@ -255,6 +255,18 @@ const UserManagement = () => {
   const isEditing = !!editUserId;
   const isSaving = createUserMutation.isPending || updateUserMutation.isPending;
 
+  // Dispatcher uniqueness: at most one user may hold the
+  // finance_dispatcher role. If someone else already has it, we
+  // disable the checkbox for the user being edited and show a clear
+  // warning. The DB has a partial unique index enforcing this; the
+  // UI just makes the constraint visible BEFORE the admin saves.
+  const existingDispatcher = allRoles.find((r) => r.role === 'finance_dispatcher');
+  const existingDispatcherIsThisUser = existingDispatcher?.user_id === editUserId;
+  const someoneElseIsDispatcher = !!existingDispatcher && !existingDispatcherIsThisUser;
+  const existingDispatcherProfile = existingDispatcher
+    ? profiles.find((p) => p.user_id === existingDispatcher.user_id)
+    : null;
+
   const handleSave = () => {
     if (isEditing) {
       updateUserMutation.mutate();
@@ -313,13 +325,49 @@ const UserManagement = () => {
               <div className="space-y-2">
                 <Label>Roles</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {ALL_ROLES.map((role) => (
-                    <label key={role} className="flex items-center gap-2 p-2 rounded border border-border hover:bg-secondary/50 cursor-pointer">
-                      <Checkbox checked={selectedRoles.includes(role)} onCheckedChange={() => toggleRole(role)} />
-                      <span className="text-sm capitalize">{role.replace('_', ' ')}</span>
-                    </label>
-                  ))}
+                  {ALL_ROLES.map((role) => {
+                    const isDispatcherRole = role === 'finance_dispatcher';
+                    const blockedByUniqueness = isDispatcherRole && someoneElseIsDispatcher;
+                    return (
+                      <label
+                        key={role}
+                        className={`flex items-center gap-2 p-2 rounded border border-border cursor-pointer ${
+                          blockedByUniqueness
+                            ? 'opacity-60 cursor-not-allowed bg-muted/30'
+                            : 'hover:bg-secondary/50'
+                        }`}
+                      >
+                        <Checkbox
+                          checked={selectedRoles.includes(role)}
+                          onCheckedChange={() => {
+                            if (blockedByUniqueness) return;
+                            toggleRole(role);
+                          }}
+                          disabled={blockedByUniqueness}
+                        />
+                        <span className="text-sm capitalize">{role.replace('_', ' ')}</span>
+                      </label>
+                    );
+                  })}
                 </div>
+                {someoneElseIsDispatcher && (
+                  <div className="text-xs rounded-md bg-amber-500/10 border border-amber-500/30 p-2 text-amber-700">
+                    <p className="font-medium">Finance Dispatcher already assigned</p>
+                    <p className="mt-0.5">
+                      The Finance Dispatcher role is currently held by{' '}
+                      <strong>{existingDispatcherProfile?.full_name || 'another user'}</strong>
+                      {existingDispatcherProfile?.email ? ` (${existingDispatcherProfile.email})` : ''}.
+                      Only one user may hold this role at a time. To transfer it, first remove the
+                      role from {existingDispatcherProfile?.full_name?.split(' ')[0] || 'them'},
+                      then assign it here.
+                    </p>
+                    <p className="mt-1 text-amber-700/80">
+                      For temporary coverage during leave, the dispatcher should set up a
+                      time-bounded delegation in their own Settings instead — that doesn't require
+                      reassigning the role.
+                    </p>
+                  </div>
+                )}
               </div>
               <Button
                 className="w-full"

@@ -36,6 +36,7 @@ import {
   Briefcase,
   Workflow,
   History,
+  Eye,
 } from 'lucide-react';
 
 // -------------------------------------------------------------------------
@@ -95,6 +96,7 @@ const adminGroups: NavGroup[] = [
     icon: Workflow,
     items: [
       { title: 'Workflows',          icon: Workflow,  path: '/admin/workflows',           key: 'admin/workflows' },
+      { title: 'Workflow Preview',   icon: Eye,       path: '/admin/workflow-preview',    key: 'admin/workflow-preview' },
       { title: 'Reminder Settings',  icon: Bell,      path: '/admin/reminder-settings',   key: 'admin/reminder-settings' },
       { title: 'Approval KPIs',      icon: BarChart3, path: '/admin/approval-performance',key: 'admin/approval-performance' },
     ],

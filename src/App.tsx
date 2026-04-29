@@ -29,6 +29,7 @@ import ReminderSettings from "@/pages/admin/ReminderSettings";
 import Authorization from "@/pages/admin/Authorization";
 import FraudSettings from "@/pages/admin/FraudSettings";
 import PermissionAudit from "@/pages/admin/PermissionAudit";
+import WorkflowPreview from "@/pages/admin/WorkflowPreview";
 import NoAccess from "@/pages/NoAccess";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { routeGuard } from "@/lib/route-access-rules";
@@ -76,6 +77,7 @@ const App = () => (
                 <Route path="/admin/authorization" element={<ProtectedRoute {...routeGuard("/admin/authorization")}><Authorization /></ProtectedRoute>} />
                 <Route path="/admin/fraud-settings" element={<ProtectedRoute {...routeGuard("/admin/fraud-settings")}><FraudSettings /></ProtectedRoute>} />
                 <Route path="/admin/permission-audit" element={<ProtectedRoute {...routeGuard("/admin/permission-audit")}><PermissionAudit /></ProtectedRoute>} />
+                <Route path="/admin/workflow-preview" element={<ProtectedRoute {...routeGuard("/admin/workflow-preview")}><WorkflowPreview /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
