@@ -166,6 +166,12 @@ const MemoCreate = () => {
           // if no fromUserId was selected (shouldn't happen for properly
           // filled forms, but the form may default to logged-in user).
           from_user_id: fromUserId || user.id,
+          // created_by_user_id tracks the user who physically pressed
+          // Submit. Always equals user.id. Used by the INSERT RLS policy
+          // (so on-behalf-of creation works without violating policy)
+          // and for audit purposes (so we can later answer "who actually
+          // created this memo?" even when from_user_id is someone else).
+          created_by_user_id: user.id,
           to_user_id: toUserId || null,
           department_id: deptId,
           subject: subject.trim() || 'Untitled Memo',
