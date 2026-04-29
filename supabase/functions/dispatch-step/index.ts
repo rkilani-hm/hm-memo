@@ -208,6 +208,35 @@ serve(async (req) => {
       .eq("user_id", callerId);
     const callerRoles = (callerRoleRows || []).map((r: any) => r.role);
 
+    // ---- Capture caller's stored signing asset for the dispatch step ----
+    // The dispatch step is auto-approved here without showing a signing
+    // dialog (the dispatcher only picks reviewers). To make the memo
+    // preview / PDF show the dispatcher's actual initials/signature in
+    // their approval cell — instead of falling back to a "✓" — pull
+    // their stored asset from their profile and stamp it onto the step.
+    // Choose the asset that matches the step's action_type:
+    //   - action_type = 'initial'   → initials_image_url (preferred)
+    //                                 fallback to signature_image_url
+    //   - action_type = 'signature' → signature_image_url
+    const { data: callerProfile } = await adminClient
+      .from("profiles")
+      .select("signature_image_url, initials_image_url")
+      .eq("user_id", callerId)
+      .single();
+
+    let dispatchSignatureUrl: string | null = null;
+    if (dispatchStep.action_type === "initial") {
+      dispatchSignatureUrl =
+        (callerProfile as any)?.initials_image_url ||
+        (callerProfile as any)?.signature_image_url ||
+        null;
+    } else {
+      dispatchSignatureUrl =
+        (callerProfile as any)?.signature_image_url ||
+        (callerProfile as any)?.initials_image_url ||
+        null;
+    }
+
     // ---- Get the memo's existing approval_steps to compute slotting -----
     const { data: allSteps, error: allStepsErr } = await adminClient
       .from("approval_steps")
@@ -283,6 +312,8 @@ serve(async (req) => {
         dispatched_to_user_ids: uniqueReviewerIds,
         dispatched_notes: notes || null,
         signer_roles_at_signing: callerRoles,
+        signature_image_url: dispatchSignatureUrl,
+        signing_method: dispatchSignatureUrl ? "digital" : null,
       })
       .eq("id", step_id);
 
