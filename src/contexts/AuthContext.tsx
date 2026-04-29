@@ -14,7 +14,9 @@ type AppRole =
   | 'finance_manager'
   | 'ap_accountant'
   | 'ar_accountant'
-  | 'budget_controller';
+  | 'budget_controller'
+  | 'general_manager'
+  | 'ceo';
 
 interface AuthContextType {
   user: User | null;
