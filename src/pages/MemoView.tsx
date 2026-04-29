@@ -9,6 +9,12 @@ import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 import { generateMemoPdf, prepareMemoData, type PrintPreferences, DEFAULT_PRINT_PREFERENCES } from '@/lib/memo-pdf';
 import { buildMemoHtml } from '@/lib/memo-pdf-html';
+import {
+  bucketStepsForFinanceGrid,
+  effectiveRolesForStep,
+  financeRoleLabel,
+  memoUsesFinanceDispatch,
+} from '@/lib/finance-dispatch-grid';
 import { saveApprovedMemoToSharePoint } from '@/lib/sharepoint-save';
 import { buildAuthFactors } from '@/lib/audit-auth-factors';
 import DispatchDialog from '@/components/memo/DispatchDialog';
@@ -207,6 +213,36 @@ const MemoView = () => {
       return data || [];
     },
     enabled: !!user,
+  });
+
+  // Fetch CURRENT roles for every approver in this memo's chain.
+  // Used by the in-page approvals grid (and by the PDF renderer via
+  // prepareMemoData) to classify pending steps into the right column
+  // without falling back to job-title heuristics.
+  //
+  // For SIGNED steps, signer_roles_at_signing on the step itself is
+  // the authoritative source (immutable snapshot). For PENDING steps,
+  // this live lookup is the only reliable signal.
+  const { data: userRolesByUserId = {} } = useQuery({
+    queryKey: ['user-roles-for-memo', memo?.id, approvalSteps.map((s) => s.approver_user_id).join(',')],
+    queryFn: async () => {
+      const ids = [...new Set(approvalSteps.map((s) => s.approver_user_id).filter(Boolean) as string[])];
+      if (ids.length === 0) return {} as Record<string, string[]>;
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', ids);
+      if (error) throw error;
+      const map: Record<string, string[]> = {};
+      for (const row of data || []) {
+        const uid = (row as any).user_id;
+        const role = (row as any).role;
+        if (!map[uid]) map[uid] = [];
+        map[uid].push(role);
+      }
+      return map;
+    },
+    enabled: !!memo && approvalSteps.length > 0,
   });
 
   const getProfile = (userId: string) => profiles.find((p) => p.user_id === userId);
@@ -1512,6 +1548,93 @@ const MemoView = () => {
                 </div>
               );
             };
+
+            // -------------------------------------------------------
+            // FINANCE DISPATCH RENDERING (highest precedence)
+            //
+            // Memos that flow through finance use a strict three-column
+            // grid by ROLE, not by Monia's per-cell placement:
+            //
+            //   Column 1 = Finance team, stacked top-to-bottom in role
+            //              hierarchy: reviewers (AP/AR/Budget) →
+            //              dispatcher (Mohammed) → finance manager (Hassan)
+            //   Column 2 = General Manager
+            //   Column 3 = CEO / Chairman
+            //
+            // Bucketing logic lives in src/lib/finance-dispatch-grid.ts
+            // and is shared with the PDF renderer (memo-pdf-html.ts) so
+            // both renderers ALWAYS produce the same column placement.
+            //
+            // Sign-off step (if any) is rendered separately above the
+            // grid; it's filtered out here.
+            // -------------------------------------------------------
+            if (memoUsesFinanceDispatch(approvalSteps, userRolesByUserId)) {
+              const stepsExcludingSignoff = signoffIdx !== null && signoffIdx !== undefined
+                ? approvalSteps.filter((s) => s.step_order !== signoffIdx + 1)
+                : approvalSteps;
+
+              const { colA, colB, colC } = bucketStepsForFinanceGrid(
+                stepsExcludingSignoff,
+                userRolesByUserId,
+              );
+
+              // Render a single sub-row inside Column 1 (compact —
+              // multiple finance signers stack vertically). Reuses the
+              // existing renderApprovalCell so style + status indicators
+              // stay consistent with the rest of the page.
+              const renderFinanceStackEntry = (step: typeof approvalSteps[0]) => (
+                <div key={step.id} className="border-b border-foreground/15 last:border-b-0">
+                  {renderApprovalCell(step)}
+                  {/* Role label under the standard cell (signed_roles snapshot
+                      preferred; falls back to live user_roles for pending) */}
+                  <div className="px-3 pb-2 -mt-1">
+                    <p className="text-[10px] text-muted-foreground italic">
+                      {financeRoleLabel(effectiveRolesForStep(step, userRolesByUserId))}
+                    </p>
+                  </div>
+                </div>
+              );
+
+              return (
+                <div className="mt-4 mx-4 mb-4">
+                  <div className="bg-destructive text-destructive-foreground text-center py-2 font-bold text-lg tracking-widest uppercase">
+                    Approvals
+                  </div>
+                  <div className="grid grid-cols-3 border border-t-0 border-foreground/30 min-h-[140px]">
+                    {/* Column 1: Finance team, stacked */}
+                    <div className="border-r border-foreground/30">
+                      {colA.length === 0 ? (
+                        <div className="p-3 text-center text-xs text-muted-foreground italic">
+                          No finance review required
+                        </div>
+                      ) : (
+                        colA.map(renderFinanceStackEntry)
+                      )}
+                    </div>
+                    {/* Column 2: GM */}
+                    <div className="border-r border-foreground/30">
+                      {colB ? (
+                        renderApprovalCell(colB)
+                      ) : (
+                        <div className="p-3 text-center text-xs text-muted-foreground italic">
+                          No GM approval required
+                        </div>
+                      )}
+                    </div>
+                    {/* Column 3: CEO / Chairman */}
+                    <div>
+                      {colC ? (
+                        renderApprovalCell(colC)
+                      ) : (
+                        <div className="p-3 text-center text-xs text-muted-foreground italic">
+                          No CEO/Chairman approval required
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
 
             if (hasLayout) {
               // Layout-based rendering: use the 3×3 grid from pdf_layout

@@ -77,6 +77,7 @@ export async function prepareMemoData(data: MemoData): Promise<{
   sigDataUrls: Record<string, string | null>;
   registeredByProfiles: Record<string, Profile | undefined>;
   senderSigDataUrl: string | null;
+  userRolesByUserId: Record<string, string[]>;
 }> {
   const sigDataUrls: Record<string, string | null> = {};
   const registeredByProfiles: Record<string, Profile | undefined> = {};
@@ -95,7 +96,35 @@ export async function prepareMemoData(data: MemoData): Promise<{
     senderSigDataUrl = await getSignedImageDataUrl(data.fromProfile.signature_image_url);
   }
 
-  return { sigDataUrls, registeredByProfiles, senderSigDataUrl };
+  // Fetch the CURRENT roles for every approver in the chain. Used by
+  // the PDF renderer to classify pending (unsigned) steps into the
+  // right column without falling back to job-title heuristics —
+  // see comment on classifyStepForPdf in memo-pdf-html.ts.
+  //
+  // For SIGNED steps, signer_roles_at_signing is the authoritative
+  // snapshot and takes precedence (it's stable forever). For PENDING
+  // steps, this live lookup is the only reliable signal — we don't
+  // have a snapshot yet because the user hasn't signed.
+  const userRolesByUserId: Record<string, string[]> = {};
+  const approverIds = [...new Set(
+    data.approvalSteps
+      .map((s) => s.approver_user_id)
+      .filter((id): id is string => !!id),
+  )];
+  if (approverIds.length > 0) {
+    const { data: roleRows } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .in('user_id', approverIds);
+    for (const row of roleRows || []) {
+      const userId = (row as any).user_id;
+      const role = (row as any).role;
+      if (!userRolesByUserId[userId]) userRolesByUserId[userId] = [];
+      userRolesByUserId[userId].push(role);
+    }
+  }
+
+  return { sigDataUrls, registeredByProfiles, senderSigDataUrl, userRolesByUserId };
 }
 
 export async function generateMemoPdf(data: MemoData, prefs?: Partial<PrintPreferences>, pdfLayout?: PdfLayout | null): Promise<void> {

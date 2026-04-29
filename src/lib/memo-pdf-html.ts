@@ -3,6 +3,14 @@ import { format } from 'date-fns';
 import { MEMO_TYPE_OPTIONS } from '@/components/memo/TransmittedForGrid';
 import type { MemoData, PrintPreferences } from './memo-pdf';
 import type { PdfLayout, PdfSlotConfig } from '@/components/memo/PdfLayoutEditor';
+import {
+  bucketStepsForFinanceGrid,
+  classifyStepColumn,
+  effectiveRolesForStep,
+  financeRoleLabel,
+  financeRoleRank,
+  memoUsesFinanceDispatch,
+} from './finance-dispatch-grid';
 
 type Profile = Tables<'profiles'>;
 
@@ -10,6 +18,12 @@ interface PreparedData {
   sigDataUrls: Record<string, string | null>;
   registeredByProfiles: Record<string, Profile | undefined>;
   senderSigDataUrl: string | null;
+  // user_roles for every approver in the chain. Lookup key is
+  // approver_user_id. Used to classify PENDING (unsigned) steps into
+  // the correct PDF column without falling back to job-title guessing.
+  // For signed steps, signer_roles_at_signing remains the authoritative
+  // source (stable forever, immune to future role reassignment).
+  userRolesByUserId: Record<string, string[]>;
 }
 
 function getProfile(profiles: Profile[], userId: string) {
@@ -174,77 +188,11 @@ function buildL1SignOffHtml(
 // Column placement is determined by signer_roles_at_signing — the
 // snapshot captured when the user signed. Stable forever even if roles
 // are reassigned later.
+//
+// All bucketing/classification logic lives in finance-dispatch-grid.ts
+// (shared with the in-page renderer in MemoView.tsx). This file just
+// formats the buckets into HTML.
 // =====================================================================
-
-const FINANCE_REVIEWER_ROLES_FOR_PDF = [
-  'finance_dispatcher',
-  'finance_manager',
-  'ap_accountant',
-  'ar_accountant',
-  'budget_controller',
-  'finance', // legacy role kept for older signed steps
-] as const;
-
-const GM_ROLES_FOR_PDF = ['gm', 'general_manager'] as const;
-const CEO_ROLES_FOR_PDF = ['ceo', 'chairman'] as const;
-
-/** Returns true if any step in the chain belongs to the new finance dispatch flow. */
-function memoUsesFinanceDispatch(steps: Tables<'approval_steps'>[]): boolean {
-  return steps.some((s) => {
-    if ((s as any).is_dispatcher === true) return true;
-    if ((s as any).parent_dispatch_step_id) return true;
-    const roles = ((s as any).signer_roles_at_signing as string[] | null) || [];
-    return roles.some((r) => (FINANCE_REVIEWER_ROLES_FOR_PDF as readonly string[]).includes(r));
-  });
-}
-
-/** Classify a step into A (finance) / B (GM) / C (CEO) / null (skip). */
-function classifyStepForPdf(
-  step: Tables<'approval_steps'>,
-  profiles: Profile[],
-): 'A' | 'B' | 'C' | null {
-  // Never print dispatch routing events
-  if ((step as any).is_dispatcher === true) return null;
-
-  const snapshot = ((step as any).signer_roles_at_signing as string[] | null) || [];
-  const isFinance = snapshot.some((r) => (FINANCE_REVIEWER_ROLES_FOR_PDF as readonly string[]).includes(r));
-  if (isFinance) return 'A';
-
-  const isGm = snapshot.some((r) => (GM_ROLES_FOR_PDF as readonly string[]).includes(r));
-  if (isGm) return 'B';
-
-  const isCeo = snapshot.some((r) => (CEO_ROLES_FOR_PDF as readonly string[]).includes(r));
-  if (isCeo) return 'C';
-
-  // No snapshot — unsigned step OR pre-snapshot-feature step. Fall back
-  // to inspecting stage_level + the approver's profile job_title.
-  const stage = (step as any).stage_level?.toLowerCase?.() || '';
-  if (stage.includes('finance')) return 'A';
-  if (stage === 'gm' || stage.includes('general manager')) return 'B';
-  if (stage === 'ceo' || stage.includes('ceo') || stage.includes('chairman')) return 'C';
-
-  // Last resort: profile job title contains a strong hint
-  const approver = getProfile(profiles, step.approver_user_id);
-  const title = (approver?.job_title || '').toLowerCase();
-  if (title.includes('accountant') || title.includes('finance') || title.includes('budget')) return 'A';
-  if (title === 'general manager' || title === 'gm') return 'B';
-  if (title === 'ceo' || title === 'chairman') return 'C';
-
-  // Unknown — exclude from this grid; the renderer will note nothing.
-  return null;
-}
-
-/** Friendly role label for the small subtitle line in column A */
-function financeRoleLabelForPdf(snapshot: string[] | null): string {
-  if (!snapshot || snapshot.length === 0) return 'Finance';
-  if (snapshot.includes('finance_dispatcher')) return 'Finance Asst. Manager';
-  if (snapshot.includes('finance_manager')) return 'Finance Manager';
-  if (snapshot.includes('ap_accountant')) return 'AP Accountant';
-  if (snapshot.includes('ar_accountant')) return 'AR Accountant';
-  if (snapshot.includes('budget_controller')) return 'Budget Controller';
-  if (snapshot.includes('finance')) return 'Finance';
-  return 'Finance';
-}
 
 /**
  * Build a single sub-row inside Column A. Compact layout (signature
@@ -255,6 +203,7 @@ function buildFinanceSubRowHtml(
   step: Tables<'approval_steps'>,
   profiles: Profile[],
   sigDataUrls: Record<string, string | null>,
+  userRolesByUserId: Record<string, string[]>,
 ): string {
   const approver = getProfile(profiles, step.approver_user_id);
   const sigUrl = sigDataUrls[step.id] || null;
@@ -272,7 +221,12 @@ function buildFinanceSubRowHtml(
 
   const dateStr = step.signed_at ? format(new Date(step.signed_at), 'dd MMM yyyy') : '';
   const name = approver?.full_name || 'Unknown';
-  const roleLabel = financeRoleLabelForPdf((step as any).signer_roles_at_signing as string[] | null);
+  // Use the same role-resolution logic as classification: snapshot
+  // first, live user_roles fallback. So pending reviewer steps show
+  // 'AP Accountant' / 'Budget Controller' rather than the generic
+  // 'Finance'.
+  const effectiveRoles = effectiveRolesForStep(step, userRolesByUserId);
+  const roleLabel = financeRoleLabel(effectiveRoles);
 
   return `
     <div style="padding:3pt;border-bottom:0.3pt solid #ddd;page-break-inside:avoid;">
@@ -306,85 +260,16 @@ function buildFinanceDispatchApprovalsHtml(
   profiles: Profile[],
   sigDataUrls: Record<string, string | null>,
   registeredByProfiles: Record<string, Profile | undefined>,
+  userRolesByUserId: Record<string, string[]>,
 ): string {
-  // Bucket steps by column. Skip dispatch steps and unclassifiable steps.
-  const colA: Tables<'approval_steps'>[] = [];
-  let colB: Tables<'approval_steps'> | undefined;
-  let colC: Tables<'approval_steps'> | undefined;
-
-  for (const s of steps) {
-    const cls = classifyStepForPdf(s, profiles);
-    if (cls === 'A') colA.push(s);
-    else if (cls === 'B' && !colB) colB = s; // first GM signer wins
-    else if (cls === 'C' && !colC) colC = s; // first CEO signer wins
-    // null = skip
-  }
-
-  // -------------------------------------------------------------------
-  // Sort column A by ROLE HIERARCHY, not by signed_at time.
-  // Per business rules (locked 2026-04-29):
-  //
-  //   Order:  Reviewers (AP/AR/Budget) → Dispatcher → Finance Manager
-  //
-  // Rationale: the Finance team's stamp on a payment memo follows a
-  // logical hierarchy. Junior accountants verify first, the Finance
-  // Asst. Manager (dispatcher) signs off on their work, and the
-  // Finance Manager signs last as the senior authority. Time order
-  // approximated this when the workflow ran sequentially, but the
-  // dispatch-with-reviewers flow can produce out-of-order signatures
-  // (e.g. a reviewer who signs at 4pm before the dispatcher who only
-  // signs at 5pm — both in the same physical column). Role hierarchy
-  // is deterministic regardless of when each person actually signed.
-  //
-  // Step ties (same role) fall back to step_order for stability.
-  // -------------------------------------------------------------------
-  const roleHierarchyRank = (step: Tables<'approval_steps'>): number => {
-    const snapshot = ((step as any).signer_roles_at_signing as string[] | null) || [];
-    const approverProfile = getProfile(profiles, step.approver_user_id);
-    const title = (approverProfile?.job_title || '').toLowerCase();
-
-    // Reviewer roles (top of column — junior staff verify first)
-    if (
-      snapshot.includes('ap_accountant') ||
-      snapshot.includes('ar_accountant') ||
-      snapshot.includes('budget_controller') ||
-      title.includes('accountant') ||
-      title.includes('budget')
-    ) {
-      return 1;
-    }
-    // Dispatcher (middle — senior reviewer)
-    if (
-      snapshot.includes('finance_dispatcher') ||
-      title.includes('asst manager') ||
-      title.includes('assistant manager')
-    ) {
-      return 2;
-    }
-    // Finance Manager (bottom — final authority)
-    if (
-      snapshot.includes('finance_manager') ||
-      title === 'finance manager' ||
-      title === 'sr. manager-finance & accounts' ||
-      title.includes('finance manager')
-    ) {
-      return 3;
-    }
-    // Unknown finance signer — sort to the end of column A
-    return 4;
-  };
-
-  colA.sort((a, b) => {
-    const aRank = roleHierarchyRank(a);
-    const bRank = roleHierarchyRank(b);
-    if (aRank !== bRank) return aRank - bRank;
-    return (a.step_order || 0) - (b.step_order || 0);
-  });
+  // Bucketing is the single source of truth — same logic used by the
+  // in-page renderer in MemoView. See finance-dispatch-grid.ts.
+  const { colA, colB, colC } = bucketStepsForFinanceGrid(steps, userRolesByUserId);
 
   // Column A content: stack of sub-rows, OR an empty placeholder
   const columnAContent = colA.length === 0
     ? `<div style="padding:8pt;text-align:center;color:#999;font-size:6pt;font-style:italic;">No finance review required</div>`
-    : colA.map((s) => buildFinanceSubRowHtml(s, profiles, sigDataUrls)).join('');
+    : colA.map((s) => buildFinanceSubRowHtml(s, profiles, sigDataUrls, userRolesByUserId)).join('');
 
   // Column B content
   const columnBContent = colB
@@ -432,6 +317,7 @@ function buildStagedApprovalsHtml(
   profiles: Profile[],
   sigDataUrls: Record<string, string | null>,
   registeredByProfiles: Record<string, Profile | undefined>,
+  userRolesByUserId: Record<string, string[]>,
   pdfLayout?: PdfLayout | null
 ): string {
   // ---------------------------------------------------------------------
@@ -456,12 +342,13 @@ function buildStagedApprovalsHtml(
   // 3. Otherwise, legacy stage-level / generic fallback.
   // ---------------------------------------------------------------------
 
-  if (memoUsesFinanceDispatch(approvalSteps)) {
+  if (memoUsesFinanceDispatch(approvalSteps, userRolesByUserId)) {
     return buildFinanceDispatchApprovalsHtml(
       approvalSteps,
       profiles,
       sigDataUrls,
       registeredByProfiles,
+      userRolesByUserId,
     );
   }
 
@@ -658,7 +545,7 @@ function buildGenericApprovalsHtml(
 
 export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: PrintPreferences, pdfLayout?: PdfLayout | null): string {
   const { memo, fromProfile, toProfile, department, approvalSteps, attachments, profiles, logoDataUrl } = data;
-  const { sigDataUrls, registeredByProfiles, senderSigDataUrl } = prepared;
+  const { sigDataUrls, registeredByProfiles, senderSigDataUrl, userRolesByUserId } = prepared;
 
   // Determine sign-off step
   let signOffStep: Tables<'approval_steps'> | undefined;
@@ -688,7 +575,7 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
   }).join('');
 
   // Approvals HTML (excluding sign-off step)
-  const approvalsHtml = buildStagedApprovalsHtml(nonSignOffSteps, profiles, sigDataUrls, registeredByProfiles, pdfLayout);
+  const approvalsHtml = buildStagedApprovalsHtml(nonSignOffSteps, profiles, sigDataUrls, registeredByProfiles, userRolesByUserId, pdfLayout);
 
   // Comments (only creator's action comments — approver comments are in audit log only)
   const commentsHtml = (memo as any).action_comments
