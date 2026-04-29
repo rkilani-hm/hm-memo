@@ -383,13 +383,36 @@ function buildStagedApprovalsHtml(
   pdfLayout?: PdfLayout | null
 ): string {
   // ---------------------------------------------------------------------
-  // New finance-dispatch layout: three fixed columns (A=finance,
-  // B=GM, C=CEO/Chairman). Triggered when ANY step in the chain
-  // either is a dispatch step or has a finance role recorded in
-  // signer_roles_at_signing. Falls through to existing logic for
-  // memos that don't touch finance — those continue to render
-  // exactly as they do today.
+  // RENDERER PRECEDENCE (order matters, do not reorder)
+  //
+  // 1. User-configured PDF layout grid → use it. The layout editor in
+  //    the dynamic workflow builder lets users explicitly place each
+  //    approver in a specific cell of the signature grid (e.g. "GM
+  //    goes in column B, CEO in column C"). When the user has done
+  //    that work, their choice MUST win — otherwise their explicit
+  //    placements get silently overridden by auto-layout heuristics.
+  //
+  // 2. Otherwise, if the chain involves the new finance-dispatch flow
+  //    (any signed step has a finance role, or any step is a dispatch
+  //    step), use the three-fixed-column auto-layout (A=Finance,
+  //    B=GM, C=CEO/Chairman). This is the fallback for memos that
+  //    didn't get a custom layout but flowed through finance.
+  //
+  // 3. Otherwise, fall through to legacy stage-level / generic
+  //    rendering for memos predating both systems.
+  //
+  // We detect "user configured a grid" by checking that at least one
+  // cell has a non-null slot — DEFAULT_PDF_LAYOUT is all nulls.
   // ---------------------------------------------------------------------
+
+  const userConfiguredGrid = !!pdfLayout?.grid && pdfLayout.grid.some(
+    (row) => row.some((cell) => cell !== null && cell !== undefined),
+  );
+
+  if (userConfiguredGrid) {
+    return buildLayoutBasedApprovalsHtml(approvalSteps, profiles, sigDataUrls, registeredByProfiles, pdfLayout!);
+  }
+
   if (memoUsesFinanceDispatch(approvalSteps)) {
     return buildFinanceDispatchApprovalsHtml(
       approvalSteps,
@@ -399,10 +422,9 @@ function buildStagedApprovalsHtml(
     );
   }
 
-  // If a pdf_layout is provided, use it
-  if (pdfLayout && pdfLayout.grid) {
-    return buildLayoutBasedApprovalsHtml(approvalSteps, profiles, sigDataUrls, registeredByProfiles, pdfLayout);
-  }
+  // (No fallback to legacy pdf_layout check needed — the
+  // userConfiguredGrid check above covers it. Continue to legacy
+  // stage-level rendering below.)
 
   // Legacy: try stage-level based layout
   const l2a = findStepByStage(approvalSteps, 'l2a');

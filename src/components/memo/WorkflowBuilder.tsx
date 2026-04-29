@@ -151,6 +151,15 @@ const WorkflowBuilder = ({
     },
   });
 
+  // Dynamic-mode submissions auto-create a workflow_templates row named
+  // 'Dynamic — <transmittal_no>' so each memo's exact custom chain is
+  // recoverable for audit. These rows shouldn't appear in the preset
+  // picker (they're noise — auto-generated, not curated by an admin).
+  // Hide them everywhere the picker is presented to a creator.
+  const presetTemplates = templates.filter(
+    (t: any) => !(t.name || '').startsWith('Dynamic —'),
+  );
+
   const { data: profiles = [] } = useQuery({
     queryKey: ['profiles'],
     queryFn: async () => {
@@ -160,20 +169,21 @@ const WorkflowBuilder = ({
     },
   });
 
-  // Auto-match logic
+  // Auto-match logic — uses presetTemplates so a memo never auto-matches
+  // to another memo's dynamic-mode artifact.
   let autoMatchedTemplate: any = null;
   let matchType = '';
 
   if (departmentId && memoTypes.length > 0) {
-    autoMatchedTemplate = templates.find((t) => t.department_id === departmentId && t.memo_type === memoTypes[0]);
+    autoMatchedTemplate = presetTemplates.find((t) => t.department_id === departmentId && t.memo_type === memoTypes[0]);
     if (autoMatchedTemplate) matchType = 'Auto: Department + Memo Type';
   }
   if (!autoMatchedTemplate && departmentId) {
-    autoMatchedTemplate = templates.find((t) => t.department_id === departmentId && t.is_default);
+    autoMatchedTemplate = presetTemplates.find((t) => t.department_id === departmentId && t.is_default);
     if (autoMatchedTemplate) matchType = 'Auto: Department default';
   }
   if (!autoMatchedTemplate) {
-    autoMatchedTemplate = templates.find((t) => !t.department_id && t.is_default);
+    autoMatchedTemplate = presetTemplates.find((t) => !t.department_id && t.is_default);
     if (autoMatchedTemplate) matchType = 'Auto: Global default';
   }
 
@@ -314,7 +324,7 @@ const WorkflowBuilder = ({
                 <SelectItem value="auto">
                   Auto-detect{autoMatchedTemplate ? ` (${autoMatchedTemplate.name})` : ''}
                 </SelectItem>
-                {templates.map((t) => (
+                {presetTemplates.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
                     {t.memo_type ? ` — ${t.memo_type}` : ''}
