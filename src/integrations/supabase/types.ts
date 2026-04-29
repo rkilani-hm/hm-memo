@@ -733,6 +733,7 @@ export type Database = {
           continuation_pages: number | null
           copies_to: string[] | null
           created_at: string
+          created_by_user_id: string | null
           current_step: number | null
           date: string
           department_id: string
@@ -763,6 +764,7 @@ export type Database = {
           continuation_pages?: number | null
           copies_to?: string[] | null
           created_at?: string
+          created_by_user_id?: string | null
           current_step?: number | null
           date?: string
           department_id: string
@@ -793,6 +795,7 @@ export type Database = {
           continuation_pages?: number | null
           copies_to?: string[] | null
           created_at?: string
+          created_by_user_id?: string | null
           current_step?: number | null
           date?: string
           department_id?: string
