@@ -37,9 +37,9 @@ export const notifyApprover = async ({
 }) => {
   const appUrl = window.location.origin;
   const body = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #1B3A5C; padding: 20px; text-align: center;">
-        <h2 style="color: #C8952E; margin: 0;">Al Hamra Real Estate</h2>
+    <div style="font-family: 'Century Gothic', 'Trebuchet MS', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #CD1719; padding: 20px; text-align: center;">
+        <h2 style="color: #FFFFFF; margin: 0;">Al Hamra Real Estate</h2>
         <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System</p>
       </div>
       <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
@@ -50,9 +50,9 @@ export const notifyApprover = async ({
           <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memoSubject}</td></tr>
           <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">From</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${fromName}</td></tr>
         </table>
-        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Memo</a>
+        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #CD1719; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Memo</a>
       </div>
-      <div style="padding: 12px; text-align: center; font-size: 11px; color: #6b7280;">
+      <div style="padding: 12px; text-align: center; font-size: 11px; color: #5A5A5A;">
         This is an automated notification from the Al Hamra Memo System.
       </div>
     </div>
@@ -88,9 +88,9 @@ export const sendApprovalReminder = async ({
 }) => {
   const appUrl = window.location.origin;
   const body = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #1B3A5C; padding: 20px; text-align: center;">
-        <h2 style="color: #C8952E; margin: 0;">Al Hamra Real Estate</h2>
+    <div style="font-family: 'Century Gothic', 'Trebuchet MS', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #CD1719; padding: 20px; text-align: center;">
+        <h2 style="color: #FFFFFF; margin: 0;">Al Hamra Real Estate</h2>
         <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System — Reminder</p>
       </div>
       <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
@@ -101,9 +101,9 @@ export const sendApprovalReminder = async ({
           <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memoSubject}</td></tr>
           <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">From</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${fromName}</td></tr>
         </table>
-        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #C8952E; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Now</a>
+        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #FFFFFF; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Now</a>
       </div>
-      <div style="padding: 12px; text-align: center; font-size: 11px; color: #6b7280;">
+      <div style="padding: 12px; text-align: center; font-size: 11px; color: #5A5A5A;">
         This is an automated reminder from the Al Hamra Memo System.
       </div>
     </div>
@@ -166,9 +166,9 @@ export const notifyMemoStatus = async ({
   }
 
   const body = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #1B3A5C; padding: 20px; text-align: center;">
-        <h2 style="color: #C8952E; margin: 0;">Al Hamra Real Estate</h2>
+    <div style="font-family: 'Century Gothic', 'Trebuchet MS', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #CD1719; padding: 20px; text-align: center;">
+        <h2 style="color: #FFFFFF; margin: 0;">Al Hamra Real Estate</h2>
         <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System</p>
       </div>
       <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
@@ -182,9 +182,9 @@ export const notifyMemoStatus = async ({
         </table>
         ${commentsHtml}
         ${actionGuidanceHtml}
-        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 16px;">${status === 'rework' ? 'Edit & Resubmit Memo' : 'View Memo'}</a>
+        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #CD1719; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 16px;">${status === 'rework' ? 'Edit & Resubmit Memo' : 'View Memo'}</a>
       </div>
-      <div style="padding: 12px; text-align: center; font-size: 11px; color: #6b7280;">
+      <div style="padding: 12px; text-align: center; font-size: 11px; color: #5A5A5A;">
         This is an automated notification from the Al Hamra Memo System.
       </div>
     </div>
@@ -204,9 +204,9 @@ export const notifyMemoStatus = async ({
 
 /**
  * Wraps body content in the standard Al Hamra branded shell so every
- * outbound email looks consistent. The accentColor controls the call-to-
- * action button colour (defaults to primary navy, override for warnings/
- * payment-released emails).
+ * outbound email looks consistent. The accentColor controls the call-
+ * to-action button colour (defaults to brand red #CD1719, override for
+ * warnings or success-themed emails like payment-released).
  */
 function emailShell({
   greetingName,
@@ -214,7 +214,7 @@ function emailShell({
   bodyHtml,
   ctaLabel,
   ctaUrl,
-  accentColor = '#1B3A5C',
+  accentColor = '#CD1719',
   footerNote,
 }: {
   greetingName: string;
@@ -229,12 +229,12 @@ function emailShell({
     ? `<a href="${ctaUrl}" style="display:inline-block;background:${accentColor};color:#ffffff;padding:10px 24px;text-decoration:none;border-radius:4px;margin-top:12px;">${ctaLabel}</a>`
     : '';
   const note = footerNote
-    ? `<div style="padding:12px;text-align:center;font-size:11px;color:#6b7280;">${footerNote}</div>`
-    : `<div style="padding:12px;text-align:center;font-size:11px;color:#6b7280;">This is an automated notification from the Al Hamra Memo System.</div>`;
+    ? `<div style="padding:12px;text-align:center;font-size:11px;color:#5A5A5A;">${footerNote}</div>`
+    : `<div style="padding:12px;text-align:center;font-size:11px;color:#5A5A5A;">This is an automated notification from the Al Hamra Memo System.</div>`;
   return `
-    <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;">
-      <div style="background:#1B3A5C;padding:20px;text-align:center;">
-        <h2 style="color:#C8952E;margin:0;">Al Hamra Real Estate</h2>
+    <div style="font-family:'Century Gothic','Trebuchet MS',Arial,sans-serif;max-width:620px;margin:0 auto;">
+      <div style="background:#CD1719;padding:20px;text-align:center;">
+        <h2 style="color:#FFFFFF;margin:0;">Al Hamra Real Estate</h2>
         <p style="color:#ffffff;margin:4px 0 0;font-size:12px;">Internal Memo System</p>
       </div>
       <div style="padding:24px;background:#ffffff;border:1px solid #e5e7eb;">
@@ -283,7 +283,7 @@ export const notifyMemoDeleted = async ({
          <p style="margin:0 0 6px;font-weight:bold;font-size:13px;color:#dc2626;">Reason given by ${deletedByName}:</p>
          <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;white-space:pre-wrap;">${reason.replace(/</g, '&lt;')}</p>
        </div>`
-    : `<p style="font-size:13px;color:#6b7280;font-style:italic;">No reason was provided. Please contact ${deletedByName} for details.</p>`;
+    : `<p style="font-size:13px;color:#5A5A5A;font-style:italic;">No reason was provided. Please contact ${deletedByName} for details.</p>`;
 
   const body = emailShell({
     greetingName: creatorName,
@@ -335,7 +335,7 @@ export const notifyPaymentMemoApprovedToCreator = async ({
         { label: 'Subject',        value: memoSubject },
         { label: 'Status',         value: '<span style="color:#16a34a;font-weight:bold;">✅ Approved — Awaiting Originals</span>' },
       ]) +
-      `<div style="margin:16px 0;padding:16px;background:#f0f9ff;border-left:4px solid #1B3A5C;border-radius:4px;">
+      `<div style="margin:16px 0;padding:16px;background:#f0f9ff;border-left:4px solid #CD1719;border-radius:4px;">
          <p style="margin:0 0 6px;font-weight:bold;font-size:13px;">Next step</p>
          <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">
            Print the cover sheet from the memo page below, attach it to your physical originals, and hand the bundle to Finance Reception. Finance will stamp the receipt portion and confirm in the system; you will receive a separate email when they do.
@@ -343,7 +343,7 @@ export const notifyPaymentMemoApprovedToCreator = async ({
        </div>`,
     ctaLabel: 'Open Memo & Print Cover Sheet',
     ctaUrl: `${appUrl}/memos/${memoId}`,
-    accentColor: '#1B3A5C',
+    accentColor: '#CD1719',
   });
 
   return sendEmail({

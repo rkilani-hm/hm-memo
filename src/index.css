@@ -91,14 +91,16 @@
 
     --radius: 0.5rem;
 
-    /* Sidebar — warm dark grey, NOT black, NOT navy */
-    --sidebar-background: 0 0% 23%;
-    --sidebar-foreground: 0 0% 92%;
+    /* Sidebar — clean white surface, brand red for active items.
+       Subtle border on the right keeps it visually distinct from
+       the main content area. */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 18%;
     --sidebar-primary: 359 80% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 30%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 0 0% 18%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 18%;
+    --sidebar-border: 0 0% 88%;
     --sidebar-ring: 359 80% 45%;
 
     /* Status colors — deliberately preserved at brand-neutral hues
