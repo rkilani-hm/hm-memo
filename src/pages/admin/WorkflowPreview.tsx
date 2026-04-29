@@ -89,7 +89,7 @@ const WorkflowPreview = () => {
     queryKey: ['simulate-workflow-chain', selectedTemplateId],
     enabled: !!selectedTemplateId,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('simulate_workflow_chain', {
+      const { data, error } = await (supabase.rpc as any)('simulate_workflow_chain', {
         p_template_id: selectedTemplateId,
       });
       if (error) throw error;
