@@ -102,15 +102,28 @@ export default function FinancePayments() {
     mutationFn: async (params: { row: PaymentMemoRow; notes: string }) => {
       if (!user) return;
       const now = new Date().toISOString();
-      const { error } = await supabase
+      // Ask Postgres to return the updated row so we can verify the write
+      // actually happened. Without .select(), an RLS rejection returns
+      // success with 0 affected rows and the user sees nothing change —
+      // looks like the button is broken. With .select() we can detect
+      // the silent rejection and surface a clear permission error.
+      const { data: updated, error } = await supabase
         .from('memos')
         .update({
           originals_received_at: now,
           originals_received_by: user.id,
           originals_received_notes: params.notes || null,
         } as any)
-        .eq('id', params.row.id);
+        .eq('id', params.row.id)
+        .select('id');
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+        throw new Error(
+          'You do not have permission to mark originals received. ' +
+          'This action requires the Finance role. Please ask an admin to ' +
+          'grant you the Finance role in User Management.',
+        );
+      }
 
       const deviceInfo = collectDeviceInfo();
       const clientIp = await getClientIp();
@@ -181,7 +194,7 @@ export default function FinancePayments() {
       if (!params.reference.trim()) throw new Error('Payment reference (cheque #, transfer ID, etc.) is required');
 
       const now = new Date().toISOString();
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('memos')
         .update({
           paid_at: now,
@@ -190,8 +203,16 @@ export default function FinancePayments() {
           payment_reference: params.reference.trim(),
           payment_notes: params.notes || null,
         } as any)
-        .eq('id', params.row.id);
+        .eq('id', params.row.id)
+        .select('id');
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+        throw new Error(
+          'You do not have permission to record payment release. ' +
+          'This action requires the Finance role. Please ask an admin to ' +
+          'grant you the Finance role in User Management.',
+        );
+      }
 
       const deviceInfo = collectDeviceInfo();
       const clientIp = await getClientIp();
