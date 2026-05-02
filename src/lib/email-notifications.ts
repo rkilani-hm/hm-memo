@@ -37,27 +37,17 @@ export const notifyApprover = async ({
   memoId: string;
 }) => {
   const appUrl = window.location.origin;
-  const body = `
-    <div style="font-family: 'Century Gothic', 'Trebuchet MS', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #CD1719; padding: 20px; text-align: center;">
-        <h2 style="color: #FFFFFF; margin: 0;">Al Hamra Real Estate</h2>
-        <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System</p>
-      </div>
-      <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
-        <p>Dear <strong>${approverName}</strong>,</p>
-        <p>A memo requires your approval:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; width: 140px;">Transmittal No</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${transmittalNo}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memoSubject}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">From</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${fromName}</td></tr>
-        </table>
-        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #CD1719; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Memo</a>
-      </div>
-      <div style="padding: 12px; text-align: center; font-size: 11px; color: #5A5A5A;">
-        This is an automated notification from the Al Hamra Memo System.
-      </div>
-    </div>
-  `;
+  const body = brandedEmailShell({
+    greetingName: approverName,
+    intro: 'A memo requires your approval. Please review and act at your earliest convenience.',
+    bodyHtml: brandedFactsTable([
+      { label: 'Transmittal No', value: transmittalNo },
+      { label: 'Subject', value: memoSubject },
+      { label: 'From', value: fromName },
+    ]),
+    ctaLabel: 'Review Memo',
+    ctaUrl: `${appUrl}/memos/${memoId}`,
+  });
 
   return sendEmail({
     to: [approverEmail],
