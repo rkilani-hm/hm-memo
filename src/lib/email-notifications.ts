@@ -173,62 +173,11 @@ export const notifyMemoStatus = async ({
 // Shared email-shell + new templates added 2026-04-28
 // =========================================================================
 
-/**
- * Wraps body content in the standard Al Hamra branded shell so every
- * outbound email looks consistent. The accentColor controls the call-
- * to-action button colour (defaults to brand red #CD1719, override for
- * warnings or success-themed emails like payment-released).
- */
-function emailShell({
-  greetingName,
-  intro,
-  bodyHtml,
-  ctaLabel,
-  ctaUrl,
-  accentColor = '#CD1719',
-  footerNote,
-}: {
-  greetingName: string;
-  intro: string;
-  bodyHtml: string;
-  ctaLabel?: string;
-  ctaUrl?: string;
-  accentColor?: string;
-  footerNote?: string;
-}): string {
-  const cta = ctaLabel && ctaUrl
-    ? `<a href="${ctaUrl}" style="display:inline-block;background:${accentColor};color:#ffffff;padding:10px 24px;text-decoration:none;border-radius:4px;margin-top:12px;">${ctaLabel}</a>`
-    : '';
-  const note = footerNote
-    ? `<div style="padding:12px;text-align:center;font-size:11px;color:#5A5A5A;">${footerNote}</div>`
-    : `<div style="padding:12px;text-align:center;font-size:11px;color:#5A5A5A;">This is an automated notification from the Al Hamra Memo System.</div>`;
-  return `
-    <div style="font-family:'Century Gothic','Trebuchet MS',Arial,sans-serif;max-width:620px;margin:0 auto;">
-      <div style="background:#CD1719;padding:20px;text-align:center;">
-        <h2 style="color:#FFFFFF;margin:0;">Al Hamra Real Estate</h2>
-        <p style="color:#ffffff;margin:4px 0 0;font-size:12px;">Internal Memo System</p>
-      </div>
-      <div style="padding:24px;background:#ffffff;border:1px solid #e5e7eb;">
-        <p>Dear <strong>${greetingName}</strong>,</p>
-        <p>${intro}</p>
-        ${bodyHtml}
-        ${cta}
-      </div>
-      ${note}
-    </div>`;
-}
-
-function memoFactsTable(rows: { label: string; value: string }[]): string {
-  return `
-    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;">
-      ${rows
-        .map(
-          (r) =>
-            `<tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;width:160px;">${r.label}</td><td style="padding:8px;border:1px solid #e5e7eb;">${r.value}</td></tr>`,
-        )
-        .join('')}
-    </table>`;
-}
+// Local aliases — delegate to the canonical branded shell so any email built
+// with `emailShell` / `memoFactsTable` automatically picks up the Al Hamra
+// brand identity (logo, red accent, grey footer, Century Gothic).
+const emailShell = brandedEmailShell;
+const memoFactsTable = brandedFactsTable;
 
 /**
  * Notifies the memo creator that an admin permanently deleted their memo.
