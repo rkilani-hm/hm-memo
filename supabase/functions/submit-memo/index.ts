@@ -536,27 +536,17 @@ serve(async (req) => {
           // Email notification
           try {
             const appUrl = Deno.env.get("APP_URL") || "https://hm-memo.lovable.app";
-            const ccEmailBody = `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background: #1B3A5C; padding: 20px; text-align: center;">
-                  <h2 style="color: #C8952E; margin: 0;">Al Hamra Real Estate</h2>
-                  <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System</p>
-                </div>
-                <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
-                  <p>Dear <strong>${ccProfile.full_name}</strong>,</p>
-                  <p>You have been copied on the following memo:</p>
-                  <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-                    <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; width: 140px;">Transmittal No</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memo.transmittal_no}</td></tr>
-                    <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memo.subject}</td></tr>
-                    <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">From</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${senderProfile?.full_name || "Unknown"}</td></tr>
-                  </table>
-                  <a href="${appUrl}/memos/${memo_id}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">View Memo</a>
-                </div>
-                <div style="padding: 12px; text-align: center; font-size: 11px; color: #6b7280;">
-                  This is an automated notification from the Al Hamra Memo System.
-                </div>
-              </div>
-            `;
+            const ccEmailBody = brandedEmailShell({
+              greetingName: ccProfile.full_name,
+              intro: "You have been copied on the following memo for your information.",
+              bodyHtml: memoFactsTable([
+                { label: "Transmittal No", value: memo.transmittal_no },
+                { label: "Subject", value: memo.subject },
+                { label: "From", value: senderProfile?.full_name || "Unknown" },
+              ]),
+              ctaLabel: "View Memo",
+              ctaUrl: `${appUrl}/memos/${memo_id}`,
+            });
 
             await fetch(`${supabaseUrl}/functions/v1/send-email`, {
               method: "POST",
