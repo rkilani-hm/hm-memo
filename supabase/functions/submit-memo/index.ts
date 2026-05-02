@@ -484,28 +484,18 @@ serve(async (req) => {
         // Send email
         try {
           const appUrl = Deno.env.get("APP_URL") || "https://hm-memo.lovable.app";
-          const emailBody = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="background: #1B3A5C; padding: 20px; text-align: center;">
-                <h2 style="color: #C8952E; margin: 0;">Al Hamra Real Estate</h2>
-                <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System</p>
-              </div>
-              <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
-                <p>Dear <strong>${approverProfile.full_name}</strong>,</p>
-                <p>A memo requires your <strong>${actionLabel}</strong>:</p>
-                <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-                  <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; width: 140px;">Transmittal No</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memo.transmittal_no}</td></tr>
-                  <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memo.subject}</td></tr>
-                  <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">From</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${senderProfile?.full_name || "Unknown"}</td></tr>
-                  <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Action</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${actionLabel}</td></tr>
-                </table>
-                <a href="${appUrl}/memos/${memo_id}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Memo</a>
-              </div>
-              <div style="padding: 12px; text-align: center; font-size: 11px; color: #6b7280;">
-                This is an automated notification from the Al Hamra Memo System.
-              </div>
-            </div>
-          `;
+          const emailBody = brandedEmailShell({
+            greetingName: approverProfile.full_name,
+            intro: `A memo requires your <strong>${actionLabel}</strong>. Please review and act at your earliest convenience.`,
+            bodyHtml: memoFactsTable([
+              { label: "Transmittal No", value: memo.transmittal_no },
+              { label: "Subject", value: memo.subject },
+              { label: "From", value: senderProfile?.full_name || "Unknown" },
+              { label: "Action", value: actionLabel },
+            ]),
+            ctaLabel: "Review Memo",
+            ctaUrl: `${appUrl}/memos/${memo_id}`,
+          });
 
           const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
             method: "POST",
