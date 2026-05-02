@@ -78,27 +78,19 @@ export const sendApprovalReminder = async ({
   daysPending: number;
 }) => {
   const appUrl = window.location.origin;
-  const body = `
-    <div style="font-family: 'Century Gothic', 'Trebuchet MS', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #CD1719; padding: 20px; text-align: center;">
-        <h2 style="color: #FFFFFF; margin: 0;">Al Hamra Real Estate</h2>
-        <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System — Reminder</p>
-      </div>
-      <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
-        <p>Dear <strong>${approverName}</strong>,</p>
-        <p>This is a reminder that the following memo has been pending your approval for <strong>${daysPending} day(s)</strong>:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; width: 140px;">Transmittal No</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${transmittalNo}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memoSubject}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">From</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${fromName}</td></tr>
-        </table>
-        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #FFFFFF; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Now</a>
-      </div>
-      <div style="padding: 12px; text-align: center; font-size: 11px; color: #5A5A5A;">
-        This is an automated reminder from the Al Hamra Memo System.
-      </div>
-    </div>
-  `;
+  const body = brandedEmailShell({
+    greetingName: approverName,
+    intro: `This is a reminder that the following memo has been pending your approval for <strong>${daysPending} day(s)</strong>.`,
+    subtitle: 'Internal Memo System — Reminder',
+    bodyHtml: brandedFactsTable([
+      { label: 'Transmittal No', value: transmittalNo },
+      { label: 'Subject', value: memoSubject },
+      { label: 'From', value: fromName },
+      { label: 'Days Pending', value: `${daysPending} day(s)` },
+    ]),
+    ctaLabel: 'Review Now',
+    ctaUrl: `${appUrl}/memos/${memoId}`,
+  });
 
   return sendEmail({
     to: [approverEmail],
