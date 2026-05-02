@@ -32,7 +32,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronRight, Building2, Users, Timer } from 'lucide-react';
+import { ChevronDown, ChevronRight, Building2, Users, Timer, Info } from 'lucide-react';
+import {
+  DEFAULT_WORKING_HOURS,
+  formatWorkingHours,
+  workingHoursBetween,
+} from '@/lib/working-hours';
 
 type Step = {
   id: string;
@@ -119,15 +124,17 @@ function avg(nums: number[]): number {
 interface PersonRollup {
   userId: string;
   name: string;
-  durationsHours: number[]; // one entry per step for this person in scope
+  durationsHours: number[];        // wall-clock per step
+  durationsWorkHours: number[];    // working-hours per step (Sun-Thu 8-17)
 }
 
 interface TeamRollup {
   teamKey: string;
   teamLabel: string;
   // Per-memo team durations (max-of-parallel for dispatched flows).
-  memoTeamHours: number[];
-  // Individual person rollups within this team.
+  // Two parallel arrays — same indices, different time models.
+  memoTeamHours: number[];        // wall-clock
+  memoTeamWorkHours: number[];    // working-hours
   byPerson: Map<string, PersonRollup>;
 }
 
@@ -188,7 +195,13 @@ const DepartmentStageTimeReport = ({
     const ensureTeamRollup = (dept: DeptRollup, t: { key: string; label: string }): TeamRollup => {
       let r = dept.teams.get(t.key);
       if (!r) {
-        r = { teamKey: t.key, teamLabel: t.label, memoTeamHours: [], byPerson: new Map() };
+        r = {
+          teamKey: t.key,
+          teamLabel: t.label,
+          memoTeamHours: [],
+          memoTeamWorkHours: [],
+          byPerson: new Map(),
+        };
         dept.teams.set(t.key, r);
       }
       return r;
@@ -258,6 +271,7 @@ const DepartmentStageTimeReport = ({
         const endMs = new Date(step.signed_at).getTime();
         const durHours = (endMs - startMs) / 3_600_000;
         if (durHours < 0) continue; // data weirdness — skip
+        const durWorkHours = workingHoursBetween(start, step.signed_at, DEFAULT_WORKING_HOURS);
 
         const team = teamForStep(step);
         const teamRollup = ensureTeamRollup(dept, team);
@@ -271,10 +285,12 @@ const DepartmentStageTimeReport = ({
               userId,
               name: profileMap.get(userId)?.full_name || 'Unknown',
               durationsHours: [],
+              durationsWorkHours: [],
             };
             teamRollup.byPerson.set(userId, pr);
           }
           pr.durationsHours.push(durHours);
+          pr.durationsWorkHours.push(durWorkHours);
         }
 
         // Per-memo team end-time tracker
@@ -289,17 +305,24 @@ const DepartmentStageTimeReport = ({
         teamPerMemoEnds.set(team.key, tracker);
       }
 
-      // For each team, compute the team's wall-clock duration on this
-      // memo: max(ends) - start. This handles parallel reviewers
-      // correctly (their times overlap; team time is not the sum).
+      // For each team, compute the team's wall-clock + working-hours
+      // duration on this memo: max(ends) - start. This handles parallel
+      // reviewers correctly (their times overlap; team time is not the
+      // sum).
       for (const [teamKey, tracker] of teamPerMemoEnds.entries()) {
         if (tracker.ends.length === 0) continue;
         const startMs = new Date(tracker.start).getTime();
         const lastEndMs = Math.max(...tracker.ends.map((e) => new Date(e).getTime()));
         const durHours = (lastEndMs - startMs) / 3_600_000;
         if (durHours < 0) continue;
+        const lastEndIso = new Date(lastEndMs).toISOString();
+        const durWorkHours = workingHoursBetween(tracker.start, lastEndIso, DEFAULT_WORKING_HOURS);
+
         const teamRollup = dept.teams.get(teamKey);
-        if (teamRollup) teamRollup.memoTeamHours.push(durHours);
+        if (teamRollup) {
+          teamRollup.memoTeamHours.push(durHours);
+          teamRollup.memoTeamWorkHours.push(durWorkHours);
+        }
       }
     }
 
@@ -359,7 +382,7 @@ const DepartmentStageTimeReport = ({
             Time per stage by originating department
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
-            Wall-clock time. Click a department to expand teams; click a team to see individuals.
+            Click a department to expand teams; click a team to see individuals.
           </p>
         </div>
         <div className="flex gap-2">
@@ -367,13 +390,24 @@ const DepartmentStageTimeReport = ({
           <Button variant="outline" size="sm" onClick={collapseAll}>Collapse all</Button>
         </div>
       </CardHeader>
+      <div className="px-6 pb-3">
+        <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-primary/5 border border-primary/20 text-xs text-foreground/80">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+          <span>
+            <strong>Avg (all)</strong> is wall-clock time including weekends and after-hours.{' '}
+            <strong>Avg (work)</strong> counts only working hours: Sun–Thu, 08:00–17:00. Min and Max are wall-clock.
+            Times are formatted as <code>m</code> (minutes), <code>h</code> (hours), <code>d</code> (days), <code>wd</code> (working days = 9 hrs), <code>mo</code> (months).
+          </span>
+        </div>
+      </div>
       <CardContent className="p-0">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40%]">Department / Team / Person</TableHead>
+              <TableHead className="w-[36%]">Department / Team / Person</TableHead>
               <TableHead className="text-right">Memos</TableHead>
-              <TableHead className="text-right">Avg time</TableHead>
+              <TableHead className="text-right" title="Average wall-clock time, including weekends and after-hours">Avg (all)</TableHead>
+              <TableHead className="text-right" title="Average working-hours time. Sun–Thu, 08:00–17:00. Excludes weekends and after-hours.">Avg (work)</TableHead>
               <TableHead className="text-right">Min</TableHead>
               <TableHead className="text-right">Max</TableHead>
             </TableRow>
@@ -387,10 +421,13 @@ const DepartmentStageTimeReport = ({
               // memo time. Weighted by memo count to favour departments
               // with more data.
               const allTeamMemoHours: number[] = [];
+              const allTeamMemoWorkHours: number[] = [];
               for (const t of dept.teams.values()) {
                 allTeamMemoHours.push(...t.memoTeamHours);
+                allTeamMemoWorkHours.push(...t.memoTeamWorkHours);
               }
               const deptAvg = avg(allTeamMemoHours);
+              const deptAvgWork = avg(allTeamMemoWorkHours);
               const deptMin = allTeamMemoHours.length > 0 ? Math.min(...allTeamMemoHours) : 0;
               const deptMax = allTeamMemoHours.length > 0 ? Math.max(...allTeamMemoHours) : 0;
 
@@ -417,6 +454,7 @@ const DepartmentStageTimeReport = ({
                     </TableCell>
                     <TableCell className="text-right">{dept.memoCount}</TableCell>
                     <TableCell className="text-right font-mono text-xs">{formatHours(deptAvg)}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{formatWorkingHours(deptAvgWork)}</TableCell>
                     <TableCell className="text-right font-mono text-xs text-muted-foreground">{formatHours(deptMin)}</TableCell>
                     <TableCell className="text-right font-mono text-xs text-muted-foreground">{formatHours(deptMax)}</TableCell>
                   </TableRow>
@@ -429,6 +467,7 @@ const DepartmentStageTimeReport = ({
                         const teamFullKey = `${dept.deptId}::${team.teamKey}`;
                         const teamExpanded = expandedTeams.has(teamFullKey);
                         const teamAvg = avg(team.memoTeamHours);
+                        const teamAvgWork = avg(team.memoTeamWorkHours);
                         const teamMin = team.memoTeamHours.length > 0 ? Math.min(...team.memoTeamHours) : 0;
                         const teamMax = team.memoTeamHours.length > 0 ? Math.max(...team.memoTeamHours) : 0;
 
@@ -454,6 +493,7 @@ const DepartmentStageTimeReport = ({
                               </TableCell>
                               <TableCell className="text-right text-sm">{team.memoTeamHours.length}</TableCell>
                               <TableCell className="text-right font-mono text-xs">{formatHours(teamAvg)}</TableCell>
+                              <TableCell className="text-right font-mono text-xs">{formatWorkingHours(teamAvgWork)}</TableCell>
                               <TableCell className="text-right font-mono text-xs text-muted-foreground">{formatHours(teamMin)}</TableCell>
                               <TableCell className="text-right font-mono text-xs text-muted-foreground">{formatHours(teamMax)}</TableCell>
                             </TableRow>
@@ -464,6 +504,7 @@ const DepartmentStageTimeReport = ({
                                 .sort((a, b) => avg(b.durationsHours) - avg(a.durationsHours))
                                 .map((person) => {
                                   const pAvg = avg(person.durationsHours);
+                                  const pAvgWork = avg(person.durationsWorkHours);
                                   const pMin = person.durationsHours.length > 0 ? Math.min(...person.durationsHours) : 0;
                                   const pMax = person.durationsHours.length > 0 ? Math.max(...person.durationsHours) : 0;
                                   return (
@@ -475,6 +516,7 @@ const DepartmentStageTimeReport = ({
                                         {person.durationsHours.length}
                                       </TableCell>
                                       <TableCell className="text-right font-mono text-xs">{formatHours(pAvg)}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs">{formatWorkingHours(pAvgWork)}</TableCell>
                                       <TableCell className="text-right font-mono text-xs text-muted-foreground">{formatHours(pMin)}</TableCell>
                                       <TableCell className="text-right font-mono text-xs text-muted-foreground">{formatHours(pMax)}</TableCell>
                                     </TableRow>
