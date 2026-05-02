@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { brandedEmailShell, memoFactsTable } from "../_shared/email-brand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -106,32 +107,27 @@ serve(async (req) => {
         </tr>`;
       }));
 
-      const emailBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #1B3A5C; padding: 20px; text-align: center;">
-            <h2 style="color: #C8952E; margin: 0;">Al Hamra Real Estate</h2>
-            <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System — Daily Reminder</p>
-          </div>
-          <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
-            <p>Dear <strong>${approver.full_name}</strong>,</p>
-            <p>You have <strong>${activeMemos.length} memo(s)</strong> pending your approval:</p>
-            <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px;">
-              <tr style="background: #f3f4f6;">
-                <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left;">Memo No</th>
-                <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left;">Subject</th>
-                <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left;">From</th>
-                <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: center;">Waiting</th>
-                <th style="padding: 8px; border: 1px solid #e5e7eb;">Link</th>
-              </tr>
-              ${memoRows.join("")}
-            </table>
-            <a href="${appUrl}/approvals" style="display: inline-block; background: #C8952E; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Pending Memos</a>
-          </div>
-          <div style="padding: 12px; text-align: center; font-size: 11px; color: #6b7280;">
-            This is an automated daily reminder from the Al Hamra Memo System.
-          </div>
-        </div>
-      `;
+      const tableHtml = `
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;font-family:'Century Gothic','Trebuchet MS',Arial,sans-serif;">
+          <tr style="background:#EDEDED;">
+            <th style="padding:10px;border:1px solid #EDEDED;text-align:left;color:#1D1D1B;">Memo No</th>
+            <th style="padding:10px;border:1px solid #EDEDED;text-align:left;color:#1D1D1B;">Subject</th>
+            <th style="padding:10px;border:1px solid #EDEDED;text-align:left;color:#1D1D1B;">From</th>
+            <th style="padding:10px;border:1px solid #EDEDED;text-align:center;color:#1D1D1B;">Waiting</th>
+            <th style="padding:10px;border:1px solid #EDEDED;color:#1D1D1B;">Link</th>
+          </tr>
+          ${memoRows.join("")}
+        </table>`;
+
+      const emailBody = brandedEmailShell({
+        greetingName: approver.full_name,
+        intro: `You have <strong>${activeMemos.length} memo(s)</strong> pending your approval. Please review the list below at your earliest convenience.`,
+        subtitle: "Internal Memo System — Daily Reminder",
+        bodyHtml: tableHtml,
+        ctaLabel: "Review Pending Memos",
+        ctaUrl: `${appUrl}/approvals`,
+        footerNote: "This is an automated daily reminder from the Al Hamra Memo System.",
+      });
 
       // Send email
       try {

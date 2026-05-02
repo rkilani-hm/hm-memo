@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { brandedEmailShell, brandedFactsTable } from '@/lib/email-brand';
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
@@ -36,27 +37,17 @@ export const notifyApprover = async ({
   memoId: string;
 }) => {
   const appUrl = window.location.origin;
-  const body = `
-    <div style="font-family: 'Century Gothic', 'Trebuchet MS', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #CD1719; padding: 20px; text-align: center;">
-        <h2 style="color: #FFFFFF; margin: 0;">Al Hamra Real Estate</h2>
-        <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System</p>
-      </div>
-      <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
-        <p>Dear <strong>${approverName}</strong>,</p>
-        <p>A memo requires your approval:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; width: 140px;">Transmittal No</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${transmittalNo}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memoSubject}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">From</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${fromName}</td></tr>
-        </table>
-        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #CD1719; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Memo</a>
-      </div>
-      <div style="padding: 12px; text-align: center; font-size: 11px; color: #5A5A5A;">
-        This is an automated notification from the Al Hamra Memo System.
-      </div>
-    </div>
-  `;
+  const body = brandedEmailShell({
+    greetingName: approverName,
+    intro: 'A memo requires your approval. Please review and act at your earliest convenience.',
+    bodyHtml: brandedFactsTable([
+      { label: 'Transmittal No', value: transmittalNo },
+      { label: 'Subject', value: memoSubject },
+      { label: 'From', value: fromName },
+    ]),
+    ctaLabel: 'Review Memo',
+    ctaUrl: `${appUrl}/memos/${memoId}`,
+  });
 
   return sendEmail({
     to: [approverEmail],
@@ -87,27 +78,19 @@ export const sendApprovalReminder = async ({
   daysPending: number;
 }) => {
   const appUrl = window.location.origin;
-  const body = `
-    <div style="font-family: 'Century Gothic', 'Trebuchet MS', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #CD1719; padding: 20px; text-align: center;">
-        <h2 style="color: #FFFFFF; margin: 0;">Al Hamra Real Estate</h2>
-        <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System — Reminder</p>
-      </div>
-      <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
-        <p>Dear <strong>${approverName}</strong>,</p>
-        <p>This is a reminder that the following memo has been pending your approval for <strong>${daysPending} day(s)</strong>:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; width: 140px;">Transmittal No</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${transmittalNo}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memoSubject}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">From</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${fromName}</td></tr>
-        </table>
-        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #FFFFFF; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 8px;">Review Now</a>
-      </div>
-      <div style="padding: 12px; text-align: center; font-size: 11px; color: #5A5A5A;">
-        This is an automated reminder from the Al Hamra Memo System.
-      </div>
-    </div>
-  `;
+  const body = brandedEmailShell({
+    greetingName: approverName,
+    intro: `This is a reminder that the following memo has been pending your approval for <strong>${daysPending} day(s)</strong>.`,
+    subtitle: 'Internal Memo System — Reminder',
+    bodyHtml: brandedFactsTable([
+      { label: 'Transmittal No', value: transmittalNo },
+      { label: 'Subject', value: memoSubject },
+      { label: 'From', value: fromName },
+      { label: 'Days Pending', value: `${daysPending} day(s)` },
+    ]),
+    ctaLabel: 'Review Now',
+    ctaUrl: `${appUrl}/memos/${memoId}`,
+  });
 
   return sendEmail({
     to: [approverEmail],
@@ -158,37 +141,25 @@ export const notifyMemoStatus = async ({
         </div>`;
   }
 
-  // Build action guidance for rework
   let actionGuidanceHtml = '';
   if (status === 'rework') {
-    actionGuidanceHtml = `
-        <p style="margin: 12px 0 0; font-size: 13px; color: #374151;">Please review the instructions above, make the necessary changes, and resubmit the memo for approval.</p>`;
+    actionGuidanceHtml = `<p style="margin:12px 0 0;font-size:13px;color:#374151;">Please review the instructions above, make the necessary changes, and resubmit the memo for approval.</p>`;
   }
 
-  const body = `
-    <div style="font-family: 'Century Gothic', 'Trebuchet MS', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #CD1719; padding: 20px; text-align: center;">
-        <h2 style="color: #FFFFFF; margin: 0;">Al Hamra Real Estate</h2>
-        <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System</p>
-      </div>
-      <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
-        <p>Dear <strong>${creatorName}</strong>,</p>
-        <p>Your memo has been updated:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; width: 140px;">Transmittal No</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${transmittalNo}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memoSubject}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Status</td><td style="padding: 8px; border: 1px solid #e5e7eb; color: ${statusColor}; font-weight: bold;">${statusLabel}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">By</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${approverName}</td></tr>
-        </table>
-        ${commentsHtml}
-        ${actionGuidanceHtml}
-        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #CD1719; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 16px;">${status === 'rework' ? 'Edit & Resubmit Memo' : 'View Memo'}</a>
-      </div>
-      <div style="padding: 12px; text-align: center; font-size: 11px; color: #5A5A5A;">
-        This is an automated notification from the Al Hamra Memo System.
-      </div>
-    </div>
-  `;
+  const body = brandedEmailShell({
+    greetingName: creatorName,
+    intro: 'Your memo has been updated with the latest decision. Details below.',
+    bodyHtml:
+      brandedFactsTable([
+        { label: 'Transmittal No', value: transmittalNo },
+        { label: 'Subject', value: memoSubject },
+        { label: 'Status', value: `<span style="color:${statusColor};font-weight:bold;">${statusLabel}</span>` },
+        { label: 'By', value: approverName },
+      ]) + commentsHtml + actionGuidanceHtml,
+    ctaLabel: status === 'rework' ? 'Edit & Resubmit Memo' : 'View Memo',
+    ctaUrl: `${appUrl}/memos/${memoId}`,
+    accentColor: status === 'approved' ? '#16a34a' : status === 'rejected' ? '#dc2626' : '#ca8a04',
+  });
 
   return sendEmail({
     to: [creatorEmail],
@@ -202,62 +173,11 @@ export const notifyMemoStatus = async ({
 // Shared email-shell + new templates added 2026-04-28
 // =========================================================================
 
-/**
- * Wraps body content in the standard Al Hamra branded shell so every
- * outbound email looks consistent. The accentColor controls the call-
- * to-action button colour (defaults to brand red #CD1719, override for
- * warnings or success-themed emails like payment-released).
- */
-function emailShell({
-  greetingName,
-  intro,
-  bodyHtml,
-  ctaLabel,
-  ctaUrl,
-  accentColor = '#CD1719',
-  footerNote,
-}: {
-  greetingName: string;
-  intro: string;
-  bodyHtml: string;
-  ctaLabel?: string;
-  ctaUrl?: string;
-  accentColor?: string;
-  footerNote?: string;
-}): string {
-  const cta = ctaLabel && ctaUrl
-    ? `<a href="${ctaUrl}" style="display:inline-block;background:${accentColor};color:#ffffff;padding:10px 24px;text-decoration:none;border-radius:4px;margin-top:12px;">${ctaLabel}</a>`
-    : '';
-  const note = footerNote
-    ? `<div style="padding:12px;text-align:center;font-size:11px;color:#5A5A5A;">${footerNote}</div>`
-    : `<div style="padding:12px;text-align:center;font-size:11px;color:#5A5A5A;">This is an automated notification from the Al Hamra Memo System.</div>`;
-  return `
-    <div style="font-family:'Century Gothic','Trebuchet MS',Arial,sans-serif;max-width:620px;margin:0 auto;">
-      <div style="background:#CD1719;padding:20px;text-align:center;">
-        <h2 style="color:#FFFFFF;margin:0;">Al Hamra Real Estate</h2>
-        <p style="color:#ffffff;margin:4px 0 0;font-size:12px;">Internal Memo System</p>
-      </div>
-      <div style="padding:24px;background:#ffffff;border:1px solid #e5e7eb;">
-        <p>Dear <strong>${greetingName}</strong>,</p>
-        <p>${intro}</p>
-        ${bodyHtml}
-        ${cta}
-      </div>
-      ${note}
-    </div>`;
-}
-
-function memoFactsTable(rows: { label: string; value: string }[]): string {
-  return `
-    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;">
-      ${rows
-        .map(
-          (r) =>
-            `<tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;width:160px;">${r.label}</td><td style="padding:8px;border:1px solid #e5e7eb;">${r.value}</td></tr>`,
-        )
-        .join('')}
-    </table>`;
-}
+// Local aliases — delegate to the canonical branded shell so any email built
+// with `emailShell` / `memoFactsTable` automatically picks up the Al Hamra
+// brand identity (logo, red accent, grey footer, Century Gothic).
+const emailShell = brandedEmailShell;
+const memoFactsTable = brandedFactsTable;
 
 /**
  * Notifies the memo creator that an admin permanently deleted their memo.
