@@ -27,6 +27,7 @@ import CrossDeptRules from "@/pages/admin/CrossDeptRules";
 import ApprovalPerformance from "@/pages/admin/ApprovalPerformance";
 import ReminderSettings from "@/pages/admin/ReminderSettings";
 import Authorization from "@/pages/admin/Authorization";
+import HolidaysManagement from "@/pages/admin/HolidaysManagement";
 import FraudSettings from "@/pages/admin/FraudSettings";
 import PermissionAudit from "@/pages/admin/PermissionAudit";
 import WorkflowPreview from "@/pages/admin/WorkflowPreview";
@@ -73,6 +74,7 @@ const App = () => (
                 <Route path="/admin/audit-dashboard" element={<ProtectedRoute {...routeGuard("/admin/audit-dashboard")}><AuditDashboard /></ProtectedRoute>} />
                 <Route path="/admin/cross-dept-rules" element={<ProtectedRoute {...routeGuard("/admin/cross-dept-rules")}><CrossDeptRules /></ProtectedRoute>} />
                 <Route path="/admin/approval-performance" element={<ProtectedRoute {...routeGuard("/admin/approval-performance")}><ApprovalPerformance /></ProtectedRoute>} />
+                <Route path="/admin/holidays" element={<ProtectedRoute {...routeGuard("/admin/holidays")}><HolidaysManagement /></ProtectedRoute>} />
                 <Route path="/admin/reminder-settings" element={<ProtectedRoute {...routeGuard("/admin/reminder-settings")}><ReminderSettings /></ProtectedRoute>} />
                 <Route path="/admin/authorization" element={<ProtectedRoute {...routeGuard("/admin/authorization")}><Authorization /></ProtectedRoute>} />
                 <Route path="/admin/fraud-settings" element={<ProtectedRoute {...routeGuard("/admin/fraud-settings")}><FraudSettings /></ProtectedRoute>} />

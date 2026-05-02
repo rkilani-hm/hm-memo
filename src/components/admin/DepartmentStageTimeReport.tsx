@@ -70,6 +70,11 @@ interface Props {
   // existing page-level filter applies to this report too.
   dateFromIso?: string | null;
   dateToIso?: string | null;
+  // Public holidays as YYYY-MM-DD strings. Excluded from
+  // working-hours calculations. Empty / undefined means "no
+  // holidays known yet" — the report still works, it just doesn't
+  // skip holiday days.
+  holidayDates?: string[];
 }
 
 // Map a snapshot of signer roles → which "team column" the step belongs in.
@@ -147,10 +152,19 @@ interface DeptRollup {
 }
 
 const DepartmentStageTimeReport = ({
-  steps, memos, profiles, departments, dateFromIso, dateToIso,
+  steps, memos, profiles, departments, dateFromIso, dateToIso, holidayDates,
 }: Props) => {
   const profileMap = useMemo(() => new Map(profiles.map((p) => [p.user_id, p])), [profiles]);
   const deptMap = useMemo(() => new Map(departments.map((d) => [d.id, d.name])), [departments]);
+
+  // Build the working-hours config once per holiday-list change so
+  // workingHoursBetween() can skip holiday days. When the admin adds
+  // a holiday on the Holidays page, the report re-computes and
+  // updates "Avg (work)" without a manual refresh.
+  const workConfig = useMemo(() => ({
+    ...DEFAULT_WORKING_HOURS,
+    excludeDates: new Set(holidayDates || []),
+  }), [holidayDates]);
 
   // ---- Computation ---------------------------------------------------
   const rollups = useMemo<DeptRollup[]>(() => {
@@ -271,7 +285,7 @@ const DepartmentStageTimeReport = ({
         const endMs = new Date(step.signed_at).getTime();
         const durHours = (endMs - startMs) / 3_600_000;
         if (durHours < 0) continue; // data weirdness — skip
-        const durWorkHours = workingHoursBetween(start, step.signed_at, DEFAULT_WORKING_HOURS);
+        const durWorkHours = workingHoursBetween(start, step.signed_at, workConfig);
 
         const team = teamForStep(step);
         const teamRollup = ensureTeamRollup(dept, team);
@@ -316,7 +330,7 @@ const DepartmentStageTimeReport = ({
         const durHours = (lastEndMs - startMs) / 3_600_000;
         if (durHours < 0) continue;
         const lastEndIso = new Date(lastEndMs).toISOString();
-        const durWorkHours = workingHoursBetween(tracker.start, lastEndIso, DEFAULT_WORKING_HOURS);
+        const durWorkHours = workingHoursBetween(tracker.start, lastEndIso, workConfig);
 
         const teamRollup = dept.teams.get(teamKey);
         if (teamRollup) {
@@ -330,7 +344,7 @@ const DepartmentStageTimeReport = ({
     return Array.from(deptRollups.values()).sort((a, b) =>
       a.deptName.localeCompare(b.deptName),
     );
-  }, [steps, memos, deptMap, profileMap, dateFromIso, dateToIso]);
+  }, [steps, memos, deptMap, profileMap, dateFromIso, dateToIso, workConfig]);
 
   // ---- UI: collapsible department + team + person hierarchy --------
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(new Set());
@@ -395,7 +409,7 @@ const DepartmentStageTimeReport = ({
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
           <span>
             <strong>Avg (all)</strong> is wall-clock time including weekends and after-hours.{' '}
-            <strong>Avg (work)</strong> counts only working hours: Sun–Thu, 08:00–17:00. Min and Max are wall-clock.
+            <strong>Avg (work)</strong> counts only working hours: Sun–Thu, 08:00–17:00, excluding configured public holidays. Min and Max are wall-clock.
             Times are formatted as <code>m</code> (minutes), <code>h</code> (hours), <code>d</code> (days), <code>wd</code> (working days = 9 hrs), <code>mo</code> (months).
           </span>
         </div>
@@ -407,7 +421,7 @@ const DepartmentStageTimeReport = ({
               <TableHead className="w-[36%]">Department / Team / Person</TableHead>
               <TableHead className="text-right">Memos</TableHead>
               <TableHead className="text-right" title="Average wall-clock time, including weekends and after-hours">Avg (all)</TableHead>
-              <TableHead className="text-right" title="Average working-hours time. Sun–Thu, 08:00–17:00. Excludes weekends and after-hours.">Avg (work)</TableHead>
+              <TableHead className="text-right" title="Average working-hours time. Sun–Thu, 08:00–17:00, excluding public holidays.">Avg (work)</TableHead>
               <TableHead className="text-right">Min</TableHead>
               <TableHead className="text-right">Max</TableHead>
             </TableRow>

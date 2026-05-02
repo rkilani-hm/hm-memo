@@ -27,6 +27,7 @@ export const routeAccessRules: RouteAccessRule[] = [
   { path: '/admin/audit-dashboard', label: 'Audit Analytics', area: 'Administration', resourceKey: 'admin/audit-dashboard', requiredRole: 'admin' },
   { path: '/admin/cross-dept-rules', label: 'Cross-Dept Rules', area: 'Administration', resourceKey: 'admin/cross-dept-rules', requiredRole: 'admin' },
   { path: '/admin/approval-performance', label: 'Approval KPIs', area: 'Administration', resourceKey: 'admin/approval-performance', requiredRole: 'admin' },
+  { path: '/admin/holidays', label: 'Holidays', area: 'Administration', resourceKey: 'admin/holidays', requiredRole: 'admin' },
   { path: '/admin/reminder-settings', label: 'Reminder Settings', area: 'Administration', resourceKey: 'admin/reminder-settings', requiredRole: 'admin' },
   { path: '/admin/authorization', label: 'Authorization', area: 'Administration', resourceKey: 'admin/authorization', requiredRole: 'admin' },
   { path: '/admin/fraud-settings', label: 'Fraud & MFA', area: 'Administration', resourceKey: 'admin/fraud-settings', requiredRole: 'admin' },

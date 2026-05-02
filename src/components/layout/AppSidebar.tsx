@@ -37,6 +37,7 @@ import {
   Workflow,
   History,
   Eye,
+  CalendarDays,
 } from 'lucide-react';
 
 // -------------------------------------------------------------------------
@@ -99,6 +100,7 @@ const adminGroups: NavGroup[] = [
       { title: 'Workflow Preview',   icon: Eye,       path: '/admin/workflow-preview',    key: 'admin/workflow-preview' },
       { title: 'Reminder Settings',  icon: Bell,      path: '/admin/reminder-settings',   key: 'admin/reminder-settings' },
       { title: 'Approval KPIs',      icon: BarChart3, path: '/admin/approval-performance',key: 'admin/approval-performance' },
+      { title: 'Holidays',           icon: CalendarDays, path: '/admin/holidays',          key: 'admin/holidays' },
     ],
   },
   {

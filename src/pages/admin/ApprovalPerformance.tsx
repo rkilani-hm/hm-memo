@@ -86,6 +86,20 @@ const ApprovalPerformance = () => {
     },
   });
 
+  // Holidays — used by the working-hours metric in the time-by-stage
+  // report. Empty set is fine; the helper just won't exclude any
+  // dates if no holidays are defined yet.
+  const { data: holidays = [] } = useQuery({
+    queryKey: ['public-holidays'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('public_holidays' as any)
+        .select('date');
+      if (error) throw error;
+      return (data as any[] as { date: string }[]) || [];
+    },
+  });
+
   const slaHours = (slaSettings as any)?.sla_hours ?? 48;
 
   const kpiData = useMemo(() => {
@@ -457,6 +471,7 @@ const ApprovalPerformance = () => {
             memos={memos as any}
             profiles={profiles as any}
             departments={departments as any}
+            holidayDates={holidays.map((h: any) => h.date)}
             dateFromIso={dateFrom || null}
             dateToIso={dateTo || null}
           />
