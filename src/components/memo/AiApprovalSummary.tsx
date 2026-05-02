@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -97,12 +98,67 @@ const requestTypeBadge: Record<string, string> = {
   payment: 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]',
 };
 
+// =====================================================================
+// Localization
+// =====================================================================
+//
+// The AI Assistant panel supports English and Arabic for both the
+// generated analysis content and the panel's UI labels. The toggle
+// at the top of the panel switches between them; the choice is
+// persisted on the user's profile (profiles.ai_assistant_language).
+//
+// Scope
+// -----
+// Only this panel localizes — NOT the rest of the app. App-wide i18n
+// + RTL would be a much bigger project. We deliberately keep the
+// panel chrome (icons, layout) LTR; only TEXT CONTENT inside the
+// panel gets dir="rtl" when Arabic is active so it reads naturally.
+//
+// Adding a new label
+// ------------------
+// Add the key below in both 'en' and 'ar', then call t(key) at the
+// render site. Keep enum-like values (severity, request_type,
+// recommendation) untranslated so the badge maps and color rules
+// continue to work.
+// =====================================================================
+type Lang = 'en' | 'ar';
+
+const labels: Record<string, Record<Lang, string>> = {
+  panel_title:        { en: 'AI Assistant',         ar: 'المساعد الذكي' },
+  panel_subtitle:     { en: 'Approval Intelligence', ar: 'ذكاء الموافقات' },
+  regenerate:         { en: 'Regenerate Summary',   ar: 'إعادة توليد الملخص' },
+  collapse_panel:     { en: 'Collapse Panel',       ar: 'طي اللوحة' },
+  exec_summary:       { en: 'Executive Summary',    ar: 'الملخص التنفيذي' },
+  purpose:            { en: 'Purpose',              ar: 'الغرض' },
+  financial_impact:   { en: 'Financial Impact',     ar: 'الأثر المالي' },
+  total_amount:       { en: 'Total Amount',         ar: 'المبلغ الإجمالي' },
+  budget:             { en: 'Budget',               ar: 'الميزانية' },
+  payment_terms:      { en: 'Payment Terms',        ar: 'شروط الدفع' },
+  cost_breakdown:     { en: 'Cost Breakdown',       ar: 'تفصيل التكاليف' },
+  vendor_comparison:  { en: 'Vendor Comparison',    ar: 'مقارنة الموردين' },
+  attachments:        { en: 'Attachments',          ar: 'المرفقات' },
+  key_points:         { en: 'Key Points to Review', ar: 'نقاط رئيسية للمراجعة' },
+  suggested_decision: { en: 'Suggested Decision',   ar: 'القرار المقترح' },
+  loading:            { en: 'Analyzing memo…',      ar: 'جارٍ تحليل المذكرة…' },
+  error_label:        { en: 'AI Summary unavailable', ar: 'الملخص الذكي غير متاح' },
+  language_english:   { en: 'EN',                   ar: 'EN' },
+  language_arabic:    { en: 'عربي',                 ar: 'عربي' },
+};
+
+const t = (key: string, lang: Lang): string =>
+  labels[key]?.[lang] ?? labels[key]?.en ?? key;
+
 export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalSummaryProps) {
+  const { user } = useAuth();
   const [panelOpen, setPanelOpen] = useState(true);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<AiSummaryData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Array<{ id: string; file_name: string; file_type: string | null }>>([]);
+  // AI Assistant language. Loaded from profile on mount; falls back
+  // to 'en' until the profile fetch returns. Toggling here updates
+  // the profile so the choice persists across sessions and devices.
+  const [language, setLanguage] = useState<Lang>('en');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     executive: true,
     financial: true,
@@ -112,6 +168,47 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
     decision: true,
   });
   const { toast } = useToast();
+
+  const isRtl = language === 'ar';
+  const dirAttr: 'rtl' | 'ltr' = isRtl ? 'rtl' : 'ltr';
+
+  // Load the user's saved preference on mount (or when the user changes).
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('ai_assistant_language' as any)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const saved = (data as any)?.ai_assistant_language;
+      if (saved === 'ar' || saved === 'en') setLanguage(saved);
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  // Persist the language choice to the profile when it changes.
+  // Fire-and-forget; if it fails we still respect the user's local
+  // toggle for this session (we just won't sync to other devices).
+  // Skip the very first render before user is loaded.
+  const persistLanguage = async (next: Lang) => {
+    if (!user) return;
+    const { error: updErr } = await supabase
+      .from('profiles')
+      .update({ ai_assistant_language: next } as any)
+      .eq('user_id', user.id);
+    if (updErr) {
+      console.warn('Could not save AI Assistant language preference:', updErr);
+    }
+  };
+
+  const handleLanguageToggle = (next: Lang) => {
+    if (next === language) return;
+    setLanguage(next);
+    persistLanguage(next);
+  };
 
   const toggleSection = (key: string) => {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
@@ -145,7 +242,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
             'Content-Type': 'application/json',
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ memo_id: memoId }),
+          body: JSON.stringify({ memo_id: memoId, language }),
         }
       );
 
@@ -168,7 +265,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
     fetchSummary();
     fetchAttachments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memoId, memoUpdatedAt]);
+  }, [memoId, memoUpdatedAt, language]);
 
   if (!panelOpen) {
     return (
@@ -197,18 +294,46 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
             <Brain className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-foreground">AI Assistant</h3>
-            <p className="text-[10px] text-muted-foreground">Approval Intelligence</p>
+            <h3 className="text-sm font-semibold text-foreground">{t('panel_title', language)}</h3>
+            <p className="text-[10px] text-muted-foreground">{t('panel_subtitle', language)}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {/* Language toggle — two-button pill. Each button is its
+              own clickable target so screen readers announce both
+              options. The active one is filled; the other is ghost.
+              Width is tight; we keep glyph-only labels (EN / عربي). */}
+          <div
+            className="flex items-center rounded-md border border-border overflow-hidden mr-1"
+            role="group"
+            aria-label="AI Assistant language"
+          >
+            <Button
+              variant={language === 'en' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-7 rounded-none px-2 text-[11px] font-semibold"
+              onClick={() => handleLanguageToggle('en')}
+              aria-pressed={language === 'en'}
+            >
+              EN
+            </Button>
+            <Button
+              variant={language === 'ar' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-7 rounded-none px-2 text-[11px] font-semibold"
+              onClick={() => handleLanguageToggle('ar')}
+              aria-pressed={language === 'ar'}
+            >
+              عربي
+            </Button>
+          </div>
           <Button
             variant="ghost"
             size="icon"
             className="h-7 w-7"
             onClick={fetchSummary}
             disabled={loading}
-            title="Regenerate Summary"
+            title={t('regenerate', language)}
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -217,7 +342,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
             size="icon"
             className="h-7 w-7"
             onClick={() => setPanelOpen(false)}
-            title="Collapse Panel"
+            title={t('collapse_panel', language)}
           >
             <PanelRightClose className="h-3.5 w-3.5" />
           </Button>
@@ -226,7 +351,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
 
       {/* Content */}
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-3" dir={dirAttr}>
           {loading && (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
               <div className="relative">
@@ -235,7 +360,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
                 </div>
                 <Sparkles className="h-4 w-4 text-primary absolute -top-1 -right-1 animate-pulse" />
               </div>
-              <p className="text-sm text-muted-foreground font-medium">Analyzing memo...</p>
+              <p className="text-sm text-muted-foreground font-medium">{t('loading', language)}</p>
               <p className="text-[10px] text-muted-foreground">Reading content & attachments</p>
             </div>
           )}
@@ -243,7 +368,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
           {error && !loading && (
             <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-center">
               <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-2" />
-              <p className="text-sm font-medium text-destructive">Analysis Failed</p>
+              <p className="text-sm font-medium text-destructive">{t('error_label', language)}</p>
               <p className="text-xs text-muted-foreground mt-1">{error}</p>
               <Button size="sm" variant="outline" className="mt-3" onClick={fetchSummary}>
                 <RefreshCw className="h-3 w-3 mr-1" /> Retry
@@ -257,7 +382,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
               {summary.executive_summary && (
                 <SectionCard
                   icon={<ClipboardList className="h-4 w-4" />}
-                  title="Executive Summary"
+                  title={t('exec_summary', language)}
                   open={openSections.executive}
                   onToggle={() => toggleSection('executive')}
                   accent="primary"
@@ -273,7 +398,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
                     </p>
                     {summary.executive_summary.purpose && (
                       <p className="text-[11px] text-muted-foreground italic">
-                        Purpose: {summary.executive_summary.purpose}
+                        {t('purpose', language)}: {summary.executive_summary.purpose}
                       </p>
                     )}
                   </div>
@@ -287,14 +412,14 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
               {summary.financial_impact && summary.financial_impact.total_amount && (
                 <SectionCard
                   icon={<DollarSign className="h-4 w-4" />}
-                  title="Financial Impact"
+                  title={t('financial_impact', language)}
                   open={openSections.financial}
                   onToggle={() => toggleSection('financial')}
                   accent="success"
                 >
                   <div className="space-y-2">
                     <div className="rounded-md bg-[hsl(var(--success))]/5 border border-[hsl(var(--success))]/20 p-2.5">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Amount</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('total_amount', language)}</p>
                       <p className="text-lg font-bold text-foreground">
                         {summary.financial_impact.total_amount}
                         {summary.financial_impact.currency && (
@@ -305,14 +430,14 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
                       </p>
                     </div>
                     {summary.financial_impact.budget_available && (
-                      <InfoRow label="Budget" value={summary.financial_impact.budget_available} />
+                      <InfoRow label={t('budget', language)} value={summary.financial_impact.budget_available} />
                     )}
                     {summary.financial_impact.payment_terms && (
-                      <InfoRow label="Payment Terms" value={summary.financial_impact.payment_terms} />
+                      <InfoRow label={t('payment_terms', language)} value={summary.financial_impact.payment_terms} />
                     )}
                     {summary.financial_impact.cost_breakdown && summary.financial_impact.cost_breakdown.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Cost Breakdown</p>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">{t('cost_breakdown', language)}</p>
                         <ul className="space-y-0.5">
                           {summary.financial_impact.cost_breakdown.map((item, i) => (
                             <li key={i} className="text-xs text-foreground flex items-start gap-1.5">
@@ -331,7 +456,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
               {summary.vendor_comparison?.has_vendors && summary.vendor_comparison.vendors.length > 0 && (
                 <SectionCard
                   icon={<Building2 className="h-4 w-4" />}
-                  title="Vendor Comparison"
+                  title={t('vendor_comparison', language)}
                   open={openSections.vendor}
                   onToggle={() => toggleSection('vendor')}
                   accent="accent"
@@ -375,7 +500,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
               {summary.attachment_summary && summary.attachment_summary.total_count > 0 && (
                 <SectionCard
                   icon={<Paperclip className="h-4 w-4" />}
-                  title={`Attachments (${summary.attachment_summary.total_count})`}
+                  title={`${t('attachments', language)} (${summary.attachment_summary.total_count})`}
                   open={openSections.attachments}
                   onToggle={() => toggleSection('attachments')}
                   accent="muted"
@@ -407,7 +532,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
               {summary.key_points && summary.key_points.length > 0 && (
                 <SectionCard
                   icon={<AlertTriangle className="h-4 w-4" />}
-                  title="Key Points to Review"
+                  title={t('key_points', language)}
                   open={openSections.keyPoints}
                   onToggle={() => toggleSection('keyPoints')}
                   accent="warning"
@@ -440,7 +565,7 @@ export default function AiApprovalSummary({ memoId, memoUpdatedAt }: AiApprovalS
               {summary.suggested_decision?.recommendation && (
                 <SectionCard
                   icon={<CheckCircle2 className="h-4 w-4" />}
-                  title="Suggested Decision"
+                  title={t('suggested_decision', language)}
                   open={openSections.decision}
                   onToggle={() => toggleSection('decision')}
                   accent="primary"

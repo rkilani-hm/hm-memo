@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { User, Pen, Save, Upload, Trash2, Type, Printer } from 'lucide-react';
+import { User, Pen, Save, Upload, Trash2, Type, Printer, Languages } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { ChangePasswordCard } from '@/components/settings/ChangePasswordCard';
 import { FinanceDispatchDelegationCard } from '@/components/settings/FinanceDispatchDelegationCard';
@@ -44,6 +44,10 @@ const Settings = () => {
   const [printColorMode, setPrintColorMode] = useState('color');
   const [printPageNumberStyle, setPrintPageNumberStyle] = useState('bottom_center');
   const [printConfidentialityLine, setPrintConfidentialityLine] = useState('');
+  // AI Assistant language preference. Synced to profile.ai_assistant_language.
+  // Same column the AiApprovalSummary panel reads/writes; this card just
+  // surfaces it inside Settings for users who'd rather change it here.
+  const [aiAssistantLanguage, setAiAssistantLanguage] = useState<'en' | 'ar'>('en');
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || '');
@@ -65,6 +69,9 @@ const Settings = () => {
       setPrintColorMode((profile as any).print_color_mode || 'color');
       setPrintPageNumberStyle((profile as any).print_page_number_style || 'bottom_center');
       setPrintConfidentialityLine((profile as any).print_confidentiality_line || '');
+      // AI Assistant language
+      const aiLang = (profile as any).ai_assistant_language;
+      setAiAssistantLanguage(aiLang === 'ar' ? 'ar' : 'en');
     }
   }, [profile]);
 
@@ -101,6 +108,7 @@ const Settings = () => {
           print_color_mode: printColorMode,
           print_page_number_style: printPageNumberStyle,
           print_confidentiality_line: printConfidentialityLine || null,
+          ai_assistant_language: aiAssistantLanguage,
         } as any)
         .eq('user_id', user.id);
 
@@ -545,6 +553,37 @@ const Settings = () => {
               )}
             </TabsContent>
           </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* AI Assistant Language */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Languages className="h-5 w-5 text-accent" />
+            AI Assistant Language
+          </CardTitle>
+          <CardDescription>
+            Language used by the AI Assistant panel when summarising memos. You can also toggle this from the panel itself; the choice syncs across both places.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="space-y-2 max-w-sm">
+            <Label>Language</Label>
+            <Select
+              value={aiAssistantLanguage}
+              onValueChange={(v) => setAiAssistantLanguage(v as 'en' | 'ar')}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="ar">العربية (Arabic)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-muted-foreground pt-1">
+            The AI Assistant analyses memo content (English or mixed) and produces its summary, key points, and recommendations in the language you choose. UI labels in the panel translate as well; the rest of the application stays in English.
+          </p>
         </CardContent>
       </Card>
 

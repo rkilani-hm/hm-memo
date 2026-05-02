@@ -39,7 +39,9 @@ serve(async (req) => {
 
     const aiConfig = await loadAiConfig(supabase);
 
-    const { memo_id } = await req.json();
+    const body = await req.json();
+    const memo_id = body.memo_id;
+    const language = body.language === 'ar' ? 'ar' : 'en';
     if (!memo_id) throw new Error("memo_id is required");
 
     // ---- Fetch context ------------------------------------------------------
@@ -209,7 +211,9 @@ Return EXACTLY this JSON shape:
     "recommendation": "approve|reject|clarify|null",
     "reasoning": "brief reasoning or null"
   } | null
-}`;
+}
+
+LANGUAGE: ${language === 'ar' ? 'Respond entirely in Arabic. Translate ALL text fields (summary, purpose, reasoning, descriptions, key_points text, ai_insight, etc.) into natural, fluent Arabic. Keep proper nouns (vendor names, person names) in their original form. Keep numerical values and currency codes as-is. Enum-like fields (request_type, recommendation, severity, category, highlight) MUST stay in English so the frontend can render them correctly.' : 'Respond in English.'}`;
 
     const userMessage = buildMultimodalUserMessage(
       `Analyse this memo and return the structured JSON summary.\n\n${memoContext}`,
