@@ -17,7 +17,7 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight, Download, Clock, CheckCircle2, XCircle, AlertTriangle, Users, Timer, TrendingUp } from 'lucide-react';
-import { format, differenceInHours, parseISO, isWithinInterval } from 'date-fns';
+import { format, differenceInHours, differenceInMinutes, parseISO, isWithinInterval } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DepartmentStageTimeReport from '@/components/admin/DepartmentStageTimeReport';
 
@@ -260,6 +260,23 @@ const ApprovalPerformance = () => {
     return `${(h / 24).toFixed(1)}d`;
   };
 
+  // Minute-precision elapsed time formatter. Used in the per-step
+  // Elapsed column so sub-hour responses ('8m', '45m') render as
+  // real values instead of falling through to em-dash. Treats only
+  // truly-zero elapsed time as 0m rather than em-dash, since the
+  // step actually was signed at the moment it was assigned (rare
+  // but technically possible).
+  const formatElapsedMinutes = (mins: number) => {
+    if (!Number.isFinite(mins) || mins < 0) return '—';
+    if (mins < 1) return '0m';
+    if (mins < 60) return `${Math.round(mins)}m`;
+    const hours = mins / 60;
+    if (hours < 24) return `${hours.toFixed(1)}h`;
+    const days = hours / 24;
+    if (days < 14) return `${days.toFixed(1)}d`;
+    return `${Math.round(days)}d`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -425,14 +442,23 @@ const ApprovalPerformance = () => {
                                     <TableHead>Status</TableHead>
                                     <TableHead>Assigned</TableHead>
                                     <TableHead>Acted</TableHead>
-                                    <TableHead>Response Time</TableHead>
+                                    <TableHead>Elapsed</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {k.steps.slice(0, 20).map((s: any) => {
-                                    const responseHours = s.signed_at
-                                      ? differenceInHours(parseISO(s.signed_at), parseISO(s.created_at))
-                                      : null;
+                                    // Use minutes-precision so steps signed inside
+                                    // the same hour show real durations like "12m"
+                                    // instead of falling through to "—" (which used
+                                    // to happen because differenceInHours returned
+                                    // 0 for sub-hour responses and formatHours(0)
+                                    // intentionally renders "—").
+                                    const startedIso = s.created_at;
+                                    const endedIso = s.signed_at;
+                                    const isPending = !endedIso;
+                                    const elapsedMinutes = isPending
+                                      ? differenceInMinutes(new Date(), parseISO(startedIso))
+                                      : differenceInMinutes(parseISO(endedIso), parseISO(startedIso));
                                     return (
                                       <TableRow key={s.id} className="cursor-pointer" onClick={() => navigate(`/memos/${s.memo_id}`)}>
                                         <TableCell className="text-xs">{s.memo?.transmittal_no || '—'}</TableCell>
@@ -442,9 +468,24 @@ const ApprovalPerformance = () => {
                                             {s.status}
                                           </Badge>
                                         </TableCell>
-                                        <TableCell className="text-xs">{format(parseISO(s.created_at), 'dd MMM yyyy')}</TableCell>
-                                        <TableCell className="text-xs">{s.signed_at ? format(parseISO(s.signed_at), 'dd MMM yyyy HH:mm') : '—'}</TableCell>
-                                        <TableCell className="text-xs">{responseHours !== null ? formatHours(responseHours) : <span className="text-[hsl(var(--warning))]">Pending</span>}</TableCell>
+                                        <TableCell className="text-xs whitespace-nowrap">
+                                          {format(parseISO(startedIso), 'dd MMM yyyy HH:mm')}
+                                        </TableCell>
+                                        <TableCell className="text-xs whitespace-nowrap">
+                                          {endedIso ? format(parseISO(endedIso), 'dd MMM yyyy HH:mm') : '—'}
+                                        </TableCell>
+                                        <TableCell className="text-xs whitespace-nowrap font-mono">
+                                          {/* Pending rows show live age in warning color so they're
+                                              still distinguishable. Completed rows show the actual
+                                              elapsed time in default color. */}
+                                          {isPending ? (
+                                            <span className="text-[hsl(var(--warning))]">
+                                              {formatElapsedMinutes(elapsedMinutes)} (pending)
+                                            </span>
+                                          ) : (
+                                            formatElapsedMinutes(elapsedMinutes)
+                                          )}
+                                        </TableCell>
                                       </TableRow>
                                     );
                                   })}
