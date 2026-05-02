@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProfiles, fetchDepartments } from '@/lib/memo-api';
@@ -12,8 +12,34 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, Pencil, UserX, UserCheck, KeyRound, Lock } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  UserPlus,
+  Pencil,
+  UserX,
+  UserCheck,
+  KeyRound,
+  Lock,
+  MoreHorizontal,
+  Search as SearchIcon,
+} from 'lucide-react';
 import { Constants } from '@/integrations/supabase/types';
 
 type AppRole = 'admin' | 'department_head' | 'staff' | 'approver';
@@ -37,6 +63,14 @@ const UserManagement = () => {
   const [resetPwUser, setResetPwUser] = useState<{ user_id: string; full_name: string; email: string } | null>(null);
   const [resetPwValue, setResetPwValue] = useState('');
   const [resetPwForceChange, setResetPwForceChange] = useState(true);
+
+  // Search + deactivate-confirmation state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [deactivateUser, setDeactivateUser] = useState<{
+    user_id: string;
+    full_name: string;
+    is_active: boolean;
+  } | null>(null);
 
   const { data: profiles = [], isLoading } = useQuery({
     queryKey: ['profiles-all'],
@@ -280,7 +314,7 @@ const UserManagement = () => {
     : !!fullName && !!email && !!password && password.length >= 6;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">User Management</h1>
@@ -383,6 +417,35 @@ const UserManagement = () => {
 
       <Card>
         <CardContent className="p-0">
+          {/* Search bar — filters in real time across name, email, job title.
+              Sits in a thin band above the table, separated by a divider so
+              it doesn't crowd the table header. */}
+          <div className="px-4 py-3 border-b border-border flex items-center gap-3">
+            <div className="relative flex-1 max-w-md">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name, email, or job title..."
+                className="pl-9"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              {(() => {
+                const total = profiles.length;
+                const q = searchQuery.trim().toLowerCase();
+                const visible = q
+                  ? profiles.filter((p) =>
+                      [p.full_name, p.email, p.job_title]
+                        .filter(Boolean)
+                        .some((v) => String(v).toLowerCase().includes(q)),
+                    ).length
+                  : total;
+                return q ? `${visible} of ${total} users` : `${total} users`;
+              })()}
+            </p>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -391,7 +454,7 @@ const UserManagement = () => {
                 <TableHead>Department</TableHead>
                 <TableHead>Job Title</TableHead>
                 <TableHead>Roles</TableHead>
-                <TableHead className="w-20">Actions</TableHead>
+                <TableHead className="w-12 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -401,7 +464,25 @@ const UserManagement = () => {
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No users yet</TableCell></TableRow>
               ) : (() => {
                 const deptMap = new Map(departments.map(d => [d.id, d.name]));
-                const sorted = [...profiles].sort((a, b) => {
+                // Apply search filter first, then sort by department + name.
+                const q = searchQuery.trim().toLowerCase();
+                const matched = q
+                  ? profiles.filter((p) =>
+                      [p.full_name, p.email, p.job_title]
+                        .filter(Boolean)
+                        .some((v) => String(v).toLowerCase().includes(q)),
+                    )
+                  : profiles;
+                if (matched.length === 0) {
+                  return (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        No users match &ldquo;{searchQuery}&rdquo;.
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+                const sorted = [...matched].sort((a, b) => {
                   const dA = a.department_id ? (deptMap.get(a.department_id) || 'ZZZ') : 'ZZZ';
                   const dB = b.department_id ? (deptMap.get(b.department_id) || 'ZZZ') : 'ZZZ';
                   if (dA !== dB) return dA.localeCompare(dB);
@@ -413,7 +494,7 @@ const UserManagement = () => {
                   const showHeader = deptName !== lastDept;
                   lastDept = deptName;
                   return (
-                    <>
+                    <Fragment key={p.id}>
                       {showHeader && (
                         <TableRow key={`dept-${deptName}`}>
                           <TableCell colSpan={6} className="bg-muted/50 font-semibold text-sm text-primary py-2">
@@ -421,10 +502,17 @@ const UserManagement = () => {
                           </TableCell>
                         </TableRow>
                       )}
-                      <TableRow key={p.id} className={!p.is_active ? 'opacity-50' : ''}>
+                      {/* Inactive rows get a subtle name fade and a badge,
+                          but the rest of the row stays fully readable so
+                          admins can still review who they're un-deactivating. */}
+                      <TableRow>
                         <TableCell className="font-medium pl-8">
-                          {p.full_name}
-                          {!p.is_active && <Badge variant="outline" className="ml-2 text-xs">Inactive</Badge>}
+                          <span className={!p.is_active ? 'text-muted-foreground' : ''}>
+                            {p.full_name}
+                          </span>
+                          {!p.is_active && (
+                            <Badge variant="outline" className="ml-2 text-xs">Inactive</Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground">{p.email}</TableCell>
                         <TableCell>{deptName !== 'Unassigned' ? deptName : '—'}</TableCell>
@@ -438,69 +526,91 @@ const UserManagement = () => {
                             ))}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Edit user</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    setResetPwUser({
+                        <TableCell className="text-right">
+                          {/* Single dropdown menu replaces the four ghost-icon
+                              buttons that previously didn't fit in the column.
+                              Each action gets a clear label so admins don't
+                              have to guess at icons. */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                aria-label={`Actions for ${p.full_name}`}
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                              <DropdownMenuLabel>Manage user</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => openEdit(p)}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit user details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setResetPwUser({
+                                    user_id: p.user_id,
+                                    full_name: p.full_name,
+                                    email: p.email,
+                                  });
+                                  setResetPwValue('');
+                                  setResetPwForceChange(true);
+                                }}
+                              >
+                                <Lock className="h-4 w-4 mr-2" />
+                                Set a new password
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => forceResetMutation.mutate(p.user_id)}
+                                disabled={p.force_password_reset}
+                              >
+                                <KeyRound
+                                  className={`h-4 w-4 mr-2 ${p.force_password_reset ? 'text-warning' : ''}`}
+                                />
+                                {p.force_password_reset
+                                  ? 'Reset already pending'
+                                  : 'Force password reset'}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {/* Deactivate is destructive — open a confirm dialog
+                                  rather than firing instantly. Reactivate is safe,
+                                  so it fires directly. */}
+                              {p.is_active ? (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    setDeactivateUser({
                                       user_id: p.user_id,
                                       full_name: p.full_name,
-                                      email: p.email,
-                                    });
-                                    setResetPwValue('');
-                                    setResetPwForceChange(true);
-                                  }}
-                                  title="Set new password"
+                                      is_active: p.is_active,
+                                    })
+                                  }
+                                  className="text-destructive focus:text-destructive"
                                 >
-                                  <Lock className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Set a new password for this user</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => forceResetMutation.mutate(p.user_id)}
-                                  title="Force password reset"
-                                  disabled={p.force_password_reset}
+                                  <UserX className="h-4 w-4 mr-2" />
+                                  Deactivate user
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    toggleActiveMutation.mutate({
+                                      userId: p.user_id,
+                                      isActive: p.is_active,
+                                    })
+                                  }
+                                  className="text-[hsl(var(--success))] focus:text-[hsl(var(--success))]"
                                 >
-                                  <KeyRound className={`h-4 w-4 ${p.force_password_reset ? 'text-warning' : 'text-muted-foreground'}`} />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {p.force_password_reset ? 'Reset already pending' : 'Force password reset'}
-                              </TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => toggleActiveMutation.mutate({ userId: p.user_id, isActive: p.is_active })}
-                                >
-                                  {p.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-[hsl(var(--success))]" />}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{p.is_active ? 'Deactivate user' : 'Reactivate user'}</TooltipContent>
-                            </Tooltip>
-                          </div>
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Reactivate user
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
-                    </>
+                    </Fragment>
                   );
                 });
               })()}
@@ -559,6 +669,45 @@ const UserManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Deactivate confirmation. Reactivation is reversible and fires
+          directly from the dropdown; deactivation needs a second click
+          because it removes the user's ability to sign in and act on
+          memos. The dialog explains exactly what happens and what stays. */}
+      <AlertDialog
+        open={deactivateUser !== null}
+        onOpenChange={(o) => !o && setDeactivateUser(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Deactivate {deactivateUser?.full_name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This user will no longer be able to sign in or act on memos.
+              Their past memos, signatures, and audit records remain intact
+              and visible. You can reactivate them at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deactivateUser) {
+                  toggleActiveMutation.mutate({
+                    userId: deactivateUser.user_id,
+                    isActive: deactivateUser.is_active,
+                  });
+                  setDeactivateUser(null);
+                }
+              }}
+            >
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
