@@ -314,7 +314,7 @@ const UserManagement = () => {
     : !!fullName && !!email && !!password && password.length >= 6;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 w-full space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">User Management</h1>
