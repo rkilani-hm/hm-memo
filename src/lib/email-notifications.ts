@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { brandedEmailShell, brandedFactsTable } from '@/lib/email-brand';
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
