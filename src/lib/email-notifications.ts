@@ -141,37 +141,25 @@ export const notifyMemoStatus = async ({
         </div>`;
   }
 
-  // Build action guidance for rework
   let actionGuidanceHtml = '';
   if (status === 'rework') {
-    actionGuidanceHtml = `
-        <p style="margin: 12px 0 0; font-size: 13px; color: #374151;">Please review the instructions above, make the necessary changes, and resubmit the memo for approval.</p>`;
+    actionGuidanceHtml = `<p style="margin:12px 0 0;font-size:13px;color:#374151;">Please review the instructions above, make the necessary changes, and resubmit the memo for approval.</p>`;
   }
 
-  const body = `
-    <div style="font-family: 'Century Gothic', 'Trebuchet MS', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #CD1719; padding: 20px; text-align: center;">
-        <h2 style="color: #FFFFFF; margin: 0;">Al Hamra Real Estate</h2>
-        <p style="color: #ffffff; margin: 4px 0 0; font-size: 12px;">Internal Memo System</p>
-      </div>
-      <div style="padding: 24px; background: #ffffff; border: 1px solid #e5e7eb;">
-        <p>Dear <strong>${creatorName}</strong>,</p>
-        <p>Your memo has been updated:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; width: 140px;">Transmittal No</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${transmittalNo}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Subject</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${memoSubject}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Status</td><td style="padding: 8px; border: 1px solid #e5e7eb; color: ${statusColor}; font-weight: bold;">${statusLabel}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">By</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${approverName}</td></tr>
-        </table>
-        ${commentsHtml}
-        ${actionGuidanceHtml}
-        <a href="${appUrl}/memos/${memoId}" style="display: inline-block; background: #CD1719; color: #ffffff; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 16px;">${status === 'rework' ? 'Edit & Resubmit Memo' : 'View Memo'}</a>
-      </div>
-      <div style="padding: 12px; text-align: center; font-size: 11px; color: #5A5A5A;">
-        This is an automated notification from the Al Hamra Memo System.
-      </div>
-    </div>
-  `;
+  const body = brandedEmailShell({
+    greetingName: creatorName,
+    intro: 'Your memo has been updated with the latest decision. Details below.',
+    bodyHtml:
+      brandedFactsTable([
+        { label: 'Transmittal No', value: transmittalNo },
+        { label: 'Subject', value: memoSubject },
+        { label: 'Status', value: `<span style="color:${statusColor};font-weight:bold;">${statusLabel}</span>` },
+        { label: 'By', value: approverName },
+      ]) + commentsHtml + actionGuidanceHtml,
+    ctaLabel: status === 'rework' ? 'Edit & Resubmit Memo' : 'View Memo',
+    ctaUrl: `${appUrl}/memos/${memoId}`,
+    accentColor: status === 'approved' ? '#16a34a' : status === 'rejected' ? '#dc2626' : '#ca8a04',
+  });
 
   return sendEmail({
     to: [creatorEmail],
