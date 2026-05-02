@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight, Download, Clock, CheckCircle2, XCircle, AlertTriangle, Users, Timer, TrendingUp } from 'lucide-react';
 import { format, differenceInHours, parseISO, isWithinInterval } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import DepartmentStageTimeReport from '@/components/admin/DepartmentStageTimeReport';
 
 interface ApproverKpi {
   userId: string;
@@ -256,9 +258,16 @@ const ApprovalPerformance = () => {
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card>
+      <Tabs defaultValue="by-approver" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="by-approver">By approver</TabsTrigger>
+          <TabsTrigger value="by-stage">Time by department & stage</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="by-approver" className="space-y-6 mt-0">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Users className="h-3.5 w-3.5" /> Total Assigned</div>
             <p className="text-2xl font-bold text-foreground">{orgTotals.totalAssigned}</p>
@@ -440,6 +449,19 @@ const ApprovalPerformance = () => {
           </Table>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="by-stage" className="space-y-6 mt-0">
+          <DepartmentStageTimeReport
+            steps={allSteps as any}
+            memos={memos as any}
+            profiles={profiles as any}
+            departments={departments as any}
+            dateFromIso={dateFrom || null}
+            dateToIso={dateTo || null}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
