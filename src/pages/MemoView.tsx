@@ -8,6 +8,7 @@ import { fetchProfiles, fetchDepartments, getAttachmentSignedUrl } from '@/lib/m
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 import { generateMemoPdf, prepareMemoData, type PrintPreferences, DEFAULT_PRINT_PREFERENCES } from '@/lib/memo-pdf';
+import { buildAttachmentsBundle, downloadBundleBlob } from '@/lib/attachments-bundle';
 import { buildMemoHtml } from '@/lib/memo-pdf-html';
 import {
   bucketStepsForFinanceGrid,
@@ -999,10 +1000,48 @@ const MemoView = () => {
     if (!memo) return;
     try {
       const logoDataUrl = await getLogoDataUrl();
+      // 1. Trigger the memo's own print flow (existing behavior).
+      //    Goes through the browser's print engine for full fidelity.
       await generateMemoPdf({
         memo, fromProfile, toProfile, department: dept,
         approvalSteps, attachments, profiles, departments, logoDataUrl,
       }, prefs, pdfLayout);
+
+      // 2. If the user opted to include attachments, build a separate
+      //    bundled PDF and download it. This runs independently — it
+      //    doesn't block the memo print and a failure here does not
+      //    affect the memo print that already fired above.
+      if (prefs.includeAttachments && prefs.selectedAttachmentIds.length > 0) {
+        try {
+          const { blob, included, skipped } = await buildAttachmentsBundle({
+            attachments,
+            selectedIds: prefs.selectedAttachmentIds,
+            memoSubject: memo.subject || '',
+            transmittalNo: memo.transmittal_no || memo.id.slice(0, 8),
+          });
+          const filename = `${(memo.transmittal_no || memo.id.slice(0, 8))
+            .replace(/[^A-Za-z0-9-]/g, '_')}_attachments.pdf`;
+          downloadBundleBlob(blob, filename);
+
+          if (skipped.length > 0) {
+            toast({
+              title: 'Bundle downloaded',
+              description: `${included.length} attachment${included.length === 1 ? '' : 's'} included. ${skipped.length} skipped (unsupported file type).`,
+            });
+          } else {
+            toast({
+              title: 'Bundle downloaded',
+              description: `${included.length} attachment${included.length === 1 ? '' : 's'} included in the bundle PDF.`,
+            });
+          }
+        } catch (bundleError: any) {
+          toast({
+            title: 'Attachments bundle failed',
+            description: bundleError.message || 'Could not build the attachments bundle. The memo itself was printed.',
+            variant: 'destructive',
+          });
+        }
+      }
     } catch (error: any) {
       toast({ title: 'PDF Export Failed', description: error.message, variant: 'destructive' });
     }
@@ -2117,6 +2156,7 @@ const MemoView = () => {
         htmlContent={previewHtml}
         onPrint={handlePrintFromPreview}
         savedPreferences={savedPrintPrefs}
+        attachments={attachments}
       />
 
       {/* Delete Confirmation Dialog */}

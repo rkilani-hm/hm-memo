@@ -24,6 +24,11 @@ export interface PrintPreferences {
   blankBackPages: boolean;
   watermark: boolean;
   includeAttachments: boolean;
+  // IDs of memo_attachments rows the user picked to merge into the
+  // separate attachments bundle PDF. Only honored when
+  // includeAttachments=true. When empty, no bundle is produced even
+  // if includeAttachments is on.
+  selectedAttachmentIds: string[];
   colorMode: 'color' | 'grayscale';
   pageNumberStyle: 'bottom_center' | 'bottom_right' | 'none';
   confidentialityLine: string | null;
@@ -34,6 +39,7 @@ export const DEFAULT_PRINT_PREFERENCES: PrintPreferences = {
   blankBackPages: true,
   watermark: false,
   includeAttachments: false,
+  selectedAttachmentIds: [],
   colorMode: 'color',
   pageNumberStyle: 'bottom_center',
   confidentialityLine: null,

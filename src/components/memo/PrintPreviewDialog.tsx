@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,9 +12,16 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Printer, FileDown, ZoomIn, ZoomOut, AlertTriangle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Printer, FileDown, ZoomIn, ZoomOut, AlertTriangle, Paperclip } from 'lucide-react';
 import type { PrintPreferences } from '@/lib/memo-pdf';
 import { DEFAULT_PRINT_PREFERENCES } from '@/lib/memo-pdf';
+import {
+  canMergeAttachment,
+  attachmentDisplayKind,
+  formatFileSize,
+  type BundleAttachment,
+} from '@/lib/attachments-bundle';
 
 interface PrintPreviewDialogProps {
   open: boolean;
@@ -22,14 +29,58 @@ interface PrintPreviewDialogProps {
   htmlContent: string;
   onPrint: (prefs: PrintPreferences) => void;
   savedPreferences?: Partial<PrintPreferences>;
+  // Attachments available on the memo. The dialog lets the user pick
+  // which to include in the separate attachments-bundle PDF (only PDFs
+  // and PNG/JPEG images are mergeable; others are shown but disabled).
+  attachments?: BundleAttachment[];
 }
 
-const PrintPreviewDialog = ({ open, onClose, htmlContent, onPrint, savedPreferences }: PrintPreviewDialogProps) => {
+const PrintPreviewDialog = ({ open, onClose, htmlContent, onPrint, savedPreferences, attachments = [] }: PrintPreviewDialogProps) => {
   const [prefs, setPrefs] = useState<PrintPreferences>({
     ...DEFAULT_PRINT_PREFERENCES,
     ...savedPreferences,
   });
   const [zoom, setZoom] = useState(70);
+
+  // When the dialog opens, default to "no attachments selected" so the
+  // user has to opt in. Default-include would surprise users who just
+  // want a quick memo print.
+  useEffect(() => {
+    if (open) {
+      setPrefs((p) => ({ ...p, selectedAttachmentIds: [] }));
+    }
+  }, [open]);
+
+  const mergeableAttachments = attachments.filter(canMergeAttachment);
+  const allMergeableSelected =
+    mergeableAttachments.length > 0 &&
+    mergeableAttachments.every((a) => prefs.selectedAttachmentIds.includes(a.id));
+  const totalSelectedSize = attachments
+    .filter((a) => prefs.selectedAttachmentIds.includes(a.id))
+    .reduce((sum, a) => sum + (a.file_size || 0), 0);
+  const sizeWarn = totalSelectedSize > 50 * 1024 * 1024; // > 50 MB
+
+  const toggleAttachment = (id: string) => {
+    setPrefs((p) => {
+      const already = p.selectedAttachmentIds.includes(id);
+      return {
+        ...p,
+        selectedAttachmentIds: already
+          ? p.selectedAttachmentIds.filter((x) => x !== id)
+          : [...p.selectedAttachmentIds, id],
+      };
+    });
+  };
+
+  const toggleAllMergeable = () => {
+    setPrefs((p) => ({
+      ...p,
+      selectedAttachmentIds: allMergeableSelected
+        ? []
+        : mergeableAttachments.map((a) => a.id),
+    }));
+  };
+
   // Strip the full-page @page margins and print styles for preview rendering
   const previewHtml = htmlContent
     ? htmlContent
@@ -195,6 +246,108 @@ const PrintPreviewDialog = ({ open, onClose, htmlContent, onPrint, savedPreferen
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Include Attachments — produces a separate downloaded PDF
+                bundle alongside the memo print. Hidden when there are no
+                attachments at all. */}
+            {attachments.length > 0 && (
+              <div className="space-y-2 pt-3 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Paperclip className="h-3 w-3" />
+                    Include Attachments
+                  </Label>
+                  <Switch
+                    checked={prefs.includeAttachments}
+                    onCheckedChange={(v) => {
+                      setPrefs((p) => ({
+                        ...p,
+                        includeAttachments: v,
+                        // When turning off, drop selected ids so a future
+                        // re-toggle starts clean.
+                        selectedAttachmentIds: v ? p.selectedAttachmentIds : [],
+                      }));
+                    }}
+                  />
+                </div>
+
+                {prefs.includeAttachments && (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Selected attachments are bundled into a separate PDF
+                      that downloads alongside the memo print.
+                    </p>
+
+                    {mergeableAttachments.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={toggleAllMergeable}
+                        className="text-[11px] text-primary hover:underline font-medium"
+                      >
+                        {allMergeableSelected ? 'Deselect all' : 'Select all (mergeable)'}
+                      </button>
+                    )}
+
+                    <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+                      {attachments.map((att) => {
+                        const mergeable = canMergeAttachment(att);
+                        const checked = prefs.selectedAttachmentIds.includes(att.id);
+                        const kind = attachmentDisplayKind(att);
+                        const size = formatFileSize(att.file_size);
+                        return (
+                          <label
+                            key={att.id}
+                            className={`flex items-start gap-2 p-1.5 rounded border text-[11px] ${
+                              mergeable
+                                ? 'border-border hover:bg-muted/40 cursor-pointer'
+                                : 'border-border/50 bg-muted/30 cursor-not-allowed'
+                            }`}
+                            title={
+                              mergeable
+                                ? att.file_name
+                                : `${kind} files cannot be merged into a PDF`
+                            }
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={() => mergeable && toggleAttachment(att.id)}
+                              disabled={!mergeable}
+                              className="mt-0.5"
+                            />
+                            <span className="flex-1 min-w-0">
+                              <span
+                                className={`block font-medium leading-tight truncate ${
+                                  mergeable ? 'text-foreground' : 'text-muted-foreground'
+                                }`}
+                              >
+                                {att.file_name}
+                              </span>
+                              <span className="block text-[10px] text-muted-foreground mt-0.5">
+                                {kind}{size ? ` · ${size}` : ''}
+                                {!mergeable && ' · cannot include in PDF'}
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    {sizeWarn && (
+                      <p className="text-[10px] text-warning leading-snug">
+                        Selected attachments exceed 50&nbsp;MB. Large bundles may
+                        take a moment to generate.
+                      </p>
+                    )}
+
+                    {prefs.selectedAttachmentIds.length > 0 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {prefs.selectedAttachmentIds.length} selected · {formatFileSize(totalSelectedSize)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
