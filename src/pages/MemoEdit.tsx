@@ -178,12 +178,14 @@ const MemoEdit = () => {
     }
   }, [memo, loaded, existingSteps]);
 
-  const editableStatuses = ['draft', 'submitted', 'in_review', 'rejected', 'rework'];
+  // Memo data can only be edited while in 'draft' status (before submission/approval).
+  // Once submitted, approved, or otherwise progressed, the content is locked.
+  // Admins retain edit access for corrections.
+  const editableStatuses = ['draft'];
   const wasAlreadySubmitted = memo && ['submitted', 'in_review', 'rejected', 'rework'].includes(memo.status);
-  const isSameDept = profile?.department_id && memo?.department_id && profile.department_id === memo.department_id;
   const isEditable = memo && (
     editableStatuses.includes(memo.status) &&
-    (memo.from_user_id === user?.id || isAdmin || isSameDept)
+    (memo.from_user_id === user?.id || isAdmin)
   );
 
   // Redirect if not editable
