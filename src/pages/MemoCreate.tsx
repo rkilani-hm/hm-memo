@@ -183,6 +183,7 @@ const MemoCreate = () => {
           initials: derivedInitials || '--',
           copies_to: copiesArray.length > 0 ? copiesArray : null,
           reviewer_user_id: reviewerUserId || null,
+          date: new Date(`${memoDate}T00:00:00`).toISOString(),
         } as any)
         .select()
         .single();
