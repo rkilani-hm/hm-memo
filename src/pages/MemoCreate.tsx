@@ -73,7 +73,7 @@ const MemoCreate = () => {
     queryFn: fetchDepartments,
   });
 
-  const currentDate = format(new Date(), "dd/MM/yyyy");
+  const [memoDate, setMemoDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const userDept = departments.find((d) => d.id === profile?.department_id);
 
   const saveMemo = async (status: 'draft' | 'submitted') => {
@@ -183,6 +183,7 @@ const MemoCreate = () => {
           initials: derivedInitials || '--',
           copies_to: copiesArray.length > 0 ? copiesArray : null,
           reviewer_user_id: reviewerUserId || null,
+          date: new Date(`${memoDate}T00:00:00`).toISOString(),
         } as any)
         .select()
         .single();
@@ -301,7 +302,13 @@ const MemoCreate = () => {
 
               <div className="p-3 space-y-1">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">Date</Label>
-                <p className="text-sm font-medium">{currentDate}</p>
+                <Input
+                  type="date"
+                  value={memoDate}
+                  max={format(new Date(), "yyyy-MM-dd")}
+                  onChange={(e) => setMemoDate(e.target.value)}
+                  className="border-0 p-0 h-auto shadow-none text-sm font-medium focus-visible:ring-0"
+                />
               </div>
 
               <div className="p-3 space-y-1">
@@ -501,7 +508,7 @@ const MemoCreate = () => {
               })(),
               copies_to: copiesTo.length > 0 ? copiesTo : null,
               reviewer_user_id: reviewerUserId || null,
-              date: new Date().toISOString(),
+              date: new Date(`${memoDate}T00:00:00`).toISOString(),
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
               current_step: 0,
@@ -574,7 +581,7 @@ const MemoCreate = () => {
               initials: '--',
               copies_to: copiesTo.length > 0 ? copiesTo : null,
               reviewer_user_id: reviewerUserId || null,
-              date: new Date().toISOString(),
+              date: new Date(`${memoDate}T00:00:00`).toISOString(),
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
               current_step: 0,
