@@ -301,7 +301,13 @@ const MemoCreate = () => {
 
               <div className="p-3 space-y-1">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">Date</Label>
-                <p className="text-sm font-medium">{currentDate}</p>
+                <Input
+                  type="date"
+                  value={memoDate}
+                  max={format(new Date(), "yyyy-MM-dd")}
+                  onChange={(e) => setMemoDate(e.target.value)}
+                  className="border-0 p-0 h-auto shadow-none text-sm font-medium focus-visible:ring-0"
+                />
               </div>
 
               <div className="p-3 space-y-1">
