@@ -10,6 +10,9 @@ import {
   financeRoleLabel,
   financeRoleRank,
   memoUsesFinanceDispatch,
+  FINANCE_REVIEWER_ROLES,
+  GM_ROLES,
+  CEO_ROLES,
 } from './finance-dispatch-grid';
 
 type Profile = Tables<'profiles'>;
@@ -50,6 +53,100 @@ function findStepByStage(steps: Tables<'approval_steps'>[], stage: string) {
 
 function isL1Stage(step: Tables<'approval_steps'>) {
   return normalizeStageLevel((step as any).stage_level) === 'l1';
+}
+
+// =====================================================================
+// Reviewer-initial detection
+// =====================================================================
+//
+// Some workflows include "courtesy reviewer" steps — peer reviewers
+// (e.g. Rami, Ahmed, Andrew inside an ICT department) who initial in
+// parallel before a memo proceeds to the department manager. On
+// physical paper these are tiny initials at the bottom-right corner
+// of the page, distinct from the formal signature columns.
+//
+// The PDF renderer needs to:
+//   - SKIP these steps from the formal signature grid (so they don't
+//     occupy a column they don't belong in).
+//   - Render them in a compact "Reviewed by" band immediately above
+//     the formal grid.
+//
+// Detection rules (no schema change required):
+//   1. step.action_type === 'initial'    (not signature, not other)
+//   2. signer's effective roles include NONE of:
+//        - finance_*  (those go in the Finance column)
+//        - general_manager / gm   (those go in the GM column)
+//        - ceo / chairman         (those go in the CEO column)
+//      AND the step is NOT the L1 stage (department head sign-off).
+//
+// Mohammed (finance_dispatcher) initialing as part of finance dispatch
+// is correctly NOT a reviewer initial — his roles include
+// finance_dispatcher → he stays in the Finance column.
+// Rami (no formal-column role) initialing → ends up in the band.
+// =====================================================================
+const FORMAL_COLUMN_ROLES = new Set<string>([
+  ...FINANCE_REVIEWER_ROLES,
+  ...GM_ROLES,
+  ...CEO_ROLES,
+]);
+
+function isReviewerInitialStep(
+  step: Tables<'approval_steps'>,
+  userRolesByUserId: Record<string, string[]>,
+): boolean {
+  if ((step as any).action_type !== 'initial') return false;
+  if (isL1Stage(step)) return false;
+  const roles = effectiveRolesForStep(step, userRolesByUserId);
+  return !roles.some((r) => FORMAL_COLUMN_ROLES.has(r));
+}
+
+/**
+ * Build the "Reviewed by" band — a compact right-aligned strip with
+ * each signed reviewer's initial image and the date+time underneath
+ * in a small font. Pending reviewers are deliberately omitted —
+ * the PDF is the historical record of what was actually signed.
+ *
+ * Returns an empty string when no reviewer initials are present, so
+ * the band's whitespace doesn't appear unnecessarily on memos that
+ * don't use the pattern.
+ */
+function buildReviewerInitialsBandHtml(
+  reviewerSteps: Tables<'approval_steps'>[],
+  sigDataUrls: Record<string, string | null>,
+): string {
+  const signed = reviewerSteps.filter(
+    (s) => s.status === 'approved' && s.signed_at,
+  );
+  if (signed.length === 0) return '';
+
+  // Sort by signed_at so the band reads chronologically left-to-right.
+  // (The visual flow is right-aligned but inline tiles read normally.)
+  const sortedSigned = [...signed].sort((a, b) =>
+    String(a.signed_at).localeCompare(String(b.signed_at)),
+  );
+
+  const tiles = sortedSigned
+    .map((step) => {
+      const sigUrl = sigDataUrls[step.id];
+      const dateStr = step.signed_at
+        ? format(new Date(step.signed_at), 'dd MMM yyyy HH:mm')
+        : '';
+      const initialImg = sigUrl
+        ? `<img src="${sigUrl}" style="max-width:48pt;max-height:24pt;object-fit:contain;display:block;margin:0 auto;" />`
+        : `<span style="font-size:11pt;font-weight:bold;font-style:italic;color:#1B3A5C;display:inline-block;">✓</span>`;
+      return `
+        <div style="display:inline-block;vertical-align:top;text-align:center;margin:0 4pt;min-width:54pt;">
+          ${initialImg}
+          <p style="font-size:6pt;color:#666;margin:1pt 0 0;line-height:1.2;">${dateStr}</p>
+        </div>`;
+    })
+    .join('');
+
+  return `
+    <div style="margin-top:6pt;padding:4pt 8pt 2pt;border-top:1px dashed #ccc;text-align:right;page-break-inside:avoid;">
+      <p style="font-size:7pt;color:#888;margin:0 0 2pt;text-transform:uppercase;letter-spacing:0.5pt;">Reviewed by</p>
+      ${tiles}
+    </div>`;
 }
 
 function buildApprovalSignatureHtml(
@@ -590,6 +687,18 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     nonSignOffSteps = approvalSteps.filter((s) => !isL1Stage(s));
   }
 
+  // Separate "reviewer initials" (peer courtesy reviewers — no formal
+  // column role, action_type='initial') from the formal approvals grid.
+  // They render in their own compact band just above the formal grid
+  // (matching the physical-paper convention of small initials at the
+  // bottom-right corner before the signature columns).
+  const reviewerInitialSteps = nonSignOffSteps.filter((s) =>
+    isReviewerInitialStep(s, userRolesByUserId),
+  );
+  const formalGridSteps = nonSignOffSteps.filter(
+    (s) => !isReviewerInitialStep(s, userRolesByUserId),
+  );
+
   // L1 sign-off block
   const signOffHtml = buildL1SignOffHtml(signOffStep, profiles, sigDataUrls, registeredByProfiles, senderSigDataUrl, fromProfile);
 
@@ -602,8 +711,14 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
     </span>`;
   }).join('');
 
-  // Approvals HTML (excluding sign-off step)
-  const approvalsHtml = buildStagedApprovalsHtml(nonSignOffSteps, profiles, sigDataUrls, registeredByProfiles, userRolesByUserId, pdfLayout);
+  // Approvals HTML (excluding sign-off step AND reviewer initials)
+  const approvalsHtml = buildStagedApprovalsHtml(formalGridSteps, profiles, sigDataUrls, registeredByProfiles, userRolesByUserId, pdfLayout);
+
+  // "Reviewed by" band — peer reviewer courtesy initials, rendered as
+  // a compact right-aligned strip just above the formal signature grid.
+  // Returns empty string when no reviewer initials are present, so it
+  // adds no visual weight to memos that don't use this pattern.
+  const reviewerBandHtml = buildReviewerInitialsBandHtml(reviewerInitialSteps, sigDataUrls);
 
   // Comments (only creator's action comments — approver comments are in audit log only)
   const commentsHtml = (memo as any).action_comments
@@ -927,6 +1042,9 @@ export function buildMemoHtml(data: MemoData, prepared: PreparedData, prefs: Pri
         <td style="border:1px solid #000;padding:6px 12px;">${commentsHtml}</td>
       </tr>
     </table>
+
+    <!-- REVIEWER INITIALS (peer reviewers — small marks above formal grid) -->
+    ${reviewerBandHtml}
 
     <!-- APPROVALS -->
     <div class="memo-approvals memo-approvals-section">
