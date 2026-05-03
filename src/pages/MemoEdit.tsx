@@ -280,6 +280,37 @@ const MemoEdit = () => {
         await uploadAttachment(memo.id, attachment.file, user.id);
       }
 
+      // Build field-level diff for audit log
+      const newValues: Record<string, any> = {
+        from_user_id: fromUserId || memo.from_user_id,
+        to_user_id: toUserId || null,
+        subject: subject.trim() || 'Untitled Memo',
+        description,
+        action_comments: actionComments || null,
+        memo_types: memoTypes,
+        continuation_pages: continuationPages,
+        copies_to: copiesArray.length > 0 ? copiesArray : null,
+        reviewer_user_id: reviewerUserId || null,
+      };
+      const oldValues: Record<string, any> = {
+        from_user_id: (memo as any).from_user_id,
+        to_user_id: (memo as any).to_user_id,
+        subject: (memo as any).subject,
+        description: (memo as any).description,
+        action_comments: (memo as any).action_comments,
+        memo_types: (memo as any).memo_types,
+        continuation_pages: (memo as any).continuation_pages,
+        copies_to: (memo as any).copies_to,
+        reviewer_user_id: (memo as any).reviewer_user_id,
+      };
+      const norm = (v: any) => JSON.stringify(v ?? null);
+      const changedFields: Record<string, { old: any; new: any }> = {};
+      for (const k of Object.keys(newValues)) {
+        if (norm(oldValues[k]) !== norm(newValues[k])) {
+          changedFields[k] = { old: oldValues[k] ?? null, new: newValues[k] ?? null };
+        }
+      }
+
       // Audit log
       const deviceInfo = collectDeviceInfo();
       const clientIp = await getClientIp();
@@ -288,7 +319,12 @@ const MemoEdit = () => {
         memo_id: memo.id,
         user_id: user.id,
         action: status === 'draft' ? 'memo_updated' : 'memo_submitted',
-        details: { transmittal_no: memo.transmittal_no },
+        details: {
+          transmittal_no: memo.transmittal_no,
+          original_created_at: (memo as any).created_at,
+          changed_fields: changedFields,
+          fields_changed_count: Object.keys(changedFields).length,
+        },
         ip_address: clientIp,
         ip_geolocation_city: geo.city,
         ip_geolocation_country: geo.country,
