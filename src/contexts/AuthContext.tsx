@@ -16,7 +16,10 @@ type AppRole =
   | 'ar_accountant'
   | 'budget_controller'
   | 'general_manager'
-  | 'ceo';
+  | 'ceo'
+  | 'vendor_reviewer'
+  | 'vendor_master_admin'
+  | 'vendor';
 
 interface AuthContextType {
   user: User | null;
