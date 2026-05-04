@@ -385,6 +385,72 @@ export type Database = {
         }
         Relationships: []
       }
+      document_reminder_settings: {
+        Row: {
+          id: string
+          notify_procurement: boolean
+          notify_vendor: boolean
+          reminder_days: number[]
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          notify_procurement?: boolean
+          notify_vendor?: boolean
+          reminder_days?: number[]
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          notify_procurement?: boolean
+          notify_vendor?: boolean
+          reminder_days?: number[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      document_types: {
+        Row: {
+          ai_check_hints: string | null
+          code: string
+          created_at: string
+          description_ar: string | null
+          description_en: string | null
+          display_order: number
+          has_expiry: boolean
+          id: string
+          is_active: boolean
+          label_ar: string
+          label_en: string
+        }
+        Insert: {
+          ai_check_hints?: string | null
+          code: string
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          display_order?: number
+          has_expiry?: boolean
+          id?: string
+          is_active?: boolean
+          label_ar: string
+          label_en: string
+        }
+        Update: {
+          ai_check_hints?: string | null
+          code?: string
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          display_order?: number
+          has_expiry?: boolean
+          id?: string
+          is_active?: boolean
+          label_ar?: string
+          label_en?: string
+        }
+        Relationships: []
+      }
       fraud_settings: {
         Row: {
           azure_authority_url: string | null
@@ -1068,6 +1134,532 @@ export type Database = {
         }
         Relationships: []
       }
+      vendor_attachments: {
+        Row: {
+          ai_analysed_at: string | null
+          ai_findings: Json | null
+          ai_model_used: string | null
+          ai_rejection_reason: string | null
+          ai_summary: string | null
+          ai_verdict: Database["public"]["Enums"]["doc_ai_verdict"]
+          document_type_id: string | null
+          expiry_date: string | null
+          expiry_source: string | null
+          extracted_expiry_date: string | null
+          file_mime_type: string | null
+          file_name: string
+          file_size: number | null
+          file_url: string
+          id: string
+          last_reminder_sent_at: string | null
+          last_reminder_window: number | null
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string | null
+          vendor_id: string
+        }
+        Insert: {
+          ai_analysed_at?: string | null
+          ai_findings?: Json | null
+          ai_model_used?: string | null
+          ai_rejection_reason?: string | null
+          ai_summary?: string | null
+          ai_verdict?: Database["public"]["Enums"]["doc_ai_verdict"]
+          document_type_id?: string | null
+          expiry_date?: string | null
+          expiry_source?: string | null
+          extracted_expiry_date?: string | null
+          file_mime_type?: string | null
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          last_reminder_sent_at?: string | null
+          last_reminder_window?: number | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          vendor_id: string
+        }
+        Update: {
+          ai_analysed_at?: string | null
+          ai_findings?: Json | null
+          ai_model_used?: string | null
+          ai_rejection_reason?: string | null
+          ai_summary?: string | null
+          ai_verdict?: Database["public"]["Enums"]["doc_ai_verdict"]
+          document_type_id?: string | null
+          expiry_date?: string | null
+          expiry_source?: string | null
+          extracted_expiry_date?: string | null
+          file_mime_type?: string | null
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          last_reminder_sent_at?: string | null
+          last_reminder_window?: number | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_attachments_document_type_id_fkey"
+            columns: ["document_type_id"]
+            isOneToOne: false
+            referencedRelation: "document_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_attachments_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_audit_log: {
+        Row: {
+          action: string
+          actor_kind: string | null
+          actor_user_id: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          notes: string | null
+          vendor_id: string
+        }
+        Insert: {
+          action: string
+          actor_kind?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          vendor_id: string
+        }
+        Update: {
+          action?: string
+          actor_kind?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_audit_log_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_change_requests: {
+        Row: {
+          applied_at: string | null
+          applied_by: string | null
+          id: string
+          proposed_changes: Json
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sap_reference: string | null
+          status: string
+          submitted_at: string
+          submitted_by_kind: string | null
+          submitted_by_user_id: string | null
+          vendor_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_by?: string | null
+          id?: string
+          proposed_changes: Json
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sap_reference?: string | null
+          status?: string
+          submitted_at?: string
+          submitted_by_kind?: string | null
+          submitted_by_user_id?: string | null
+          vendor_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          applied_by?: string | null
+          id?: string
+          proposed_changes?: Json
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sap_reference?: string | null
+          status?: string
+          submitted_at?: string
+          submitted_by_kind?: string | null
+          submitted_by_user_id?: string | null
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_change_requests_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_document_requirements: {
+        Row: {
+          condition_label_ar: string | null
+          condition_label_en: string | null
+          display_order: number
+          document_type_id: string
+          id: string
+          is_conditional: boolean
+          is_required: boolean
+          vendor_type_id: string
+        }
+        Insert: {
+          condition_label_ar?: string | null
+          condition_label_en?: string | null
+          display_order?: number
+          document_type_id: string
+          id?: string
+          is_conditional?: boolean
+          is_required?: boolean
+          vendor_type_id: string
+        }
+        Update: {
+          condition_label_ar?: string | null
+          condition_label_en?: string | null
+          display_order?: number
+          document_type_id?: string
+          id?: string
+          is_conditional?: boolean
+          is_required?: boolean
+          vendor_type_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_document_requirements_document_type_id_fkey"
+            columns: ["document_type_id"]
+            isOneToOne: false
+            referencedRelation: "document_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_document_requirements_vendor_type_id_fkey"
+            columns: ["vendor_type_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_sap_events: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          kind: Database["public"]["Enums"]["vendor_sap_event_kind"]
+          payload_snapshot: Json | null
+          requested_at: string
+          sap_reference: string | null
+          status: Database["public"]["Enums"]["vendor_sap_event_status"]
+          vendor_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["vendor_sap_event_kind"]
+          payload_snapshot?: Json | null
+          requested_at?: string
+          sap_reference?: string | null
+          status?: Database["public"]["Enums"]["vendor_sap_event_status"]
+          vendor_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["vendor_sap_event_kind"]
+          payload_snapshot?: Json | null
+          requested_at?: string
+          sap_reference?: string | null
+          status?: Database["public"]["Enums"]["vendor_sap_event_status"]
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_sap_events_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_types: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          label_ar: string
+          label_en: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          label_ar: string
+          label_en: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          label_ar?: string
+          label_en?: string
+        }
+        Relationships: []
+      }
+      vendor_users: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          user_id: string
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          user_id: string
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          user_id?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_users_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendors: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          attestation_accepted: boolean
+          attestation_accepted_at: string | null
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_branch: string | null
+          bank_currency: string | null
+          bank_iban: string | null
+          bank_name: string | null
+          bank_swift_bic: string | null
+          blocked_reason: string | null
+          city: string | null
+          contact_email: string
+          contact_name: string
+          contact_phone: string | null
+          contact_position: string | null
+          country: string
+          created_at: string
+          created_by: string | null
+          has_iso_qms: boolean | null
+          has_tax_exemption: boolean | null
+          id: string
+          industry_activity: string | null
+          iso_certifying_body: string | null
+          legal_name_ar: string | null
+          legal_name_en: string
+          payment_terms_preference: string | null
+          postal_code: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sap_account_group: string | null
+          sap_company_code: string | null
+          sap_created_at: string | null
+          sap_created_by: string | null
+          sap_creation_status: string | null
+          sap_last_update_at: string | null
+          sap_last_update_by: string | null
+          sap_last_update_reference: string | null
+          sap_purchasing_organization: string | null
+          sap_vendor_code: string | null
+          signatory_civil_id_or_passport: string | null
+          signatory_name: string | null
+          signatory_position: string | null
+          state_region: string | null
+          status: Database["public"]["Enums"]["vendor_status"]
+          submitted_at: string | null
+          tax_registration_no: string | null
+          trading_name: string | null
+          updated_at: string
+          vendor_reference_no: string
+          vendor_type_id: string
+          website: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          attestation_accepted?: boolean
+          attestation_accepted_at?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_currency?: string | null
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_swift_bic?: string | null
+          blocked_reason?: string | null
+          city?: string | null
+          contact_email: string
+          contact_name: string
+          contact_phone?: string | null
+          contact_position?: string | null
+          country?: string
+          created_at?: string
+          created_by?: string | null
+          has_iso_qms?: boolean | null
+          has_tax_exemption?: boolean | null
+          id?: string
+          industry_activity?: string | null
+          iso_certifying_body?: string | null
+          legal_name_ar?: string | null
+          legal_name_en: string
+          payment_terms_preference?: string | null
+          postal_code?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sap_account_group?: string | null
+          sap_company_code?: string | null
+          sap_created_at?: string | null
+          sap_created_by?: string | null
+          sap_creation_status?: string | null
+          sap_last_update_at?: string | null
+          sap_last_update_by?: string | null
+          sap_last_update_reference?: string | null
+          sap_purchasing_organization?: string | null
+          sap_vendor_code?: string | null
+          signatory_civil_id_or_passport?: string | null
+          signatory_name?: string | null
+          signatory_position?: string | null
+          state_region?: string | null
+          status?: Database["public"]["Enums"]["vendor_status"]
+          submitted_at?: string | null
+          tax_registration_no?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          vendor_reference_no: string
+          vendor_type_id: string
+          website?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          attestation_accepted?: boolean
+          attestation_accepted_at?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_currency?: string | null
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_swift_bic?: string | null
+          blocked_reason?: string | null
+          city?: string | null
+          contact_email?: string
+          contact_name?: string
+          contact_phone?: string | null
+          contact_position?: string | null
+          country?: string
+          created_at?: string
+          created_by?: string | null
+          has_iso_qms?: boolean | null
+          has_tax_exemption?: boolean | null
+          id?: string
+          industry_activity?: string | null
+          iso_certifying_body?: string | null
+          legal_name_ar?: string | null
+          legal_name_en?: string
+          payment_terms_preference?: string | null
+          postal_code?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sap_account_group?: string | null
+          sap_company_code?: string | null
+          sap_created_at?: string | null
+          sap_created_by?: string | null
+          sap_creation_status?: string | null
+          sap_last_update_at?: string | null
+          sap_last_update_by?: string | null
+          sap_last_update_reference?: string | null
+          sap_purchasing_organization?: string | null
+          sap_vendor_code?: string | null
+          signatory_civil_id_or_passport?: string | null
+          signatory_name?: string | null
+          signatory_position?: string | null
+          state_region?: string | null
+          status?: Database["public"]["Enums"]["vendor_status"]
+          submitted_at?: string | null
+          tax_registration_no?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          vendor_reference_no?: string
+          vendor_type_id?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendors_vendor_type_id_fkey"
+            columns: ["vendor_type_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_templates: {
         Row: {
           created_at: string
@@ -1218,6 +1810,7 @@ export type Database = {
         }[]
       }
       effective_finance_dispatcher: { Args: never; Returns: string }
+      generate_vendor_reference: { Args: never; Returns: string }
       get_finance_reviewer_pool: {
         Args: never
         Returns: {
