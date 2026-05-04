@@ -1306,12 +1306,16 @@ export type Database = {
         | "finance"
         | "general_manager"
         | "ceo"
+        | "vendor_reviewer"
+        | "vendor_master_admin"
+        | "vendor"
       approval_status:
         | "pending"
         | "approved"
         | "rejected"
         | "rework"
         | "skipped"
+      doc_ai_verdict: "pending" | "accepted" | "rejected" | "soft_pending"
       memo_status:
         | "draft"
         | "submitted"
@@ -1330,6 +1334,20 @@ export type Database = {
         | "request"
         | "other"
       step_action_type: "signature" | "initial" | "review" | "acknowledge"
+      vendor_sap_event_kind: "creation" | "update"
+      vendor_sap_event_status: "pending" | "completed" | "failed"
+      vendor_status:
+        | "draft"
+        | "submitted"
+        | "approved_pending_sap_creation"
+        | "active_in_sap"
+        | "update_submitted"
+        | "update_approved_pending_sap_update"
+        | "sap_update_completed"
+        | "sap_update_failed_needs_correction"
+        | "rejected"
+        | "inactive"
+        | "blocked_documents_expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1470,8 +1488,12 @@ export const Constants = {
         "finance",
         "general_manager",
         "ceo",
+        "vendor_reviewer",
+        "vendor_master_admin",
+        "vendor",
       ],
       approval_status: ["pending", "approved", "rejected", "rework", "skipped"],
+      doc_ai_verdict: ["pending", "accepted", "rejected", "soft_pending"],
       memo_status: [
         "draft",
         "submitted",
@@ -1492,6 +1514,21 @@ export const Constants = {
         "other",
       ],
       step_action_type: ["signature", "initial", "review", "acknowledge"],
+      vendor_sap_event_kind: ["creation", "update"],
+      vendor_sap_event_status: ["pending", "completed", "failed"],
+      vendor_status: [
+        "draft",
+        "submitted",
+        "approved_pending_sap_creation",
+        "active_in_sap",
+        "update_submitted",
+        "update_approved_pending_sap_update",
+        "sap_update_completed",
+        "sap_update_failed_needs_correction",
+        "rejected",
+        "inactive",
+        "blocked_documents_expired",
+      ],
     },
   },
 } as const
