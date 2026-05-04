@@ -92,6 +92,14 @@ const adminGroups: NavGroup[] = [
     ],
   },
   {
+    id: 'admin/vendor-master',
+    label: 'Vendor Master',
+    icon: Building2,
+    items: [
+      { title: 'Vendors',  icon: Building2, path: '/admin/vendors', key: 'admin/vendors' },
+    ],
+  },
+  {
     id: 'admin/workflows-approvals',
     label: 'Workflows & Approvals',
     icon: Workflow,

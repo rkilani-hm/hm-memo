@@ -31,6 +31,12 @@ import HolidaysManagement from "@/pages/admin/HolidaysManagement";
 import FraudSettings from "@/pages/admin/FraudSettings";
 import PermissionAudit from "@/pages/admin/PermissionAudit";
 import WorkflowPreview from "@/pages/admin/WorkflowPreview";
+import VendorManagement from "@/pages/admin/VendorManagement";
+import VendorCreate from "@/pages/admin/VendorCreate";
+import VendorDetail from "@/pages/admin/VendorDetail";
+import VendorRegister from "@/pages/vendor/Register";
+import VendorLogin from "@/pages/vendor/Login";
+import VendorDashboard from "@/pages/vendor/Dashboard";
 import NoAccess from "@/pages/NoAccess";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { routeGuard } from "@/lib/route-access-rules";
@@ -54,6 +60,15 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/force-password-reset" element={<ForcePasswordReset />} />
+
+              {/* Vendor portal — public registration + own auth flow.
+                  These routes do NOT use AppLayout (no staff sidebar).
+                  Vendor portal users have role='vendor' and only see
+                  /vendor/* paths. */}
+              <Route path="/vendor/register" element={<VendorRegister />} />
+              <Route path="/vendor/login" element={<VendorLogin />} />
+              <Route path="/vendor/dashboard" element={<VendorDashboard />} />
+
               <Route element={<AppLayout />}>
                 <Route path="/" element={<ProtectedRoute {...routeGuard("/")}><Dashboard /></ProtectedRoute>} />
                 <Route path="/memos" element={<ProtectedRoute {...routeGuard("/memos")}><MemoList /></ProtectedRoute>} />
@@ -80,6 +95,9 @@ const App = () => (
                 <Route path="/admin/fraud-settings" element={<ProtectedRoute {...routeGuard("/admin/fraud-settings")}><FraudSettings /></ProtectedRoute>} />
                 <Route path="/admin/permission-audit" element={<ProtectedRoute {...routeGuard("/admin/permission-audit")}><PermissionAudit /></ProtectedRoute>} />
                 <Route path="/admin/workflow-preview" element={<ProtectedRoute {...routeGuard("/admin/workflow-preview")}><WorkflowPreview /></ProtectedRoute>} />
+                <Route path="/admin/vendors" element={<ProtectedRoute {...routeGuard("/admin/vendors")}><VendorManagement /></ProtectedRoute>} />
+                <Route path="/admin/vendors/new" element={<ProtectedRoute {...routeGuard("/admin/vendors/new")}><VendorCreate /></ProtectedRoute>} />
+                <Route path="/admin/vendors/:id" element={<ProtectedRoute {...routeGuard("/admin/vendors/:id")}><VendorDetail /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
