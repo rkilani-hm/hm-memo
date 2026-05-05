@@ -197,7 +197,23 @@ const MemoEdit = () => {
   // Redirect if not editable
   useEffect(() => {
     if (memo && !isEditable) {
-      toast({ title: 'Cannot Edit', description: 'This memo cannot be edited in its current state.', variant: 'destructive' });
+      // Be specific about WHY edit is blocked so users (and admins
+      // debugging) understand. Three reasons we'd block:
+      //   - Memo is in a final state (approved)
+      //   - User isn't the creator (neither from_user_id nor
+      //     created_by_user_id matches) and isn't an admin
+      //   - Status is somehow outside the editable list
+      let reason = 'This memo cannot be edited in its current state.';
+      if (memo.status === 'approved') {
+        reason = 'This memo has been fully approved and is now locked. Approved memos cannot be edited.';
+      } else if (
+        memo.from_user_id !== user?.id &&
+        memo.created_by_user_id !== user?.id &&
+        !isAdmin
+      ) {
+        reason = 'Only the memo\'s creator or an admin can edit this memo. If you created it but are seeing this message, please contact the system administrator — the memo may be missing creator information.';
+      }
+      toast({ title: 'Cannot Edit', description: reason, variant: 'destructive' });
       navigate(`/memos/${id}`);
     }
   }, [memo, isEditable]);

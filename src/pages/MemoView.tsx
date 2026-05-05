@@ -1129,8 +1129,15 @@ const MemoView = () => {
               </Button>
             </>
           )}
-          {['draft', 'submitted', 'in_review', 'rejected', 'rework'].includes(memo.status) && 
-           (memo.from_user_id === user?.id || isAdmin || (profile?.department_id === memo.department_id && memo.status !== 'approved')) && (
+          {/* Edit & Resubmit — visible only to people who can actually
+              use it: the named author, the person who created the
+              memo on their behalf (created_by_user_id), or any admin.
+              Dropped the previous same-department fallback because it
+              was over-permissive: it showed the button to dept staff
+              who would then get bounced by the stricter MemoEdit gate
+              with a confusing "Cannot Edit" error. */}
+          {['draft', 'submitted', 'in_review', 'rejected', 'rework'].includes(memo.status) &&
+           (memo.from_user_id === user?.id || memo.created_by_user_id === user?.id || isAdmin) && (
             <Button variant="outline" onClick={() => navigate(`/memos/${memo.id}/edit`)}>
               <Edit className="h-4 w-4 mr-2" />
               {memo.status === 'draft' ? 'Edit Draft' : 'Edit & Resubmit'}
