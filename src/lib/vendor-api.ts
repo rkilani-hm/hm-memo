@@ -19,7 +19,8 @@ export type VendorStatus =
   | 'sap_update_failed_needs_correction'
   | 'rejected'
   | 'inactive'
-  | 'blocked_documents_expired';
+  | 'blocked_documents_expired'
+  | 'awaiting_vendor_response';
 
 export interface VendorRow {
   id: string;
