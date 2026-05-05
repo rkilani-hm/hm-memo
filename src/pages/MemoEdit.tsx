@@ -38,7 +38,7 @@ import type { FileAttachment } from '@/components/memo/FileUpload';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
 import { DEFAULT_PDF_LAYOUT, type PdfLayout } from '@/components/memo/PdfLayoutEditor';
 import { format } from 'date-fns';
-import { Save, Send, ArrowLeft, FileDown } from 'lucide-react';
+import { Save, Send, ArrowLeft, FileDown, RotateCcw } from 'lucide-react';
 import { buildMemoHtml } from '@/lib/memo-pdf-html';
 import { generateMemoPdf, prepareMemoData, type PrintPreferences, DEFAULT_PRINT_PREFERENCES } from '@/lib/memo-pdf';
 import PrintPreviewDialog from '@/components/memo/PrintPreviewDialog';
@@ -178,14 +178,20 @@ const MemoEdit = () => {
     }
   }, [memo, loaded, existingSteps]);
 
-  // Memo data can only be edited while in 'draft' status (before submission/approval).
-  // Once submitted, approved, or otherwise progressed, the content is locked.
-  // Admins retain edit access for corrections.
-  const editableStatuses = ['draft'];
+  // Edit-and-resubmit policy
+  // ========================
+  // Creators (and admins) may edit memos in any non-final status —
+  // 'draft', 'submitted', 'in_review', 'rejected', 'rework'.
+  // 'approved' is final and locked. Saving an edit on a non-draft memo
+  // resets the entire approval chain (Option A): all collected
+  // signatures are invalidated and approvers must re-sign on the new
+  // content. The chain reset is implemented in saveMemo below by
+  // deleting approval_steps before re-running submit-memo.
+  const editableStatuses = ['draft', 'submitted', 'in_review', 'rejected', 'rework'];
   const wasAlreadySubmitted = memo && ['submitted', 'in_review', 'rejected', 'rework'].includes(memo.status);
   const isEditable = memo && (
     editableStatuses.includes(memo.status) &&
-    (memo.from_user_id === user?.id || isAdmin)
+    (memo.from_user_id === user?.id || memo.created_by_user_id === user?.id || isAdmin)
   );
 
   // Redirect if not editable
@@ -196,7 +202,26 @@ const MemoEdit = () => {
     }
   }, [memo, isEditable]);
 
+  // Count signatures that will be invalidated by saving an edit, so we
+  // can warn the editor in the banner. Recompute on every render — fast.
+  const signedCount = (existingSteps || []).filter(
+    (s: any) => s.status === 'approved' && s.signed_at,
+  ).length;
+
   const currentDate = memo ? format(new Date(memo.date), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy');
+
+  // Helper used by the re-sign notification email below: render a
+  // diff value as short HTML-safe text. Object/array values become
+  // truncated JSON; null/undefined become an italic "(empty)" marker.
+  const formatDiff = (v: any): string => {
+    if (v === null || v === undefined || v === '') return '<em>(empty)</em>';
+    const text = typeof v === 'string' ? v : JSON.stringify(v);
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return escaped.length > 80 ? escaped.slice(0, 80) + '…' : escaped;
+  };
 
   const saveMemo = async (status: 'draft' | 'submitted') => {
     if (!user || !memo || !profile?.department_id) {
@@ -233,10 +258,24 @@ const MemoEdit = () => {
     try {
       const copiesArray = copiesTo;
 
-      // If editing a submitted/in_review memo, reset approval steps first
+      // Edit-and-resubmit chain reset (Option A — full reset)
+      // -----------------------------------------------------
+      // Before deleting the existing approval_steps, snapshot the list
+      // of approvers who had already signed so we can email them after
+      // the resubmit goes through. They'll need to re-sign on the new
+      // content. existingSteps comes from the React Query above and is
+      // a fresh read of the current chain.
       const wasSubmitted = ['submitted', 'in_review', 'rejected', 'rework'].includes(memo.status);
+      const previouslySignedApproverIds: string[] = [];
       if (wasSubmitted) {
-        // Delete existing approval steps
+        for (const s of (existingSteps || []) as any[]) {
+          if (s.status === 'approved' && s.signed_at && s.approver_user_id) {
+            previouslySignedApproverIds.push(s.approver_user_id);
+          }
+        }
+        // Delete existing approval steps (submit-memo also does this on
+        // its own, but doing it here ensures a clean state regardless
+        // of which path runs).
         await supabase.from('approval_steps').delete().eq('memo_id', memo.id);
       }
 
@@ -342,6 +381,60 @@ const MemoEdit = () => {
         }
         const { error: submitError } = await supabase.functions.invoke('submit-memo', { body });
         if (submitError) console.warn('Workflow creation warning:', submitError);
+
+        // Resubmit re-sign notifications
+        // ------------------------------
+        // For approvers who had signed BEFORE this edit, send a heads-up
+        // that the memo content has changed and they'll need to re-sign.
+        // submit-memo already emails the new step-1 approver on its own
+        // notify path; this is purely the supplemental "your previous
+        // signature is no longer valid" notice.
+        // Skipped silently on failure — non-blocking, the chain still
+        // proceeds correctly without these emails.
+        if (wasSubmitted && previouslySignedApproverIds.length > 0) {
+          try {
+            const { data: approvers } = await supabase
+              .from('profiles')
+              .select('user_id, full_name, email')
+              .in('user_id', previouslySignedApproverIds);
+
+            const recipients = (approvers || [])
+              .map((a: any) => a.email)
+              .filter((e: any): e is string => Boolean(e));
+
+            if (recipients.length > 0) {
+              const subject = `Memo edited and resubmitted — your re-signature is needed: ${memo.transmittal_no}`;
+              const fieldsHtml = Object.entries(changedFields)
+                .slice(0, 8)
+                .map(([k, v]: any) => `<li><code>${k}</code>: ${formatDiff(v.old)} → ${formatDiff(v.new)}</li>`)
+                .join('');
+              const moreFields = Object.keys(changedFields).length > 8
+                ? `<p style="color:#666;font-size:12px;">+${Object.keys(changedFields).length - 8} more changes…</p>`
+                : '';
+
+              const emailBody = `
+                <p>Hello,</p>
+                <p>The memo <strong>${memo.transmittal_no}</strong> ("${subject}") was edited and resubmitted by ${profile?.full_name || 'the creator'}.</p>
+                <p>Because the content changed after you signed, your previous signature has been invalidated. The memo is back in your queue and will need a new signature when it reaches your step in the chain.</p>
+                <p><strong>Fields that changed:</strong></p>
+                <ul style="margin:8px 0;padding-left:20px;">${fieldsHtml || '<li><em>(no field-level diff captured)</em></li>'}</ul>
+                ${moreFields}
+                <p>Please review the updated memo and re-sign when it's your turn.</p>
+              `;
+
+              await supabase.functions.invoke('send-email', {
+                body: {
+                  to: recipients,
+                  subject,
+                  body: emailBody,
+                  isHtml: true,
+                },
+              });
+            }
+          } catch (e) {
+            console.warn('Re-sign notification failed (non-blocking):', e);
+          }
+        }
       }
 
       toast({
@@ -377,6 +470,36 @@ const MemoEdit = () => {
           <p className="text-sm text-muted-foreground">{memo.transmittal_no}</p>
         </div>
       </div>
+
+      {/* Resubmit warning — visible whenever editing a non-draft memo.
+          Spells out exactly what will happen when the editor saves so
+          there are no surprises (collected signatures are invalidated;
+          approvers must re-sign). Shown only when there's something at
+          stake — wasAlreadySubmitted plus the count is non-zero. */}
+      {wasAlreadySubmitted && (
+        <Card className="border-warning/60 bg-warning/5">
+          <CardContent className="p-4 flex items-start gap-3">
+            <RotateCcw className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+            <div className="space-y-1 text-sm">
+              <p className="font-semibold">Editing a memo that's already in review</p>
+              <p className="text-muted-foreground">
+                Saving and resubmitting will <strong>reset the approval chain</strong>. {signedCount > 0 ? (
+                  <>
+                    {signedCount} approver{signedCount === 1 ? ' has' : 's have'} already signed —
+                    their signatures will be invalidated and they will receive an email asking
+                    them to re-sign on the updated content.
+                  </>
+                ) : (
+                  <>The chain will start fresh from step 1 once you submit.</>
+                )}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                If you only need to update a small detail and the approvers won't mind re-signing, this is fine. For minor typos in already-approved sections, consider whether the edit is worth the round trip.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Memo Form */}
       <Card className="border-2">

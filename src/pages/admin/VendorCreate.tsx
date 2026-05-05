@@ -94,6 +94,15 @@ const VendorCreate = () => {
         </p>
       </div>
 
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-3 text-xs flex items-start gap-2">
+          <span>💡</span>
+          <p className="text-muted-foreground">
+            <strong>Tip:</strong> If the supplier wants to register themselves with their own documents, share the public registration link from the Vendor Master list page instead.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle className="text-base">Vendor Type</CardTitle></CardHeader>
         <CardContent>

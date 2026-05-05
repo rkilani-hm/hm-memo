@@ -155,11 +155,15 @@ export function statusBadgeVariant(s: VendorStatus): 'default' | 'secondary' | '
 // Fetchers
 // ---------------------------------------------------------------------
 
-export async function fetchVendors(): Promise<VendorRow[]> {
-  const { data, error } = await supabase
+export async function fetchVendors(opts: { includeDeleted?: boolean } = {}): Promise<VendorRow[]> {
+  let q = supabase
     .from('vendors' as any)
     .select('*')
     .order('created_at', { ascending: false });
+  if (!opts.includeDeleted) {
+    q = q.is('deleted_at', null);
+  }
+  const { data, error } = await q;
   if (error) throw error;
   return (data as any) || [];
 }

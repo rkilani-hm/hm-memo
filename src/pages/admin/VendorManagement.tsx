@@ -5,17 +5,20 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, Building2, Clock } from 'lucide-react';
+import { Plus, Search, Building2, Clock, Link2, Copy, Check } from 'lucide-react';
 import {
-  fetchVendors, fetchVendorTypes, fetchDocumentTypes,
+  fetchVendors, fetchVendorTypes,
   STATUS_LABELS, statusBadgeVariant, type VendorStatus,
 } from '@/lib/vendor-api';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO, differenceInDays } from 'date-fns';
 
@@ -25,15 +28,41 @@ const ALL_STATUSES: VendorStatus[] = [
   'rejected', 'inactive', 'blocked_documents_expired',
 ];
 
+// Public registration URL — shown on this page so admins can share it
+// with vendors. The path is fixed; the host is derived from the
+// current browser location so this works in any deployment.
+const getPublicRegistrationUrl = () =>
+  typeof window !== 'undefined'
+    ? `${window.location.origin}/vendor/register`
+    : '/vendor/register';
+
 const VendorManagement = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const { data: vendors = [], isLoading } = useQuery({
-    queryKey: ['vendors'],
-    queryFn: fetchVendors,
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(getPublicRegistrationUrl());
+      setCopied(true);
+      toast({ title: 'Copied', description: 'Public registration link copied to clipboard.' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({
+        title: 'Copy failed',
+        description: 'Please copy the link manually.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const { data: vendors = [], isLoading, refetch } = useQuery({
+    queryKey: ['vendors', { showDeleted }],
+    queryFn: () => fetchVendors({ includeDeleted: showDeleted }),
   });
 
   const { data: vendorTypes = [] } = useQuery({
@@ -97,6 +126,33 @@ const VendorManagement = () => {
           <Plus className="h-4 w-4" /> New Vendor
         </Button>
       </div>
+
+      {/* Public registration link — admins can copy and share with vendors */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-start gap-2 flex-1 min-w-0">
+            <Link2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-foreground">Public registration link</p>
+              <p className="text-xs text-muted-foreground">
+                Share this with suppliers to let them register themselves. They don't need an account.
+              </p>
+              <p className="text-xs font-mono text-foreground/80 truncate mt-0.5">
+                {getPublicRegistrationUrl()}
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCopyUrl}
+            className="gap-1 shrink-0"
+          >
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? 'Copied' : 'Copy link'}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Documents expiring soon */}
       {expiringSoon.length > 0 && (
@@ -168,6 +224,16 @@ const VendorManagement = () => {
           <p className="text-xs text-muted-foreground">
             {filtered.length} of {vendors.length}
           </p>
+          <div className="flex items-center gap-2 ml-auto">
+            <Switch
+              id="show-deleted"
+              checked={showDeleted}
+              onCheckedChange={setShowDeleted}
+            />
+            <Label htmlFor="show-deleted" className="text-xs cursor-pointer">
+              Show deleted
+            </Label>
+          </div>
         </CardContent>
       </Card>
 
@@ -193,12 +259,19 @@ const VendorManagement = () => {
               ) : filtered.map((v) => (
                 <TableRow
                   key={v.id}
-                  className="cursor-pointer hover:bg-muted/50"
+                  className={`cursor-pointer hover:bg-muted/50 ${(v as any).deleted_at ? 'opacity-60 bg-muted/20' : ''}`}
                   onClick={() => navigate(`/admin/vendors/${v.id}`)}
                 >
                   <TableCell className="font-mono text-xs">{v.vendor_reference_no}</TableCell>
                   <TableCell>
-                    <div className="font-medium">{v.legal_name_en}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      {v.legal_name_en}
+                      {(v as any).deleted_at && (
+                        <Badge variant="outline" className="text-[10px] border-destructive/50 text-destructive">
+                          Deleted
+                        </Badge>
+                      )}
+                    </div>
                     {v.trading_name && (
                       <div className="text-xs text-muted-foreground">{v.trading_name}</div>
                     )}
