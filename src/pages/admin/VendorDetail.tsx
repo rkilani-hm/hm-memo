@@ -95,11 +95,24 @@ const VendorDetail = () => {
     if (!vendor) return;
     setActing(true);
     try {
-      const r = await invokeStatusTransition({ vendor_id: vendor.id, action, payload });
+      const r: any = await invokeStatusTransition({ vendor_id: vendor.id, action, payload });
       if (r.error) {
         toast({ title: 'Action failed', description: r.error, variant: 'destructive' });
       } else {
         toast({ title: 'Done', description: `Vendor moved to ${STATUS_LABELS[r.status as any] || r.status}.` });
+        // If the action succeeded but emails failed, warn the user.
+        // Without this, send-email failures were silently swallowed.
+        if (Array.isArray(r.email_failures) && r.email_failures.length > 0) {
+          const summary = r.email_failures
+            .map((f: any) => `• ${f.to}: ${f.error}`)
+            .slice(0, 3)
+            .join('\n');
+          toast({
+            title: `${r.email_failures.length} email(s) could NOT be sent`,
+            description: `${summary}${r.email_failures.length > 3 ? '\n…and more' : ''}\n\nPlease contact the recipients manually. Check Supabase function logs for full details.`,
+            variant: 'destructive',
+          });
+        }
         refresh();
       }
     } catch (e: any) {
@@ -830,11 +843,20 @@ const DocumentsCard = ({
   const handleBatchSend = async () => {
     setBatchSending(true);
     try {
-      const r = await batchSendToVendor(vendorId);
-      if (r.error) {
+      const r: any = await batchSendToVendor(vendorId);
+      if (r.error && !r.partial) {
         toast({ title: 'Could not send', description: r.error, variant: 'destructive' });
       } else if (r.status === 'no_changes_needed') {
         toast({ title: r.message || 'All approved', description: 'You can now click Approve on the vendor.' });
+      } else if (r.partial || r.email_sent === false) {
+        // Partial success: decisions saved, vendor status updated,
+        // but email failed. Loud warning so procurement follows up.
+        toast({
+          title: 'Decisions saved — but email failed',
+          description: r.error || 'The vendor email could not be sent. Please contact the vendor manually. Check the audit log on this page for the exact error.',
+          variant: 'destructive',
+        });
+        onChange();
       } else {
         toast({ title: 'Sent to vendor', description: `${r.items_sent} item(s) sent. Vendor status moved to "Awaiting Vendor Response".` });
         onChange();
@@ -989,9 +1011,16 @@ const DocumentRow = ({
   const handleSendNow = async () => {
     setSendingNow(true);
     try {
-      const r = await sendSingleToVendor(a.id);
-      if (r.error) {
+      const r: any = await sendSingleToVendor(a.id);
+      if (r.error && !r.partial) {
         toast({ title: 'Could not send', description: r.error, variant: 'destructive' });
+      } else if (r.partial || r.email_sent === false) {
+        toast({
+          title: 'Decision saved — but email failed',
+          description: r.error || 'The vendor email could not be sent. Please contact the vendor manually.',
+          variant: 'destructive',
+        });
+        onChange();
       } else {
         toast({
           title: 'Sent to vendor',

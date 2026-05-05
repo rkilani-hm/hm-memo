@@ -257,6 +257,21 @@ serve(async (req) => {
     // ---- Side-effects ------------------------------------------------
     const portalLoginUrl = (Deno.env.get('APP_BASE_URL') || 'https://im.alhamra.com.kw') + '/vendor/login';
 
+    // Track email failures so we can surface them to the caller.
+    // Without this, send-email failures were silently swallowed and
+    // procurement was left wondering why vendors never got notified.
+    const emailFailures: Array<{ to: string; error: string }> = [];
+    const trackEmail = async (
+      sendPromise: Promise<{ ok: boolean; error?: string }>,
+      recipientLabel: string,
+    ) => {
+      const r = await sendPromise;
+      if (!r.ok && r.error) {
+        emailFailures.push({ to: recipientLabel, error: r.error });
+        console.error(`[${action}] email to ${recipientLabel} failed: ${r.error}`);
+      }
+    };
+
     if (action === 'submit') {
       // Email vendor: registration received
       const email = emailRegistrationReceived({
@@ -264,16 +279,23 @@ serve(async (req) => {
         vendorReferenceNo: vendor.vendor_reference_no,
         contactName: vendor.contact_name,
       });
-      await sendBrandedEmail([vendor.contact_email], email);
+      await trackEmail(
+        sendBrandedEmail([vendor.contact_email], email, authHeader),
+        vendor.contact_email || 'vendor (no email)',
+      );
 
       // Email procurement: new submission to review
       const procurementEmails = await getProcurementEmails(supabase, ['vendor_reviewer']);
       if (procurementEmails.length > 0) {
-        await sendInternalAlert(procurementEmails,
-          `New vendor registration: ${vendor.vendor_reference_no}`,
-          `<p>A new vendor has been registered and is awaiting your review.</p>
-           <p><strong>${vendor.legal_name_en}</strong><br/>Reference: ${vendor.vendor_reference_no}</p>
-           <p><a href="${Deno.env.get('APP_BASE_URL') || 'https://im.alhamra.com.kw'}/admin/vendors/${vendor.id}">Review submission</a></p>`,
+        await trackEmail(
+          sendInternalAlert(procurementEmails,
+            `New vendor registration: ${vendor.vendor_reference_no}`,
+            `<p>A new vendor has been registered and is awaiting your review.</p>
+             <p><strong>${vendor.legal_name_en}</strong><br/>Reference: ${vendor.vendor_reference_no}</p>
+             <p><a href="${Deno.env.get('APP_BASE_URL') || 'https://im.alhamra.com.kw'}/admin/vendors/${vendor.id}">Review submission</a></p>`,
+            authHeader,
+          ),
+          `procurement (${procurementEmails.length})`,
         );
       }
     } else if (action === 'approve') {
@@ -287,11 +309,15 @@ serve(async (req) => {
       // Email vendor_master_admin: please create in SAP
       const masterAdminEmails = await getProcurementEmails(supabase, ['vendor_master_admin']);
       if (masterAdminEmails.length > 0) {
-        await sendInternalAlert(masterAdminEmails,
-          `Vendor approved — please create in SAP: ${vendor.vendor_reference_no}`,
-          `<p><strong>${vendor.legal_name_en}</strong> has been approved by procurement.</p>
-           <p>Please create the vendor master record in SAP and enter the SAP Vendor Code in the portal.</p>
-           <p><a href="${Deno.env.get('APP_BASE_URL') || 'https://im.alhamra.com.kw'}/admin/vendors/${vendor.id}">Open vendor record</a></p>`,
+        await trackEmail(
+          sendInternalAlert(masterAdminEmails,
+            `Vendor approved — please create in SAP: ${vendor.vendor_reference_no}`,
+            `<p><strong>${vendor.legal_name_en}</strong> has been approved by procurement.</p>
+             <p>Please create the vendor master record in SAP and enter the SAP Vendor Code in the portal.</p>
+             <p><a href="${Deno.env.get('APP_BASE_URL') || 'https://im.alhamra.com.kw'}/admin/vendors/${vendor.id}">Open vendor record</a></p>`,
+            authHeader,
+          ),
+          `vendor_master_admin (${masterAdminEmails.length})`,
         );
       }
     } else if (action === 'reject') {
@@ -301,7 +327,10 @@ serve(async (req) => {
         contactName: vendor.contact_name,
         reasonEn: payload?.reason || 'Registration could not be approved at this time.',
       });
-      await sendBrandedEmail([vendor.contact_email], email);
+      await trackEmail(
+        sendBrandedEmail([vendor.contact_email], email, authHeader),
+        vendor.contact_email || 'vendor (no email)',
+      );
     } else if (action === 'mark_sap_created') {
       // Complete vendor_sap_events row
       await supabase
@@ -353,7 +382,10 @@ serve(async (req) => {
         contactName: vendor.contact_name,
         magicLinkUrl: portalLoginUrl,
       });
-      await sendBrandedEmail([vendor.contact_email], credEmail);
+      await trackEmail(
+        sendBrandedEmail([vendor.contact_email], credEmail, authHeader),
+        `${vendor.contact_email || 'vendor (no email)'} (credentials)`,
+      );
 
       // And the welcome/active email (vendor reference, no SAP terminology)
       const welcomeEmail = emailApprovedActive({
@@ -362,7 +394,10 @@ serve(async (req) => {
         contactName: vendor.contact_name,
         portalLoginUrl,
       });
-      await sendBrandedEmail([vendor.contact_email], welcomeEmail);
+      await trackEmail(
+        sendBrandedEmail([vendor.contact_email], welcomeEmail, authHeader),
+        `${vendor.contact_email || 'vendor (no email)'} (welcome)`,
+      );
     } else if (action === 'approve_update') {
       // Apply the change request to the vendors row
       const changeReqId = payload?.change_request_id;
@@ -398,11 +433,15 @@ serve(async (req) => {
       // Email vendor_master_admin
       const masterAdminEmails = await getProcurementEmails(supabase, ['vendor_master_admin']);
       if (masterAdminEmails.length > 0) {
-        await sendInternalAlert(masterAdminEmails,
-          `Vendor update approved — please apply in SAP: ${vendor.vendor_reference_no}`,
-          `<p>An update for <strong>${vendor.legal_name_en}</strong> has been approved by procurement.</p>
-           <p>Please apply the changes in SAP and mark complete in the portal.</p>
-           <p><a href="${Deno.env.get('APP_BASE_URL') || 'https://im.alhamra.com.kw'}/admin/vendors/${vendor.id}">Open vendor record</a></p>`,
+        await trackEmail(
+          sendInternalAlert(masterAdminEmails,
+            `Vendor update approved — please apply in SAP: ${vendor.vendor_reference_no}`,
+            `<p>An update for <strong>${vendor.legal_name_en}</strong> has been approved by procurement.</p>
+             <p>Please apply the changes in SAP and mark complete in the portal.</p>
+             <p><a href="${Deno.env.get('APP_BASE_URL') || 'https://im.alhamra.com.kw'}/admin/vendors/${vendor.id}">Open vendor record</a></p>`,
+            authHeader,
+          ),
+          `vendor_master_admin (${masterAdminEmails.length})`,
         );
       }
     } else if (action === 'reject_update') {
@@ -436,11 +475,23 @@ serve(async (req) => {
         vendorReferenceNo: vendor.vendor_reference_no,
         contactName: vendor.contact_name,
       });
-      await sendBrandedEmail([vendor.contact_email], email);
+      await trackEmail(
+        sendBrandedEmail([vendor.contact_email], email, authHeader),
+        vendor.contact_email || 'vendor (no email)',
+      );
     }
 
     return new Response(
-      JSON.stringify({ ok: true, status: rule.toStatus }),
+      JSON.stringify({
+        ok: true,
+        status: rule.toStatus,
+        // If any emails failed, surface them so the UI can warn the
+        // caller. The action itself succeeded (status changed, audit
+        // logged), but emails are part of the user expectation —
+        // silent email failures are how we got "vendors never receive
+        // notifications" bug reports in the first place.
+        ...(emailFailures.length > 0 && { email_failures: emailFailures }),
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e: any) {
@@ -475,42 +526,62 @@ async function getProcurementEmails(supabase: any, roles: string[]): Promise<str
   return Array.from(new Set(emails));
 }
 
-async function sendBrandedEmail(to: string[], email: { subject: string; html: string }): Promise<void> {
-  if (to.length === 0) return;
-  const env = getEnv();
-  const url = `${env.supabaseUrl}/functions/v1/send-email`;
-  await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.serviceKey}`,
-    },
-    body: JSON.stringify({
-      to,
-      subject: email.subject,
-      body: email.html,
-      isHtml: true,
-    }),
-  });
+async function sendBrandedEmail(
+  to: string[],
+  email: { subject: string; html: string },
+  authHeader: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  if (to.length === 0) return { ok: false, error: 'No recipients' };
+  return await callSendEmail(to, email.subject, email.html, authHeader);
 }
 
-async function sendInternalAlert(to: string[], subject: string, bodyHtml: string): Promise<void> {
-  if (to.length === 0) return;
+async function sendInternalAlert(
+  to: string[],
+  subject: string,
+  bodyHtml: string,
+  authHeader: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  if (to.length === 0) return { ok: true }; // not an error if there's no procurement staff
+  return await callSendEmail(to, subject, bodyHtml, authHeader);
+}
+
+/**
+ * Shared underlying call. Logs detailed errors so the cause of any
+ * failure shows up in the Supabase function logs (where previously
+ * a silent fetch swallowed everything).
+ */
+async function callSendEmail(
+  to: string[],
+  subject: string,
+  body: string,
+  authHeader: string | null,
+): Promise<{ ok: boolean; error?: string }> {
   const env = getEnv();
   const url = `${env.supabaseUrl}/functions/v1/send-email`;
-  await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.serviceKey}`,
-    },
-    body: JSON.stringify({
-      to,
-      subject,
-      body: bodyHtml,
-      isHtml: true,
-    }),
-  });
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader || `Bearer ${env.serviceKey}`,
+      },
+      body: JSON.stringify({ to, subject, body, isHtml: true }),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'unknown');
+      console.error(`send-email HTTP ${res.status} for to=${to.join(',')}:`, errText);
+      return { ok: false, error: `Email HTTP ${res.status}: ${errText.slice(0, 300)}` };
+    }
+    const result = await res.json().catch(() => ({}));
+    if (result && result.success === false) {
+      console.error(`send-email returned success=false for to=${to.join(',')}:`, result);
+      return { ok: false, error: result.error || result.warning || 'Email service reported failure' };
+    }
+    return { ok: true };
+  } catch (e: any) {
+    console.error('send-email network error:', e);
+    return { ok: false, error: e?.message || 'Network error contacting email service' };
+  }
 }
 
 /**

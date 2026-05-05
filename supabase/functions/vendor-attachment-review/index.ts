@@ -90,15 +90,15 @@ serve(async (req) => {
 
       case 'batch_send_to_vendor':
         if (!isStaff) return jsonError('Procurement role required', 403);
-        return await handleBatchSend(supabase, user.id, vendor_id!);
+        return await handleBatchSend(supabase, user.id, vendor_id!, authHeader);
 
       case 'send_single_to_vendor':
         if (!isStaff) return jsonError('Procurement role required', 403);
-        return await handleSendSingle(supabase, user.id, attachment_id!);
+        return await handleSendSingle(supabase, user.id, attachment_id!, authHeader);
 
       case 'vendor_resubmit':
         // Verify caller is a vendor portal user for this vendor
-        return await handleVendorResubmit(supabase, user.id, vendor_id!);
+        return await handleVendorResubmit(supabase, user.id, vendor_id!, authHeader);
 
       case 'post_message':
         return await handlePostMessage(
@@ -188,6 +188,7 @@ async function handleBatchSend(
   supabase: any,
   actorUserId: string,
   vendorId: string,
+  authHeader: string | null,
 ): Promise<Response> {
   if (!vendorId) return jsonError('vendor_id required', 400);
 
@@ -247,9 +248,18 @@ async function handleBatchSend(
     portalLoginUrl,
   });
 
-  await sendEmail([vendor.contact_email], email);
+  // Check vendor has an email at all. Without one, we can update DB
+  // but there's no way to actually notify them — caller needs to
+  // know.
+  const recipients = vendor.contact_email ? [vendor.contact_email] : [];
+  const emailResult = recipients.length > 0
+    ? await sendEmail(recipients, email, authHeader)
+    : { ok: false, error: 'Vendor has no contact_email on file. Decisions were saved but the vendor was not notified.' };
 
-  // Flip vendor status to awaiting_vendor_response
+  // Flip vendor status to awaiting_vendor_response. We do this EVEN
+  // if the email failed, so procurement's decisions don't get
+  // silently lost. The caller is told about the email failure in
+  // the response so they can manually contact the vendor.
   await supabase
     .from('vendors')
     .update({ status: 'awaiting_vendor_response' })
@@ -260,16 +270,35 @@ async function handleBatchSend(
     action: 'sent_changes_request',
     actor_user_id: actorUserId,
     actor_kind: 'staff',
-    notes: `Sent ${items.length} item(s) to vendor`,
+    notes: emailResult.ok
+      ? `Sent ${items.length} item(s) to vendor`
+      : `Decisions saved but email FAILED: ${emailResult.error}. Vendor not notified — please follow up manually.`,
     metadata: {
       from_status: vendor.status,
       to_status: 'awaiting_vendor_response',
       item_count: items.length,
+      email_sent: emailResult.ok,
+      email_error: emailResult.error || null,
+      recipients,
       items: items.map((i) => ({ doc: i.documentLabelEn, status: i.status })),
     },
   });
 
-  return jsonOk({ ok: true, items_sent: items.length });
+  if (!emailResult.ok) {
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        partial: true,
+        items_sent: items.length,
+        email_sent: false,
+        error: emailResult.error,
+        message: 'Decisions were saved and the vendor record was updated, but the email could not be sent. Please contact the vendor manually.',
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  return jsonOk({ ok: true, items_sent: items.length, email_sent: true });
 }
 
 /**
@@ -299,6 +328,7 @@ async function handleSendSingle(
   supabase: any,
   actorUserId: string,
   attachmentId: string,
+  authHeader: string | null,
 ): Promise<Response> {
   if (!attachmentId) return jsonError('attachment_id required', 400);
 
@@ -344,7 +374,10 @@ async function handleSendSingle(
     portalLoginUrl,
   });
 
-  await sendEmail([vendor.contact_email], email);
+  const recipients = vendor.contact_email ? [vendor.contact_email] : [];
+  const emailResult = recipients.length > 0
+    ? await sendEmail(recipients, email, authHeader)
+    : { ok: false, error: 'Vendor has no contact_email on file. Decision saved but vendor not notified.' };
 
   // Flip vendor status to awaiting_vendor_response (same as batched)
   await supabase
@@ -357,17 +390,35 @@ async function handleSendSingle(
     action: 'sent_single_attachment_notice',
     actor_user_id: actorUserId,
     actor_kind: 'staff',
-    notes: `Sent immediate notice for "${attachment.document_types?.label_en || attachment.file_name}"`,
+    notes: emailResult.ok
+      ? `Sent immediate notice for "${attachment.document_types?.label_en || attachment.file_name}"`
+      : `Decision saved but email FAILED for "${attachment.document_types?.label_en || attachment.file_name}": ${emailResult.error}`,
     metadata: {
       from_status: vendor.status,
       to_status: 'awaiting_vendor_response',
       attachment_id: attachmentId,
       doc: attachment.document_types?.label_en,
       attachment_status: attachment.human_status,
+      email_sent: emailResult.ok,
+      email_error: emailResult.error || null,
+      recipients,
     },
   });
 
-  return jsonOk({ ok: true });
+  if (!emailResult.ok) {
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        partial: true,
+        email_sent: false,
+        error: emailResult.error,
+        message: 'Decision saved but the vendor email could not be sent. Please contact the vendor manually.',
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  return jsonOk({ ok: true, email_sent: true });
 }
 
 /**
@@ -386,6 +437,7 @@ async function handleVendorResubmit(
   supabase: any,
   actorUserId: string,
   vendorId: string,
+  authHeader: string | null,
 ): Promise<Response> {
   if (!vendorId) return jsonError('vendor_id required', 400);
 
@@ -447,7 +499,10 @@ async function handleVendorResubmit(
       revisionRound: newRound,
       vendorAdminUrl: adminUrl,
     });
-    await sendEmail(procurementEmails, email);
+    const emailResult = await sendEmail(procurementEmails, email, authHeader);
+    if (!emailResult.ok) {
+      console.warn('Procurement notification email failed:', emailResult.error);
+    }
   }
 
   return jsonOk({ ok: true, revision_round: newRound });
@@ -528,20 +583,53 @@ async function getStaffEmails(supabase: any, roles: string[]): Promise<string[]>
   return Array.from(new Set(emails));
 }
 
-async function sendEmail(to: string[], email: { subject: string; html: string }): Promise<void> {
-  if (to.length === 0) return;
+/**
+ * Calls the send-email edge function. Returns { ok, error? } so
+ * callers can include the result in their response — silent failures
+ * were causing real-world bugs ("emails not sent" symptom with no
+ * visible error in the UI or logs).
+ *
+ * Auth note: passes the user's auth token through (not the service
+ * role) to match the working memo email path. Both work, but using
+ * the user token keeps the behavior consistent and means audit
+ * trails on the email side capture the real caller.
+ */
+async function sendEmail(
+  to: string[],
+  email: { subject: string; html: string },
+  userAuthHeader: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  if (to.length === 0) return { ok: true }; // nothing to send is success
   const env = getEnv();
-  await fetch(`${env.supabaseUrl}/functions/v1/send-email`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.serviceKey}`,
-    },
-    body: JSON.stringify({
-      to,
-      subject: email.subject,
-      body: email.html,
-      isHtml: true,
-    }),
-  });
+  try {
+    const res = await fetch(`${env.supabaseUrl}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Prefer the user's auth header. Fall back to service key if
+        // we're called from a non-user context (cron, etc).
+        Authorization: userAuthHeader || `Bearer ${env.serviceKey}`,
+      },
+      body: JSON.stringify({
+        to,
+        subject: email.subject,
+        body: email.html,
+        isHtml: true,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'unknown');
+      console.error(`send-email HTTP ${res.status}:`, errText);
+      return { ok: false, error: `Email service returned ${res.status}: ${errText.slice(0, 300)}` };
+    }
+    const result = await res.json().catch(() => ({}));
+    if (result && result.success === false) {
+      console.error('send-email returned success=false:', result);
+      return { ok: false, error: result.error || result.warning || 'Email service reported failure' };
+    }
+    return { ok: true };
+  } catch (e: any) {
+    console.error('send-email network error:', e);
+    return { ok: false, error: e?.message || 'Network error contacting email service' };
+  }
 }

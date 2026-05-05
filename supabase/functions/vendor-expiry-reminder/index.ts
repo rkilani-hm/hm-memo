@@ -281,20 +281,34 @@ async function sendReminder(
   }
   if (recipients.length === 0) return;
 
-  // Use the existing send-email edge function
+  // Use the existing send-email edge function. Cron context — no user
+  // auth header available, so we use the service key.
   const env = getEnv();
   const url = `${env.supabaseUrl}/functions/v1/send-email`;
-  await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.serviceKey}`,
-    },
-    body: JSON.stringify({
-      to: recipients,
-      subject: email.subject,
-      body: email.html,
-      isHtml: true,
-    }),
-  });
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.serviceKey}`,
+      },
+      body: JSON.stringify({
+        to: recipients,
+        subject: email.subject,
+        body: email.html,
+        isHtml: true,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'unknown');
+      console.error(`[expiry-reminder] send-email HTTP ${res.status} for vendor ${row.vendor_id} doc ${row.id}:`, errText);
+    } else {
+      const result = await res.json().catch(() => ({}));
+      if (result && result.success === false) {
+        console.error(`[expiry-reminder] send-email returned success=false for vendor ${row.vendor_id}:`, result);
+      }
+    }
+  } catch (e: any) {
+    console.error(`[expiry-reminder] network error sending to ${recipients.join(',')}:`, e);
+  }
 }
