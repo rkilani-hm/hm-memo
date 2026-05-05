@@ -1503,6 +1503,8 @@ export type Database = {
           country: string
           created_at: string
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           has_iso_qms: boolean | null
           has_tax_exemption: boolean | null
           id: string
@@ -1559,6 +1561,8 @@ export type Database = {
           country?: string
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           has_iso_qms?: boolean | null
           has_tax_exemption?: boolean | null
           id?: string
@@ -1615,6 +1619,8 @@ export type Database = {
           country?: string
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           has_iso_qms?: boolean | null
           has_tax_exemption?: boolean | null
           id?: string
