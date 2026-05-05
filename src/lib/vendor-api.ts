@@ -308,6 +308,59 @@ export async function batchSendToVendor(vendor_id: string): Promise<{ ok?: boole
   return data as any;
 }
 
+/**
+ * Per-attachment "Send now" — emails the vendor immediately for a
+ * single rejected/clarification attachment, separate from the batched
+ * dispatch. Use when a single issue is urgent enough to flag right
+ * away rather than waiting for a full review pass.
+ */
+export async function sendSingleToVendor(attachment_id: string): Promise<{ ok?: boolean; error?: string }> {
+  const { data, error } = await supabase.functions.invoke('vendor-attachment-review', {
+    body: { action: 'send_single_to_vendor', attachment_id },
+  });
+  if (error) return { error: error.message };
+  return data as any;
+}
+
+/**
+ * Generate a short-lived signed URL for a vendor attachment in the
+ * (private) vendor-attachments storage bucket. The URL is valid for
+ * 5 minutes — long enough for the user to click through, short enough
+ * that the URL can't be screenshot-shared as a long-lived link.
+ *
+ * Pass `download = true` to set the Content-Disposition header so the
+ * browser saves the file rather than rendering it inline. Pass
+ * `download = false` (the default) for view-in-browser behavior.
+ */
+export async function getAttachmentSignedUrl(
+  attachmentId: string,
+  opts: { download?: boolean } = {},
+): Promise<string> {
+  // First load the storage path from the attachment row. RLS controls
+  // who can see this row — staff for any vendor, vendor portal users
+  // for their own vendor's attachments only.
+  const { data: row, error: rowErr } = await supabase
+    .from('vendor_attachments' as any)
+    .select('file_url, file_name')
+    .eq('id', attachmentId)
+    .maybeSingle();
+  if (rowErr || !row) throw new Error(rowErr?.message || 'Attachment not found');
+
+  const { data, error } = await supabase.storage
+    .from('vendor-attachments')
+    .createSignedUrl(
+      (row as any).file_url,
+      300, // seconds
+      opts.download
+        ? { download: (row as any).file_name || true }
+        : undefined,
+    );
+  if (error || !data?.signedUrl) {
+    throw new Error(error?.message || 'Could not generate signed URL');
+  }
+  return data.signedUrl;
+}
+
 export async function vendorResubmit(vendor_id: string): Promise<{ ok?: boolean; error?: string; revision_round?: number }> {
   const { data, error } = await supabase.functions.invoke('vendor-attachment-review', {
     body: { action: 'vendor_resubmit', vendor_id },

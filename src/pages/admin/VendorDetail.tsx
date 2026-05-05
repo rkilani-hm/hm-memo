@@ -18,8 +18,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   fetchVendorById, fetchVendorTypes, fetchAttachmentsForVendor, fetchAuditLogForVendor,
   fetchRequirementsForType, invokeStatusTransition,
-  setAttachmentHumanStatus, batchSendToVendor,
+  setAttachmentHumanStatus, batchSendToVendor, sendSingleToVendor,
   postAttachmentMessage, fetchMessagesForAttachment,
+  getAttachmentSignedUrl,
   HUMAN_STATUS_LABEL,
   STATUS_LABELS, statusBadgeVariant,
   type VendorAttachment, type AttachmentHumanStatus, type AttachmentMessage,
@@ -27,6 +28,7 @@ import {
 import {
   ArrowLeft, Building2, CheckCircle2, XCircle, Loader2, ShieldAlert,
   FileText, Pencil, Trash2, RotateCcw, MessageSquare, Send, HelpCircle,
+  Eye, Download,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -955,6 +957,54 @@ const DocumentRow = ({
   const [showThread, setShowThread] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [openingFile, setOpeningFile] = useState<'view' | 'download' | null>(null);
+  const [sendingNow, setSendingNow] = useState(false);
+
+  // Open the file in a new tab (view) or trigger download. Both use a
+  // short-lived signed URL since the bucket is private. Errors fall
+  // back to a toast with the storage message.
+  const handleOpenFile = async (mode: 'view' | 'download') => {
+    setOpeningFile(mode);
+    try {
+      const url = await getAttachmentSignedUrl(a.id, { download: mode === 'download' });
+      // Open in a new tab. For downloads the Content-Disposition header
+      // (set via the storage API's `download` option) tells the browser
+      // to save rather than render.
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e: any) {
+      toast({
+        title: mode === 'download' ? 'Download failed' : 'Could not open file',
+        description: e?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setOpeningFile(null);
+    }
+  };
+
+  // "Send now" — fire an immediate per-attachment notice for THIS one
+  // attachment, separate from the batched dispatch on the parent card.
+  // Only available when the attachment is currently rejected or
+  // clarification_requested (otherwise there's nothing to send).
+  const handleSendNow = async () => {
+    setSendingNow(true);
+    try {
+      const r = await sendSingleToVendor(a.id);
+      if (r.error) {
+        toast({ title: 'Could not send', description: r.error, variant: 'destructive' });
+      } else {
+        toast({
+          title: 'Sent to vendor',
+          description: 'Vendor was notified about this document. Status moved to Awaiting Vendor Response.',
+        });
+        onChange();
+      }
+    } catch (e: any) {
+      toast({ title: 'Send failed', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setSendingNow(false);
+    }
+  };
 
   // Lazy-load thread messages only when expanded
   const { data: messages = [], refetch: refetchMessages } = useQuery({
@@ -1030,6 +1080,31 @@ const DocumentRow = ({
           {!isLatest && (
             <Badge variant="outline" className="text-[9px]">Previous version</Badge>
           )}
+          {/* View / Download — always available regardless of AI verdict
+              or human status. Procurement can spot-check any file at any
+              point. */}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-1.5 text-[10px] gap-1"
+            disabled={openingFile !== null}
+            onClick={() => handleOpenFile('view')}
+            title="Open file in a new tab"
+          >
+            {openingFile === 'view' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
+            View
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-1.5 text-[10px] gap-1"
+            disabled={openingFile !== null}
+            onClick={() => handleOpenFile('download')}
+            title="Download a copy"
+          >
+            {openingFile === 'download' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+            Download
+          </Button>
         </div>
         <div className="flex items-center gap-1 flex-wrap">
           {aiBadge}
@@ -1093,6 +1168,22 @@ const DocumentRow = ({
               onClick={() => doDecision('pending_review')}
             >
               Undo
+            </Button>
+          )}
+          {/* Send now — emails the vendor immediately for THIS one
+              attachment, separate from the batched dispatch. Visible
+              only when there's something to actually send. */}
+          {(humanStatus === 'rejected' || humanStatus === 'clarification_requested') && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 px-2 text-[10px] gap-1"
+              disabled={sendingNow}
+              onClick={handleSendNow}
+              title="Email the vendor about this one attachment now (instead of waiting to batch)"
+            >
+              {sendingNow ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+              Send now
             </Button>
           )}
           <Button

@@ -41,6 +41,7 @@ import {
 type Action =
   | 'set_human_status'
   | 'batch_send_to_vendor'
+  | 'send_single_to_vendor'
   | 'vendor_resubmit'
   | 'post_message';
 
@@ -90,6 +91,10 @@ serve(async (req) => {
       case 'batch_send_to_vendor':
         if (!isStaff) return jsonError('Procurement role required', 403);
         return await handleBatchSend(supabase, user.id, vendor_id!);
+
+      case 'send_single_to_vendor':
+        if (!isStaff) return jsonError('Procurement role required', 403);
+        return await handleSendSingle(supabase, user.id, attachment_id!);
 
       case 'vendor_resubmit':
         // Verify caller is a vendor portal user for this vendor
@@ -265,6 +270,104 @@ async function handleBatchSend(
   });
 
   return jsonOk({ ok: true, items_sent: items.length });
+}
+
+/**
+ * "Send now" — fires a per-attachment email immediately for ONE
+ * attachment, before procurement has reviewed everything else. Used
+ * for the urgent case where a single-document issue should be flagged
+ * to the vendor right away rather than batched.
+ *
+ * Behavior:
+ *   - Attachment must currently be 'rejected' or 'clarification_requested'
+ *     (sending a per-attachment notice for an approved document makes no
+ *     sense; sending one for pending_review means procurement hasn't
+ *     decided)
+ *   - Sends a bilingual email with this single item
+ *   - Flips vendor status to awaiting_vendor_response (same as batched)
+ *   - Audit log entry tagged as a single-item send so it's clear in the
+ *     history that this wasn't a batched dispatch
+ *
+ * Procurement can still call batch_send_to_vendor later if more items
+ * accumulate — but that batch will only include attachments NOT already
+ * sent (we mark sent items with a small flag in the audit log, but for
+ * v1 we simply send everything pending each time, accepting the small
+ * possibility of a re-send if procurement changes their mind. For most
+ * use this won't happen.)
+ */
+async function handleSendSingle(
+  supabase: any,
+  actorUserId: string,
+  attachmentId: string,
+): Promise<Response> {
+  if (!attachmentId) return jsonError('attachment_id required', 400);
+
+  const { data: attachment } = await supabase
+    .from('vendor_attachments')
+    .select(`
+      id, vendor_id, file_name, human_status, human_status_reason,
+      document_types(label_en, label_ar)
+    `)
+    .eq('id', attachmentId)
+    .maybeSingle();
+  if (!attachment) return jsonError('Attachment not found', 404);
+
+  if (!['rejected', 'clarification_requested'].includes(attachment.human_status)) {
+    return jsonError(
+      `This attachment is currently '${attachment.human_status}'. Mark it Rejected or Ask Question first, then send.`,
+      400,
+    );
+  }
+
+  const { data: vendor } = await supabase
+    .from('vendors')
+    .select('*')
+    .eq('id', attachment.vendor_id)
+    .maybeSingle();
+  if (!vendor) return jsonError('Vendor not found', 404);
+
+  const items = [{
+    documentLabelEn: attachment.document_types?.label_en || attachment.file_name,
+    documentLabelAr: attachment.document_types?.label_ar || attachment.file_name,
+    status: attachment.human_status as 'rejected' | 'clarification_requested',
+    reasonOrQuestion: attachment.human_status_reason || '(no reason provided)',
+  }];
+
+  const portalLoginUrl =
+    (Deno.env.get('APP_BASE_URL') || 'https://im.alhamra.com.kw') + '/vendor/login';
+
+  const email = emailChangesRequested({
+    vendorName: vendor.legal_name_en,
+    vendorReferenceNo: vendor.vendor_reference_no,
+    contactName: vendor.contact_name,
+    items,
+    portalLoginUrl,
+  });
+
+  await sendEmail([vendor.contact_email], email);
+
+  // Flip vendor status to awaiting_vendor_response (same as batched)
+  await supabase
+    .from('vendors')
+    .update({ status: 'awaiting_vendor_response' })
+    .eq('id', attachment.vendor_id);
+
+  await supabase.from('vendor_audit_log').insert({
+    vendor_id: attachment.vendor_id,
+    action: 'sent_single_attachment_notice',
+    actor_user_id: actorUserId,
+    actor_kind: 'staff',
+    notes: `Sent immediate notice for "${attachment.document_types?.label_en || attachment.file_name}"`,
+    metadata: {
+      from_status: vendor.status,
+      to_status: 'awaiting_vendor_response',
+      attachment_id: attachmentId,
+      doc: attachment.document_types?.label_en,
+      attachment_status: attachment.human_status,
+    },
+  });
+
+  return jsonOk({ ok: true });
 }
 
 /**

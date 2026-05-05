@@ -14,11 +14,13 @@ import {
   vendorFacingStatusLabel, type VendorRow, type VendorAttachment,
   invokeDocumentReview, vendorResubmit,
   postAttachmentMessage, fetchMessagesForAttachment,
+  getAttachmentSignedUrl,
   HUMAN_STATUS_LABEL, type AttachmentHumanStatus, type AttachmentMessage,
 } from '@/lib/vendor-api';
 import {
   Building2, LogOut, FileText, CheckCircle2, XCircle, AlertCircle,
   Loader2, Save, Upload, MessageSquare, Send, HelpCircle, RefreshCw,
+  Eye, Download,
 } from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 
@@ -329,6 +331,7 @@ const DocStatusRow = ({ attachment: a }: { attachment: VendorAttachment }) => {
   const [showThread, setShowThread] = useState(false);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  const [openingFile, setOpeningFile] = useState<'view' | 'download' | null>(null);
 
   const expiry = a.expiry_date ? parseISO(a.expiry_date) : null;
   const days = expiry ? differenceInDays(expiry, new Date()) : null;
@@ -363,12 +366,53 @@ const DocStatusRow = ({ attachment: a }: { attachment: VendorAttachment }) => {
     }
   };
 
+  // Vendors can view + download their own uploads. Same signed-URL
+  // path as the admin side; RLS on vendor_attachments restricts which
+  // attachments they can resolve.
+  const handleOpenFile = async (mode: 'view' | 'download') => {
+    setOpeningFile(mode);
+    try {
+      const url = await getAttachmentSignedUrl(a.id, { download: mode === 'download' });
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e: any) {
+      toast({
+        title: mode === 'download' ? 'Download failed' : 'Could not open file',
+        description: e?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setOpeningFile(null);
+    }
+  };
+
   return (
     <div className="bg-muted/30 rounded p-2 text-xs space-y-2">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <FileText className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="truncate">{a.file_name}</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-1.5 text-[10px] gap-1"
+            disabled={openingFile !== null}
+            onClick={() => handleOpenFile('view')}
+            title="Open file in a new tab"
+          >
+            {openingFile === 'view' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
+            View
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-1.5 text-[10px] gap-1"
+            disabled={openingFile !== null}
+            onClick={() => handleOpenFile('download')}
+            title="Download a copy"
+          >
+            {openingFile === 'download' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+            Download
+          </Button>
         </div>
         {effectiveStatus === 'approved' && (
           <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px] gap-1">
