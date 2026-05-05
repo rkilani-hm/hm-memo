@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 // TipTap 2.11.x module augmentation doesn't always resolve; cast chain to any
 const cmd = (editor: Editor) => (editor.chain().focus() as any);
@@ -26,7 +27,7 @@ import {
   Maximize, Search, Paintbrush,
   ChevronDown, Type, Palette, Highlighter,
   Rows3, Columns3, Trash2, Plus,
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
+  ArrowUp, ArrowLeft,
 } from 'lucide-react';
 
 interface StoredFormat {
@@ -216,6 +217,33 @@ const ColorPickerPopover = ({
   );
 };
 
+// =====================================================================
+// Table-related toolbar pieces
+// =====================================================================
+//
+// Two complementary controls:
+//
+//   TablePickerPopover  — always visible. Opens a grid picker so users
+//                         can drag to choose dimensions and insert a
+//                         new table at the cursor.
+//
+//   TableToolsBar       — renders ONLY when the cursor is inside a
+//                         table. Surfaces merge/split/add/delete cell
+//                         actions as inline toolbar buttons (always
+//                         visible while editing the table) PLUS a More
+//                         popover for less-common actions like Delete
+//                         Table. Splitting the actions out of the
+//                         table-picker dramatically improves
+//                         discoverability — users no longer have to
+//                         click the same "Insert Table" icon to find
+//                         the merge button.
+//
+//   useToast inside TableToolsBar shows a friendly hint when the user
+//   clicks Merge with no multi-cell selection: Tiptap's mergeCells()
+//   silently no-ops in that case which causes "I clicked Merge and
+//   nothing happened" confusion.
+// =====================================================================
+
 const TablePickerPopover = ({ editor }: { editor: Editor }) => {
   const [hoverRow, setHoverRow] = useState(0);
   const [hoverCol, setHoverCol] = useState(0);
@@ -229,7 +257,7 @@ const TablePickerPopover = ({ editor }: { editor: Editor }) => {
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="start">
         <p className="text-xs text-muted-foreground mb-1">
-          {hoverRow > 0 ? `${hoverRow} × ${hoverCol}` : 'Select size'}
+          {hoverRow > 0 ? `${hoverRow} × ${hoverCol}` : 'Insert table — pick size'}
         </p>
         <div className="grid gap-0.5" style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}>
           {Array.from({ length: 8 }, (_, r) =>
@@ -249,44 +277,100 @@ const TablePickerPopover = ({ editor }: { editor: Editor }) => {
             ))
           )}
         </div>
-        {editor.isActive('table') && (
-          <>
-            <Separator className="my-2" />
-            <div className="space-y-0.5">
-              <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => editor.chain().focus().addRowBefore().run()}>
-                <ArrowUp className="h-3 w-3 mr-1.5" /> Add Row Above
-              </Button>
-              <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => editor.chain().focus().addRowAfter().run()}>
-                <ArrowDown className="h-3 w-3 mr-1.5" /> Add Row Below
-              </Button>
-              <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => editor.chain().focus().addColumnBefore().run()}>
-                <ArrowLeft className="h-3 w-3 mr-1.5" /> Add Column Left
-              </Button>
-              <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => editor.chain().focus().addColumnAfter().run()}>
-                <ArrowRight className="h-3 w-3 mr-1.5" /> Add Column Right
-              </Button>
-              <Separator className="my-1" />
-              <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => editor.chain().focus().mergeCells().run()}>
-                <Rows3 className="h-3 w-3 mr-1.5" /> Merge Cells
-              </Button>
-              <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => editor.chain().focus().splitCell().run()}>
-                <Columns3 className="h-3 w-3 mr-1.5" /> Split Cell
-              </Button>
-              <Separator className="my-1" />
-              <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs text-destructive" onClick={() => editor.chain().focus().deleteRow().run()}>
-                <Trash2 className="h-3 w-3 mr-1.5" /> Delete Row
-              </Button>
-              <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs text-destructive" onClick={() => editor.chain().focus().deleteColumn().run()}>
-                <Trash2 className="h-3 w-3 mr-1.5" /> Delete Column
-              </Button>
-              <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs text-destructive" onClick={() => editor.chain().focus().deleteTable().run()}>
-                <Trash2 className="h-3 w-3 mr-1.5" /> Delete Table
-              </Button>
-            </div>
-          </>
-        )}
+        <p className="text-[10px] text-muted-foreground mt-1.5 leading-tight">
+          Tip: once inside a table, the merge / split / add row / add column
+          buttons appear in the toolbar.
+        </p>
       </PopoverContent>
     </Popover>
+  );
+};
+
+const TableToolsBar = ({ editor }: { editor: Editor }) => {
+  const { toast } = useToast();
+
+  // Only render when the cursor is inside a table. The parent toolbar
+  // doesn't need to do this check too — keeps the call site clean.
+  if (!editor.isActive('table')) return null;
+
+  const handleMerge = () => {
+    // Tiptap's mergeCells() requires a CellSelection (multiple cells
+    // highlighted by drag). With a single-cell cursor it silently
+    // no-ops, which is confusing. Detect the no-op case and surface
+    // a hint instead.
+    const before = editor.state.doc.toJSON();
+    editor.chain().focus().mergeCells().run();
+    const after = editor.state.doc.toJSON();
+    if (JSON.stringify(before) === JSON.stringify(after)) {
+      toast({
+        title: 'Select cells first',
+        description: 'Drag across two or more cells, then click Merge.',
+      });
+    }
+  };
+
+  return (
+    <>
+      <Separator orientation="vertical" className="h-5 mx-0.5" />
+
+      {/* Inline buttons — most common actions */}
+      <ToolbarButton
+        onClick={() => editor.chain().focus().addRowAfter().run()}
+        title="Add row below"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        <span className="text-[9px] ml-0.5">row</span>
+      </ToolbarButton>
+      <ToolbarButton
+        onClick={() => editor.chain().focus().addColumnAfter().run()}
+        title="Add column right"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        <span className="text-[9px] ml-0.5">col</span>
+      </ToolbarButton>
+      <ToolbarButton onClick={handleMerge} title="Merge selected cells">
+        <Rows3 className="h-3.5 w-3.5" />
+      </ToolbarButton>
+      <ToolbarButton
+        onClick={() => editor.chain().focus().splitCell().run()}
+        title="Split current cell"
+      >
+        <Columns3 className="h-3.5 w-3.5" />
+      </ToolbarButton>
+
+      {/* More — less-common actions tucked behind a popover */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-sm" title="More table actions">
+            <ChevronDown className="h-3.5 w-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-1" align="start">
+          <div className="space-y-0.5">
+            <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => editor.chain().focus().addRowBefore().run()}>
+              <ArrowUp className="h-3 w-3 mr-1.5" /> Add Row Above
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => editor.chain().focus().addColumnBefore().run()}>
+              <ArrowLeft className="h-3 w-3 mr-1.5" /> Add Column Left
+            </Button>
+            <Separator className="my-1" />
+            <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => editor.chain().focus().toggleHeaderRow().run()}>
+              <span className="text-[10px] mr-1.5">⌷</span> Toggle Header Row
+            </Button>
+            <Separator className="my-1" />
+            <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs text-destructive" onClick={() => editor.chain().focus().deleteRow().run()}>
+              <Trash2 className="h-3 w-3 mr-1.5" /> Delete Row
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs text-destructive" onClick={() => editor.chain().focus().deleteColumn().run()}>
+              <Trash2 className="h-3 w-3 mr-1.5" /> Delete Column
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="w-full justify-start h-7 text-xs text-destructive" onClick={() => editor.chain().focus().deleteTable().run()}>
+              <Trash2 className="h-3 w-3 mr-1.5" /> Delete Table
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </>
   );
 };
 
@@ -570,6 +654,7 @@ const EditorToolbar = ({ editor, isFullscreen, onToggleFullscreen, onToggleFindR
 
       {/* Insert */}
       <TablePickerPopover editor={editor} />
+      <TableToolsBar editor={editor} />
       <ToolbarButton onClick={() => cmd(editor).setHorizontalRule().run()} title="Horizontal Rule">
         <Minus className="h-3.5 w-3.5" />
       </ToolbarButton>

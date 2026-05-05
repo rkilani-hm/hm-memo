@@ -18,12 +18,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   fetchVendorById, fetchVendorTypes, fetchAttachmentsForVendor, fetchAuditLogForVendor,
   fetchRequirementsForType, invokeStatusTransition,
+  setAttachmentHumanStatus, batchSendToVendor,
+  postAttachmentMessage, fetchMessagesForAttachment,
+  HUMAN_STATUS_LABEL,
   STATUS_LABELS, statusBadgeVariant,
-  type VendorAttachment,
+  type VendorAttachment, type AttachmentHumanStatus, type AttachmentMessage,
 } from '@/lib/vendor-api';
 import {
   ArrowLeft, Building2, CheckCircle2, XCircle, Loader2, ShieldAlert,
-  FileText, Pencil, Trash2, RotateCcw,
+  FileText, Pencil, Trash2, RotateCcw, MessageSquare, Send, HelpCircle,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -304,8 +307,10 @@ const VendorDetail = () => {
         <TabsContent value="documents" className="space-y-4">
           <DocumentsCard
             vendorId={vendor.id}
+            vendorStatus={vendor.status}
             attachments={attachments}
             requirements={requirements as any}
+            onChange={refresh}
           />
         </TabsContent>
 
@@ -775,97 +780,410 @@ const DetailsCard = ({ vendor, onEdit }: { vendor: any; onEdit?: (s: SectionKey)
 };
 
 const DocumentsCard = ({
-  vendorId, attachments, requirements,
+  vendorId, vendorStatus, attachments, requirements, onChange,
 }: {
   vendorId: string;
+  vendorStatus: string;
   attachments: VendorAttachment[];
   requirements: any[];
+  onChange: () => void;
 }) => {
-  // Group attachments by document_type_id
+  const { toast } = useToast();
+  const [batchSending, setBatchSending] = useState(false);
+
+  // Group attachments by document_type_id. Within each group, sort
+  // newest first so docs[0] is the current/latest.
   const byType: Record<string, VendorAttachment[]> = {};
   for (const a of attachments) {
     const k = a.document_type_id || 'other';
     (byType[k] ||= []).push(a);
   }
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Documents</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {requirements.map((req) => {
-          const docs = byType[req.document_type_id] || [];
-          return (
-            <div key={req.id} className="border border-border rounded-md p-3">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div>
-                  <p className="font-medium text-sm">
-                    {req.document_type?.label_en}
-                    {req.is_required && !req.is_conditional && (
-                      <span className="text-destructive ml-1">*</span>
-                    )}
-                  </p>
-                  {req.condition_label_en && (
-                    <p className="text-[11px] text-muted-foreground">{req.condition_label_en}</p>
-                  )}
-                </div>
-                {docs.length === 0 ? (
-                  req.is_required && !req.is_conditional ? (
-                    <Badge variant="destructive" className="text-[10px]">Missing</Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-[10px]">Not provided</Badge>
-                  )
-                ) : null}
-              </div>
-              {docs.map((d) => <DocumentRow key={d.id} attachment={d} />)}
-            </div>
-          );
-        })}
+  // Latest-per-slot view — used for review summary counts. When a
+  // vendor replaces a file, an older one is still in attachments,
+  // but only the newest is the active one for review purposes.
+  const latestPerSlot: VendorAttachment[] = [];
+  for (const docs of Object.values(byType)) {
+    if (docs.length > 0) latestPerSlot.push(docs[0]);
+  }
 
-        {/* Other / unmatched */}
-        {byType['other'] && byType['other'].length > 0 && (
-          <div className="border border-border rounded-md p-3">
-            <p className="font-medium text-sm mb-2">Other</p>
-            {byType['other'].map((d) => <DocumentRow key={d.id} attachment={d} />)}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+  // Counts for the review dashboard banner — based on latest-per-slot
+  const reviewedAttachments = latestPerSlot.filter((a) =>
+    (a as any).human_status && (a as any).human_status !== 'pending_review',
+  );
+  const pendingItems = latestPerSlot.filter((a) =>
+    (a as any).human_status === 'rejected' || (a as any).human_status === 'clarification_requested',
+  );
+  const stillPending = latestPerSlot.filter((a) =>
+    !(a as any).human_status || (a as any).human_status === 'pending_review',
+  );
+  const allApproved = latestPerSlot.length > 0 && latestPerSlot.every((a) => (a as any).human_status === 'approved');
+
+  // Show review controls only when the vendor is in a state where
+  // review actions make sense — i.e. they've submitted something we
+  // haven't fully approved yet. Once Active in SAP, the docs are
+  // historical, not under active review.
+  const isReviewable = ['submitted', 'awaiting_vendor_response'].includes(vendorStatus);
+
+  const handleBatchSend = async () => {
+    setBatchSending(true);
+    try {
+      const r = await batchSendToVendor(vendorId);
+      if (r.error) {
+        toast({ title: 'Could not send', description: r.error, variant: 'destructive' });
+      } else if (r.status === 'no_changes_needed') {
+        toast({ title: r.message || 'All approved', description: 'You can now click Approve on the vendor.' });
+      } else {
+        toast({ title: 'Sent to vendor', description: `${r.items_sent} item(s) sent. Vendor status moved to "Awaiting Vendor Response".` });
+        onChange();
+      }
+    } catch (e: any) {
+      toast({ title: 'Send failed', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setBatchSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Review summary + batch send button */}
+      {isReviewable && attachments.length > 0 && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="text-xs flex-1">
+              <p className="font-semibold text-foreground">Document review</p>
+              <p className="text-muted-foreground">
+                Approve, reject, or ask a question on each document. When you're ready,
+                send your feedback to the vendor in one batched email.
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                <strong>{reviewedAttachments.length}</strong> reviewed •
+                <strong className="text-warning"> {pendingItems.length}</strong> pending vendor response •
+                <strong> {stillPending.length}</strong> still to review
+              </p>
+            </div>
+            {pendingItems.length > 0 && (
+              <Button onClick={handleBatchSend} disabled={batchSending} size="sm" className="gap-1 shrink-0">
+                {batchSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                Send feedback to vendor ({pendingItems.length})
+              </Button>
+            )}
+            {allApproved && (
+              <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-xs">
+                All documents approved — use Approve action
+              </Badge>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Documents</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {requirements.map((req) => {
+            const docs = byType[req.document_type_id] || [];
+            return (
+              <div key={req.id} className="border border-border rounded-md p-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div>
+                    <p className="font-medium text-sm">
+                      {req.document_type?.label_en}
+                      {req.is_required && !req.is_conditional && (
+                        <span className="text-destructive ml-1">*</span>
+                      )}
+                    </p>
+                    {req.condition_label_en && (
+                      <p className="text-[11px] text-muted-foreground">{req.condition_label_en}</p>
+                    )}
+                  </div>
+                  {docs.length === 0 ? (
+                    req.is_required && !req.is_conditional ? (
+                      <Badge variant="destructive" className="text-[10px]">Missing</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">Not provided</Badge>
+                    )
+                  ) : null}
+                </div>
+                {docs.map((d, idx) => (
+                  <DocumentRow
+                    key={d.id}
+                    attachment={d}
+                    isLatest={idx === 0}
+                    isReviewable={isReviewable && idx === 0}
+                    onChange={onChange}
+                  />
+                ))}
+              </div>
+            );
+          })}
+
+          {byType['other'] && byType['other'].length > 0 && (
+            <div className="border border-border rounded-md p-3">
+              <p className="font-medium text-sm mb-2">Other</p>
+              {byType['other'].map((d, idx) => (
+                <DocumentRow
+                  key={d.id}
+                  attachment={d}
+                  isLatest={idx === 0}
+                  isReviewable={isReviewable && idx === 0}
+                  onChange={onChange}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
-const DocumentRow = ({ attachment: a }: { attachment: VendorAttachment }) => {
-  const verdictBadge = (() => {
+const DocumentRow = ({
+  attachment: a, isReviewable, isLatest, onChange,
+}: {
+  attachment: VendorAttachment;
+  isReviewable: boolean;
+  isLatest: boolean;
+  onChange: () => void;
+}) => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [decisionDialog, setDecisionDialog] = useState<'rejected' | 'clarification_requested' | null>(null);
+  const [decisionReason, setDecisionReason] = useState('');
+  const [acting, setActing] = useState(false);
+  const [showThread, setShowThread] = useState(false);
+  const [newMessage, setNewMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+
+  // Lazy-load thread messages only when expanded
+  const { data: messages = [], refetch: refetchMessages } = useQuery({
+    queryKey: ['vendor-attachment-messages', a.id],
+    queryFn: () => fetchMessagesForAttachment(a.id),
+    enabled: showThread,
+  });
+
+  // -- AI verdict (informational) --
+  const aiBadge = (() => {
     switch (a.ai_verdict) {
-      case 'accepted': return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px]">Accepted</Badge>;
-      case 'rejected': return <Badge variant="destructive" className="text-[10px]">Rejected</Badge>;
-      case 'soft_pending': return <Badge variant="outline" className="text-[10px]">Manual review</Badge>;
-      case 'pending': return <Badge variant="outline" className="text-[10px]">Pending</Badge>;
+      case 'accepted': return <Badge variant="outline" className="text-[10px] border-green-300 text-green-700">AI: Accepted</Badge>;
+      case 'rejected': return <Badge variant="outline" className="text-[10px] border-destructive/50 text-destructive">AI: Rejected</Badge>;
+      case 'soft_pending': return <Badge variant="outline" className="text-[10px]">AI: Manual review</Badge>;
+      case 'pending': return null;
     }
   })();
 
+  // -- Human verdict (authoritative) --
+  const humanStatus = (a as any).human_status as AttachmentHumanStatus | undefined || 'pending_review';
+  const humanBadge = (() => {
+    switch (humanStatus) {
+      case 'approved': return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px]">✓ Approved</Badge>;
+      case 'rejected': return <Badge variant="destructive" className="text-[10px]">Rejected — vendor must replace</Badge>;
+      case 'clarification_requested': return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 text-[10px]">? Clarification requested</Badge>;
+      case 'pending_review': return <Badge variant="outline" className="text-[10px]">Pending your review</Badge>;
+    }
+  })();
+
+  const doDecision = async (status: AttachmentHumanStatus, reason?: string) => {
+    setActing(true);
+    try {
+      const r = await setAttachmentHumanStatus({ attachment_id: a.id, status, reason });
+      if (r.error) {
+        toast({ title: 'Action failed', description: r.error, variant: 'destructive' });
+      } else {
+        toast({ title: 'Saved', description: `Marked ${HUMAN_STATUS_LABEL[status].en.toLowerCase()}.` });
+        onChange();
+        setDecisionDialog(null);
+        setDecisionReason('');
+      }
+    } catch (e: any) {
+      toast({ title: 'Action failed', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
+    setSendingMessage(true);
+    try {
+      const r = await postAttachmentMessage({ attachment_id: a.id, message: newMessage.trim() });
+      if (r.error) {
+        toast({ title: 'Could not send', description: r.error, variant: 'destructive' });
+      } else {
+        setNewMessage('');
+        await refetchMessages();
+      }
+    } catch (e: any) {
+      toast({ title: 'Send failed', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
   return (
-    <div className="bg-muted/30 rounded p-2 text-xs space-y-1 mt-1">
-      <div className="flex items-center justify-between gap-2">
+    <div className={`bg-muted/30 rounded p-2 text-xs space-y-2 mt-1 ${!isLatest ? 'opacity-60' : ''}`}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span className="truncate font-medium">{a.file_name}</span>
+          {!isLatest && (
+            <Badge variant="outline" className="text-[9px]">Previous version</Badge>
+          )}
         </div>
-        {verdictBadge}
+        <div className="flex items-center gap-1 flex-wrap">
+          {aiBadge}
+          {humanBadge}
+        </div>
       </div>
+
       {a.expiry_date && (
         <p className="text-muted-foreground">
           Expires: <span className="font-mono">{format(parseISO(a.expiry_date), 'dd MMM yyyy')}</span>
-          {a.expiry_source && <span className="ml-1 text-[10px]">({a.expiry_source.replace('_', ' ')})</span>}
         </p>
       )}
+
       {a.ai_summary && (
         <p className="text-muted-foreground italic">{a.ai_summary}</p>
       )}
-      {a.ai_verdict === 'rejected' && a.ai_rejection_reason && (
-        <p className="text-destructive">Reason: {a.ai_rejection_reason}</p>
+
+      {(a as any).human_status_reason && humanStatus !== 'approved' && (
+        <div className="bg-background border-l-2 border-warning px-2 py-1 rounded">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Your note to vendor:</p>
+          <p>{(a as any).human_status_reason}</p>
+        </div>
       )}
+
+      {/* Per-attachment review actions */}
+      {isReviewable && (
+        <div className="flex items-center gap-1 flex-wrap pt-1">
+          <Button
+            size="sm"
+            variant={humanStatus === 'approved' ? 'default' : 'outline'}
+            className="h-6 px-2 text-[10px] gap-1"
+            disabled={acting}
+            onClick={() => doDecision('approved')}
+          >
+            <CheckCircle2 className="h-3 w-3" /> Approve
+          </Button>
+          <Button
+            size="sm"
+            variant={humanStatus === 'clarification_requested' ? 'default' : 'outline'}
+            className="h-6 px-2 text-[10px] gap-1"
+            disabled={acting}
+            onClick={() => setDecisionDialog('clarification_requested')}
+          >
+            <HelpCircle className="h-3 w-3" /> Ask
+          </Button>
+          <Button
+            size="sm"
+            variant={humanStatus === 'rejected' ? 'destructive' : 'outline'}
+            className="h-6 px-2 text-[10px] gap-1"
+            disabled={acting}
+            onClick={() => setDecisionDialog('rejected')}
+          >
+            <XCircle className="h-3 w-3" /> Reject
+          </Button>
+          {humanStatus !== 'pending_review' && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-[10px] text-muted-foreground"
+              disabled={acting}
+              onClick={() => doDecision('pending_review')}
+            >
+              Undo
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-2 text-[10px] gap-1 ml-auto"
+            onClick={() => setShowThread((s) => !s)}
+          >
+            <MessageSquare className="h-3 w-3" />
+            {showThread ? 'Hide' : 'Thread'} {messages.length > 0 && `(${messages.length})`}
+          </Button>
+        </div>
+      )}
+
+      {/* Message thread (lazy-loaded when expanded) */}
+      {showThread && (
+        <div className="bg-background rounded p-2 space-y-2 border border-border">
+          {messages.length === 0 ? (
+            <p className="text-muted-foreground text-[10px]">No messages yet.</p>
+          ) : (
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {messages.map((m: AttachmentMessage) => (
+                <div key={m.id} className={`flex ${m.author_kind === 'procurement' ? 'justify-start' : 'justify-end'}`}>
+                  <div className={`px-2 py-1 rounded max-w-[80%] ${
+                    m.author_kind === 'procurement'
+                      ? 'bg-primary/10 text-foreground'
+                      : 'bg-muted text-foreground'
+                  }`}>
+                    <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5 opacity-60">
+                      {m.author_kind === 'procurement' ? 'Procurement' : 'Vendor'} • {format(parseISO(m.created_at), 'dd MMM HH:mm')}
+                    </p>
+                    <p className="whitespace-pre-wrap">{m.message}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-1">
+            <Input
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Reply to vendor..."
+              className="h-7 text-xs"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && newMessage.trim()) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+            />
+            <Button size="sm" className="h-7 px-2" disabled={!newMessage.trim() || sendingMessage} onClick={handleSendMessage}>
+              {sendingMessage ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Decision dialog (reject / clarification) */}
+      <Dialog open={decisionDialog !== null} onOpenChange={(v) => !v && setDecisionDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {decisionDialog === 'rejected' ? 'Reject this document' : 'Ask the vendor a question'}
+            </DialogTitle>
+            <DialogDescription>
+              {decisionDialog === 'rejected'
+                ? 'Tell the vendor what was wrong so they know what to upload instead. The reason will be included in the bundled email when you click "Send feedback to vendor".'
+                : 'What would you like to clarify? The vendor can reply and/or upload a new file.'}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={decisionReason}
+            onChange={(e) => setDecisionReason(e.target.value)}
+            placeholder={decisionDialog === 'rejected'
+              ? 'e.g. The IBAN doesn\'t match the company name on the bank letter.'
+              : 'e.g. Is this the bank account that will receive payment, or a different one?'}
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDecisionDialog(null); setDecisionReason(''); }}>Cancel</Button>
+            <Button
+              variant={decisionDialog === 'rejected' ? 'destructive' : 'default'}
+              disabled={!decisionReason.trim() || acting}
+              onClick={() => doDecision(decisionDialog!, decisionReason.trim())}
+            >
+              {acting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -19,6 +19,7 @@ export const routeAccessRules: RouteAccessRule[] = [
   { path: '/settings', label: 'Settings', area: 'Account', resourceKey: 'settings' },
   { path: '/help', label: 'Help & Guide', area: 'Support', resourceKey: 'help' },
   { path: '/notifications', label: 'Notifications', area: 'Account', resourceKey: 'notifications' },
+  { path: '/memo-templates', label: 'My Memo Templates', area: 'Account', resourceKey: 'memo-templates' },
   { path: '/admin/users', label: 'User Management', area: 'Administration', resourceKey: 'admin/users', requiredRole: 'admin' },
   { path: '/admin/departments', label: 'Departments', area: 'Administration', resourceKey: 'admin/departments', requiredRole: 'admin' },
   { path: '/admin/workflows', label: 'Workflows', area: 'Administration', resourceKey: 'admin/workflows', requiredRole: 'admin' },

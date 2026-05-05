@@ -251,3 +251,168 @@ export async function invokeDocumentReview(attachmentId: string): Promise<any> {
   if (error) throw error;
   return data;
 }
+
+// ---------------------------------------------------------------------
+// Per-attachment review actions
+// ---------------------------------------------------------------------
+
+export type AttachmentHumanStatus =
+  | 'pending_review'
+  | 'approved'
+  | 'rejected'
+  | 'clarification_requested';
+
+export interface AttachmentMessage {
+  id: string;
+  attachment_id: string;
+  vendor_id: string;
+  author_kind: 'procurement' | 'vendor';
+  author_user_id: string | null;
+  message: string;
+  read_by_other_at: string | null;
+  created_at: string;
+}
+
+/** Status-label mapping for human review status, vendor-facing.
+ *  Note: NOT shown to vendors verbatim — used in the portal UI. */
+export const HUMAN_STATUS_LABEL: Record<AttachmentHumanStatus, { en: string; ar: string }> = {
+  pending_review:          { en: 'Awaiting our review', ar: 'بانتظار مراجعتنا' },
+  approved:                { en: 'Approved',            ar: 'تمت الموافقة' },
+  rejected:                { en: 'Replace this file',   ar: 'يرجى استبدال هذا الملف' },
+  clarification_requested: { en: 'We have a question',  ar: 'لدينا استفسار' },
+};
+
+export async function setAttachmentHumanStatus(args: {
+  attachment_id: string;
+  status: AttachmentHumanStatus;
+  reason?: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const { data, error } = await supabase.functions.invoke('vendor-attachment-review', {
+    body: {
+      action: 'set_human_status',
+      attachment_id: args.attachment_id,
+      payload: { status: args.status, reason: args.reason || null },
+    },
+  });
+  if (error) return { error: error.message };
+  return data as any;
+}
+
+export async function batchSendToVendor(vendor_id: string): Promise<{ ok?: boolean; error?: string; status?: string; message?: string; items_sent?: number }> {
+  const { data, error } = await supabase.functions.invoke('vendor-attachment-review', {
+    body: { action: 'batch_send_to_vendor', vendor_id },
+  });
+  if (error) return { error: error.message };
+  return data as any;
+}
+
+export async function vendorResubmit(vendor_id: string): Promise<{ ok?: boolean; error?: string; revision_round?: number }> {
+  const { data, error } = await supabase.functions.invoke('vendor-attachment-review', {
+    body: { action: 'vendor_resubmit', vendor_id },
+  });
+  if (error) return { error: error.message };
+  return data as any;
+}
+
+export async function postAttachmentMessage(args: {
+  attachment_id: string;
+  message: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const { data, error } = await supabase.functions.invoke('vendor-attachment-review', {
+    body: {
+      action: 'post_message',
+      attachment_id: args.attachment_id,
+      payload: { message: args.message },
+    },
+  });
+  if (error) return { error: error.message };
+  return data as any;
+}
+
+export async function fetchMessagesForAttachment(attachmentId: string): Promise<AttachmentMessage[]> {
+  const { data, error } = await supabase
+    .from('vendor_attachment_messages' as any)
+    .select('*')
+    .eq('attachment_id', attachmentId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data as any) || [];
+}
+
+// ---------------------------------------------------------------------
+// Memo templates
+// ---------------------------------------------------------------------
+
+export interface MemoTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  subject_text: string | null;
+  body_html: string | null;
+  action_comments: string | null;
+  memo_types: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchMyTemplates(): Promise<MemoTemplate[]> {
+  const { data, error } = await supabase
+    .from('memo_templates' as any)
+    .select('*')
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return (data as any) || [];
+}
+
+export async function saveTemplate(args: {
+  id?: string;            // omit for create
+  name: string;
+  description?: string | null;
+  subject_text?: string | null;
+  body_html?: string | null;
+  action_comments?: string | null;
+  memo_types?: string[] | null;
+}): Promise<MemoTemplate> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  if (args.id) {
+    const { data, error } = await supabase
+      .from('memo_templates' as any)
+      .update({
+        name: args.name,
+        description: args.description ?? null,
+        subject_text: args.subject_text ?? null,
+        body_html: args.body_html ?? null,
+        action_comments: args.action_comments ?? null,
+        memo_types: args.memo_types ?? null,
+      } as any)
+      .eq('id', args.id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data as any;
+  } else {
+    const { data, error } = await supabase
+      .from('memo_templates' as any)
+      .insert({
+        user_id: user.id,
+        name: args.name,
+        description: args.description ?? null,
+        subject_text: args.subject_text ?? null,
+        body_html: args.body_html ?? null,
+        action_comments: args.action_comments ?? null,
+        memo_types: args.memo_types ?? null,
+      } as any)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data as any;
+  }
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  const { error } = await supabase.from('memo_templates' as any).delete().eq('id', id);
+  if (error) throw error;
+}

@@ -37,6 +37,7 @@ import VendorDetail from "@/pages/admin/VendorDetail";
 import VendorRegister from "@/pages/vendor/Register";
 import VendorLogin from "@/pages/vendor/Login";
 import VendorDashboard from "@/pages/vendor/Dashboard";
+import MemoTemplates from "@/pages/MemoTemplates";
 import NoAccess from "@/pages/NoAccess";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { routeGuard } from "@/lib/route-access-rules";
@@ -80,6 +81,7 @@ const App = () => (
                 <Route path="/settings" element={<ProtectedRoute {...routeGuard("/settings")}><Settings /></ProtectedRoute>} />
                 <Route path="/help" element={<ProtectedRoute {...routeGuard("/help")}><HelpGuide /></ProtectedRoute>} />
                 <Route path="/notifications" element={<ProtectedRoute {...routeGuard("/notifications")}><Notifications /></ProtectedRoute>} />
+                <Route path="/memo-templates" element={<ProtectedRoute {...routeGuard("/memo-templates")}><MemoTemplates /></ProtectedRoute>} />
                 <Route path="/no-access" element={<NoAccess />} />
                 <Route path="/admin/users" element={<ProtectedRoute {...routeGuard("/admin/users")}><UserManagement /></ProtectedRoute>} />
                 <Route path="/admin/departments" element={<ProtectedRoute {...routeGuard("/admin/departments")}><DepartmentManagement /></ProtectedRoute>} />

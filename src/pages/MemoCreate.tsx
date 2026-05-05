@@ -27,6 +27,8 @@ import type { WorkflowStepDef } from '@/components/memo/WorkflowBuilder';
 import type { FileAttachment } from '@/components/memo/FileUpload';
 import type { MemoType } from '@/components/memo/TransmittedForGrid';
 import { DEFAULT_PDF_LAYOUT, type PdfLayout } from '@/components/memo/PdfLayoutEditor';
+import { MemoTemplateMenu } from '@/components/memo/MemoTemplateMenu';
+import type { MemoTemplate } from '@/lib/vendor-api';
 import { format } from 'date-fns';
 import { Save, Send, ArrowLeft, FileDown } from 'lucide-react';
 import { buildMemoHtml } from '@/lib/memo-pdf-html';
@@ -247,14 +249,40 @@ const MemoCreate = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Page Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Create New Memo</h1>
-          <p className="text-sm text-muted-foreground">Internal Transmittal Memorandum</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Create New Memo</h1>
+            <p className="text-sm text-muted-foreground">Internal Transmittal Memorandum</p>
+          </div>
         </div>
+        <MemoTemplateMenu
+          current={{
+            subject_text: subject || null,
+            body_html: description || null,
+            action_comments: actionComments || null,
+            memo_types: memoTypes,
+          }}
+          onApply={(t: MemoTemplate) => {
+            // If the form has substantial content already, ask before
+            // overwriting. Otherwise apply silently.
+            const hasContent = !!(subject?.trim() || description?.trim() || actionComments?.trim());
+            if (hasContent) {
+              const ok = window.confirm(
+                'This will replace the subject, body, action comments, and "transmitted for" types with the template. Continue?',
+              );
+              if (!ok) return;
+            }
+            if (t.subject_text != null) setSubject(t.subject_text);
+            if (t.body_html != null) setDescription(t.body_html);
+            if (t.action_comments != null) setActionComments(t.action_comments);
+            if (t.memo_types && t.memo_types.length > 0) setMemoTypes(t.memo_types as MemoType[]);
+            toast({ title: 'Template applied', description: `Loaded "${t.name}".` });
+          }}
+        />
       </div>
 
       {/* Memo Form */}

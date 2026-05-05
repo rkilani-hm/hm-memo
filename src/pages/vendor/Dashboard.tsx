@@ -6,14 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
   fetchAttachmentsForVendor, fetchRequirementsForType,
   vendorFacingStatusLabel, type VendorRow, type VendorAttachment,
-  invokeDocumentReview,
+  invokeDocumentReview, vendorResubmit,
+  postAttachmentMessage, fetchMessagesForAttachment,
+  HUMAN_STATUS_LABEL, type AttachmentHumanStatus, type AttachmentMessage,
 } from '@/lib/vendor-api';
-import { Building2, LogOut, FileText, CheckCircle2, XCircle, AlertCircle, Loader2, Save, Upload } from 'lucide-react';
+import {
+  Building2, LogOut, FileText, CheckCircle2, XCircle, AlertCircle,
+  Loader2, Save, Upload, MessageSquare, Send, HelpCircle, RefreshCw,
+} from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 
 const VendorDashboard = () => {
@@ -77,12 +83,44 @@ const VendorDashboard = () => {
     navigate('/vendor/login');
   };
 
+  const [resubmitting, setResubmitting] = useState(false);
+  const handleResubmit = async () => {
+    if (!vendorId) return;
+    setResubmitting(true);
+    try {
+      const r = await vendorResubmit(vendorId);
+      if (r.error) {
+        toast({ title: 'Could not resubmit', description: r.error, variant: 'destructive' });
+      } else {
+        toast({
+          title: 'Resubmitted',
+          description: 'We\'ve let our procurement team know. We\'ll be in touch.',
+        });
+        queryClient.invalidateQueries({ queryKey: ['vendor-self', vendorId] });
+        queryClient.invalidateQueries({ queryKey: ['vendor-self-attachments', vendorId] });
+      }
+    } catch (e: any) {
+      toast({ title: 'Failed', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setResubmitting(false);
+    }
+  };
+
   if (!authChecked || !vendor) {
     return <div className="p-8 text-center text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>;
   }
 
   const statusLabel = vendorFacingStatusLabel(vendor.status);
   const isBlocked = vendor.status === 'blocked_documents_expired';
+  const isAwaitingResponse = vendor.status === 'awaiting_vendor_response';
+
+  // Count outstanding items (those procurement marked as rejected or
+  // clarification_requested) so we can show a clear "X items need
+  // attention" banner.
+  const pendingFromProcurement = (attachments as VendorAttachment[]).filter((a) => {
+    const hs = (a as any).human_status as AttachmentHumanStatus | undefined;
+    return hs === 'rejected' || hs === 'clarification_requested';
+  });
 
   return (
     <div className="min-h-screen bg-muted/30 p-6">
@@ -115,6 +153,39 @@ const VendorDashboard = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Awaiting-response banner: shown when procurement has sent
+            feedback that we (the vendor) need to act on. */}
+        {isAwaitingResponse && pendingFromProcurement.length > 0 && (
+          <Card className="border-warning/60 bg-warning/5">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+                <div className="flex-1 text-sm">
+                  <p className="font-semibold">We need a few things from you</p>
+                  <p className="text-muted-foreground">
+                    Our procurement team has reviewed your registration and asked for changes
+                    on <strong>{pendingFromProcurement.length}</strong> document
+                    {pendingFromProcurement.length !== 1 ? 's' : ''}. Open the Documents tab below to
+                    see what they need, then click <strong>Resubmit for review</strong> when you're done.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1" dir="rtl">
+                    قام فريق المشتريات بمراجعة طلبكم وطلب تعديلات على <strong>{pendingFromProcurement.length}</strong> مستند.
+                    افتح علامة تبويب المستندات أدناه لرؤية ما يحتاجونه، ثم انقر على <strong>إعادة الإرسال للمراجعة</strong> عند الانتهاء.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleResubmit}
+                disabled={resubmitting}
+                className="w-full sm:w-auto gap-1"
+              >
+                {resubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Resubmit for review
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs defaultValue="documents" className="space-y-4">
           <TabsList>
@@ -238,29 +309,157 @@ const DocumentsTab = ({
   );
 };
 
+/**
+ * Vendor's per-attachment view. Replaces the previous AI-verdict
+ * display with the AUTHORITATIVE procurement verdict (human_status):
+ *   approved             — green check, locked
+ *   rejected             — red, vendor must replace + reason shown
+ *   clarification_requested — amber, question shown, can reply or replace
+ *   pending_review       — neutral, awaiting our review
+ *
+ * The AI verdict from before is no longer shown to vendors directly —
+ * it's a procurement-only signal now. Once procurement reviews, what
+ * matters is procurement's call.
+ *
+ * Includes a collapsible message thread per attachment where the vendor
+ * can read procurement's notes and reply.
+ */
 const DocStatusRow = ({ attachment: a }: { attachment: VendorAttachment }) => {
+  const { toast } = useToast();
+  const [showThread, setShowThread] = useState(false);
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
+
   const expiry = a.expiry_date ? parseISO(a.expiry_date) : null;
   const days = expiry ? differenceInDays(expiry, new Date()) : null;
   const expired = days !== null && days < 0;
 
+  const humanStatus = (a as any).human_status as AttachmentHumanStatus | undefined;
+  // Default to pending_review when not set (shouldn't happen post-migration
+  // since there's a default at the DB level, but defensive).
+  const effectiveStatus: AttachmentHumanStatus = humanStatus || 'pending_review';
+
+  const { data: messages = [], refetch: refetchMessages } = useQuery({
+    queryKey: ['vendor-self-attachment-messages', a.id],
+    queryFn: () => fetchMessagesForAttachment(a.id),
+    enabled: showThread,
+  });
+
+  const handleReply = async () => {
+    if (!reply.trim()) return;
+    setSending(true);
+    try {
+      const r = await postAttachmentMessage({ attachment_id: a.id, message: reply.trim() });
+      if (r.error) {
+        toast({ title: 'Could not send', description: r.error, variant: 'destructive' });
+      } else {
+        setReply('');
+        await refetchMessages();
+      }
+    } catch (e: any) {
+      toast({ title: 'Failed', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
-    <div className="bg-muted/30 rounded p-2 text-xs space-y-1">
-      <div className="flex items-center justify-between gap-2">
+    <div className="bg-muted/30 rounded p-2 text-xs space-y-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <FileText className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="truncate">{a.file_name}</span>
         </div>
-        {a.ai_verdict === 'accepted' && <span className="text-green-700 flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> Accepted</span>}
-        {a.ai_verdict === 'rejected' && <span className="text-destructive flex items-center gap-1"><XCircle className="h-3.5 w-3.5" /> Rejected</span>}
-        {a.ai_verdict === 'soft_pending' && <span className="text-warning flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Reviewing</span>}
+        {effectiveStatus === 'approved' && (
+          <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px] gap-1">
+            <CheckCircle2 className="h-3 w-3" /> Approved
+          </Badge>
+        )}
+        {effectiveStatus === 'rejected' && (
+          <Badge variant="destructive" className="text-[10px] gap-1">
+            <XCircle className="h-3 w-3" /> Replace this file
+          </Badge>
+        )}
+        {effectiveStatus === 'clarification_requested' && (
+          <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 text-[10px] gap-1">
+            <HelpCircle className="h-3 w-3" /> We have a question
+          </Badge>
+        )}
+        {effectiveStatus === 'pending_review' && (
+          <Badge variant="outline" className="text-[10px]">Awaiting our review</Badge>
+        )}
       </div>
+
       {expiry && (
         <p className={expired ? 'text-destructive font-semibold' : days !== null && days <= 30 ? 'text-warning' : 'text-muted-foreground'}>
           {expired ? `Expired ${-days} days ago` : `Expires ${format(expiry, 'dd MMM yyyy')} (in ${days} days)`}
         </p>
       )}
-      {a.ai_verdict === 'rejected' && a.ai_rejection_reason && (
-        <p className="text-destructive">Reason: {a.ai_rejection_reason}</p>
+
+      {/* Procurement's note */}
+      {(a as any).human_status_reason && effectiveStatus !== 'approved' && (
+        <div className="bg-background border-l-2 border-warning px-2 py-1.5 rounded">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">From our procurement team:</p>
+          <p>{(a as any).human_status_reason}</p>
+        </div>
+      )}
+
+      {effectiveStatus !== 'approved' && (
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-2 text-[10px] gap-1"
+            onClick={() => setShowThread((s) => !s)}
+          >
+            <MessageSquare className="h-3 w-3" />
+            {showThread ? 'Hide messages' : 'Reply or ask a question'}
+            {messages.length > 0 && ` (${messages.length})`}
+          </Button>
+        </div>
+      )}
+
+      {/* Message thread */}
+      {showThread && (
+        <div className="bg-background rounded p-2 space-y-2 border border-border">
+          {messages.length === 0 ? (
+            <p className="text-muted-foreground text-[10px]">No messages yet. Use the box below to ask a question or explain.</p>
+          ) : (
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {messages.map((m: AttachmentMessage) => (
+                <div key={m.id} className={`flex ${m.author_kind === 'procurement' ? 'justify-start' : 'justify-end'}`}>
+                  <div className={`px-2 py-1 rounded max-w-[85%] ${
+                    m.author_kind === 'procurement'
+                      ? 'bg-primary/10 text-foreground'
+                      : 'bg-muted text-foreground'
+                  }`}>
+                    <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5 opacity-60">
+                      {m.author_kind === 'procurement' ? 'Al Hamra procurement' : 'You'} • {format(parseISO(m.created_at), 'dd MMM HH:mm')}
+                    </p>
+                    <p className="whitespace-pre-wrap">{m.message}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-1">
+            <Input
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              placeholder="Type a reply..."
+              className="h-7 text-xs"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && reply.trim()) {
+                  e.preventDefault();
+                  handleReply();
+                }
+              }}
+            />
+            <Button size="sm" className="h-7 px-2" disabled={!reply.trim() || sending} onClick={handleReply}>
+              {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

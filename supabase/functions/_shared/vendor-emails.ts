@@ -339,3 +339,113 @@ export function emailCredentialsMagicLink(opts: {
 
   return { subject, html };
 }
+
+// ---------------------------------------------------------------------
+// 7. Procurement requests changes (batched per-attachment review)
+// ---------------------------------------------------------------------
+
+interface AttachmentReviewItem {
+  documentLabelEn: string;
+  documentLabelAr: string;
+  status: 'rejected' | 'clarification_requested';
+  reasonOrQuestion: string;
+}
+
+export function emailChangesRequested(opts: {
+  vendorName: string;
+  vendorReferenceNo: string;
+  contactName: string;
+  items: AttachmentReviewItem[];
+  portalLoginUrl: string;
+}): BilingualEmail {
+  const { vendorName, vendorReferenceNo, contactName, items, portalLoginUrl } = opts;
+  const subject = `Action needed on your registration — ${vendorReferenceNo} | مطلوب إجراء على طلب التسجيل`;
+
+  const itemsEnHtml = items.map((it) => `
+    <tr>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;vertical-align:top;">
+        <strong>${it.documentLabelEn}</strong>
+        <span style="color:${it.status === 'rejected' ? BRAND.red : '#996600'};font-size:11px;display:block;margin-top:2px;">
+          ${it.status === 'rejected' ? 'Please replace this file' : 'Clarification requested'}
+        </span>
+      </td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;vertical-align:top;color:#444;">${it.reasonOrQuestion}</td>
+    </tr>`).join('');
+
+  const itemsArHtml = items.map((it) => `
+    <tr>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;vertical-align:top;">
+        <strong>${it.documentLabelAr}</strong>
+        <span style="color:${it.status === 'rejected' ? BRAND.red : '#996600'};font-size:11px;display:block;margin-top:2px;">
+          ${it.status === 'rejected' ? 'يرجى استبدال هذا الملف' : 'مطلوب توضيح'}
+        </span>
+      </td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;vertical-align:top;color:#444;">${it.reasonOrQuestion}</td>
+    </tr>`).join('');
+
+  const enBody = `
+    <p>Dear ${contactName},</p>
+    <p>Our procurement team has reviewed your registration for <strong>${vendorName}</strong>
+    (reference: ${vendorReferenceNo}) and needs a few adjustments before we can proceed.</p>
+    <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;border-top:1px solid #eee;">
+      ${itemsEnHtml}
+    </table>
+    <p>Please log in to the supplier portal to address each item — you can reply with comments
+    or upload a replacement file directly.</p>
+  `;
+
+  const arBody = ar(`
+    <p>عزيزي ${contactName}،</p>
+    <p>قام فريق المشتريات لدينا بمراجعة طلب تسجيلكم لـ <strong>${vendorName}</strong>
+    (الرقم المرجعي: ${vendorReferenceNo}) ويحتاج إلى بعض التعديلات قبل أن نتمكن من المتابعة.</p>
+    <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;border-top:1px solid #eee;">
+      ${itemsArHtml}
+    </table>
+    <p>يرجى تسجيل الدخول إلى بوابة الموردين لمعالجة كل عنصر — يمكنكم الرد بتعليقات
+    أو رفع ملف بديل مباشرة.</p>
+  `);
+
+  const html = brandedEmailShell({
+    greetingName: contactName,
+    intro: `Action needed — ${vendorName}`,
+    bodyHtml: enBody + divider + arBody,
+    ctaLabel: 'Open Supplier Portal',
+    ctaUrl: portalLoginUrl,
+    subtitle: 'Supplier Registration',
+  });
+
+  return { subject, html };
+}
+
+// ---------------------------------------------------------------------
+// 8. Vendor responded — alert to procurement (English-only, internal)
+// ---------------------------------------------------------------------
+
+export function emailVendorResponded(opts: {
+  vendorName: string;
+  vendorReferenceNo: string;
+  revisionRound: number;
+  vendorAdminUrl: string;
+}): BilingualEmail {
+  const { vendorName, vendorReferenceNo, revisionRound, vendorAdminUrl } = opts;
+  const subject = `Vendor responded — please re-review: ${vendorReferenceNo}`;
+
+  const html = brandedEmailShell({
+    greetingName: 'Procurement',
+    intro: `Vendor responded — ${vendorName}`,
+    bodyHtml: `
+      <p><strong>${vendorName}</strong> (${vendorReferenceNo}) has addressed
+      your feedback and resubmitted their documents.</p>
+      <p>This is revision round <strong>${revisionRound}</strong>.${
+        revisionRound >= 5
+          ? ' This vendor has been through several rounds — consider whether further iteration is productive, or whether a phone call would resolve outstanding items faster.'
+          : ''
+      }</p>
+      <p>Please review the updated attachments and any messages they posted on the threads.</p>
+    `,
+    ctaLabel: 'Review Vendor',
+    ctaUrl: vendorAdminUrl,
+    subtitle: 'Supplier Registration',
+  });
+  return { subject, html };
+}
