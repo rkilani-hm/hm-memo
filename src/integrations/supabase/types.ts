@@ -742,6 +742,45 @@ export type Database = {
           },
         ]
       }
+      memo_templates: {
+        Row: {
+          action_comments: string | null
+          body_html: string | null
+          created_at: string
+          description: string | null
+          id: string
+          memo_types: Json | null
+          name: string
+          subject_text: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_comments?: string | null
+          body_html?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          memo_types?: Json | null
+          name: string
+          subject_text?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_comments?: string | null
+          body_html?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          memo_types?: Json | null
+          name?: string
+          subject_text?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       memo_versions: {
         Row: {
           changed_by_user_id: string
@@ -1134,6 +1173,54 @@ export type Database = {
         }
         Relationships: []
       }
+      vendor_attachment_messages: {
+        Row: {
+          attachment_id: string
+          author_kind: string
+          author_user_id: string | null
+          created_at: string
+          id: string
+          message: string
+          read_by_other_at: string | null
+          vendor_id: string
+        }
+        Insert: {
+          attachment_id: string
+          author_kind: string
+          author_user_id?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          read_by_other_at?: string | null
+          vendor_id: string
+        }
+        Update: {
+          attachment_id?: string
+          author_kind?: string
+          author_user_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          read_by_other_at?: string | null
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_attachment_messages_attachment_id_fkey"
+            columns: ["attachment_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_attachments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_attachment_messages_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_attachments: {
         Row: {
           ai_analysed_at: string | null
@@ -1150,6 +1237,10 @@ export type Database = {
           file_name: string
           file_size: number | null
           file_url: string
+          human_reviewed_at: string | null
+          human_reviewed_by: string | null
+          human_status: Database["public"]["Enums"]["attachment_human_status"]
+          human_status_reason: string | null
           id: string
           last_reminder_sent_at: string | null
           last_reminder_window: number | null
@@ -1173,6 +1264,10 @@ export type Database = {
           file_name: string
           file_size?: number | null
           file_url: string
+          human_reviewed_at?: string | null
+          human_reviewed_by?: string | null
+          human_status?: Database["public"]["Enums"]["attachment_human_status"]
+          human_status_reason?: string | null
           id?: string
           last_reminder_sent_at?: string | null
           last_reminder_window?: number | null
@@ -1196,6 +1291,10 @@ export type Database = {
           file_name?: string
           file_size?: number | null
           file_url?: string
+          human_reviewed_at?: string | null
+          human_reviewed_by?: string | null
+          human_status?: Database["public"]["Enums"]["attachment_human_status"]
+          human_status_reason?: string | null
           id?: string
           last_reminder_sent_at?: string | null
           last_reminder_window?: number | null
@@ -1517,6 +1616,7 @@ export type Database = {
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          revision_round: number
           sap_account_group: string | null
           sap_company_code: string | null
           sap_created_at: string | null
@@ -1575,6 +1675,7 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          revision_round?: number
           sap_account_group?: string | null
           sap_company_code?: string | null
           sap_created_at?: string | null
@@ -1633,6 +1734,7 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          revision_round?: number
           sap_account_group?: string | null
           sap_company_code?: string | null
           sap_created_at?: string | null
@@ -1914,6 +2016,11 @@ export type Database = {
         | "rejected"
         | "rework"
         | "skipped"
+      attachment_human_status:
+        | "pending_review"
+        | "approved"
+        | "rejected"
+        | "clarification_requested"
       doc_ai_verdict: "pending" | "accepted" | "rejected" | "soft_pending"
       memo_status:
         | "draft"
@@ -1947,6 +2054,7 @@ export type Database = {
         | "rejected"
         | "inactive"
         | "blocked_documents_expired"
+        | "awaiting_vendor_response"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2092,6 +2200,12 @@ export const Constants = {
         "vendor",
       ],
       approval_status: ["pending", "approved", "rejected", "rework", "skipped"],
+      attachment_human_status: [
+        "pending_review",
+        "approved",
+        "rejected",
+        "clarification_requested",
+      ],
       doc_ai_verdict: ["pending", "accepted", "rejected", "soft_pending"],
       memo_status: [
         "draft",
@@ -2127,6 +2241,7 @@ export const Constants = {
         "rejected",
         "inactive",
         "blocked_documents_expired",
+        "awaiting_vendor_response",
       ],
     },
   },

@@ -19,7 +19,8 @@ export type VendorStatus =
   | 'sap_update_failed_needs_correction'
   | 'rejected'
   | 'inactive'
-  | 'blocked_documents_expired';
+  | 'blocked_documents_expired'
+  | 'awaiting_vendor_response';
 
 export interface VendorRow {
   id: string;
@@ -105,6 +106,7 @@ export const STATUS_LABELS: Record<VendorStatus, string> = {
   rejected: 'Rejected',
   inactive: 'Inactive',
   blocked_documents_expired: 'Blocked — Documents Expired',
+  awaiting_vendor_response: 'Awaiting Vendor Response',
 };
 
 // Vendor-facing status labels — NO SAP terminology
