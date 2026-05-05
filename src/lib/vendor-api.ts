@@ -106,6 +106,7 @@ export const STATUS_LABELS: Record<VendorStatus, string> = {
   rejected: 'Rejected',
   inactive: 'Inactive',
   blocked_documents_expired: 'Blocked — Documents Expired',
+  awaiting_vendor_response: 'Awaiting Vendor Response',
 };
 
 // Vendor-facing status labels — NO SAP terminology
