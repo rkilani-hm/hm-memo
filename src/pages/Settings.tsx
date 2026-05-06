@@ -92,27 +92,55 @@ const Settings = () => {
     if (!user) return;
     setSaving(true);
     try {
+      // Two-pass save for resilience.
+      // ============================
+      // The ai_assistant_language column had a missing-column / stale
+      // schema cache bug (06 May 2026): if that column wasn't yet
+      // visible to PostgREST, including it in the same UPDATE as
+      // signature/initials caused the entire save to fail — meaning a
+      // user trying to update their initials silently couldn't,
+      // because the UPDATE included a field the DB rejected.
+      //
+      // Splitting into two passes means the core save (signatures,
+      // initials, name, print prefs) goes through even if the AI
+      // language pass fails. We attempt the AI language second and
+      // log (but don't surface) any error from it so future column-
+      // shape mismatches don't break the rest of the form.
+      const corePayload: Record<string, any> = {
+        full_name: fullName,
+        initials,
+        job_title: jobTitle,
+        signature_type: signatureType,
+        signature_image_url: signatureUrl,
+        initials_image_url: initialsImageUrl,
+        print_duplex_mode: printDuplexMode,
+        print_blank_back_pages: printBlankBackPages,
+        print_watermark: printWatermark,
+        print_include_attachments: printIncludeAttachments,
+        print_color_mode: printColorMode,
+        print_page_number_style: printPageNumberStyle,
+        print_confidentiality_line: printConfidentialityLine || null,
+      };
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: fullName,
-          initials,
-          job_title: jobTitle,
-          signature_type: signatureType,
-          signature_image_url: signatureUrl,
-          initials_image_url: initialsImageUrl,
-          print_duplex_mode: printDuplexMode,
-          print_blank_back_pages: printBlankBackPages,
-          print_watermark: printWatermark,
-          print_include_attachments: printIncludeAttachments,
-          print_color_mode: printColorMode,
-          print_page_number_style: printPageNumberStyle,
-          print_confidentiality_line: printConfidentialityLine || null,
-          ai_assistant_language: aiAssistantLanguage,
-        } as any)
+        .update(corePayload)
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      // Best-effort second pass for the AI language preference. If
+      // the column isn't there yet, log and continue — we don't want
+      // a silent column-missing problem to block the user from
+      // saving the rest of their profile.
+      const { error: aiErr } = await supabase
+        .from('profiles')
+        .update({ ai_assistant_language: aiAssistantLanguage } as any)
+        .eq('user_id', user.id);
+      if (aiErr) {
+        console.warn('AI language preference save failed (non-blocking):', aiErr.message);
+      }
+
       toast({ title: 'Profile updated', description: 'Your changes have been saved.' });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
