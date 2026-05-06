@@ -1020,6 +1020,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ai_assistant_language: string
           azure_ad_oid: string | null
           azure_ad_upn: string | null
           created_at: string
@@ -1045,6 +1046,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_assistant_language?: string
           azure_ad_oid?: string | null
           azure_ad_upn?: string | null
           created_at?: string
@@ -1070,6 +1072,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_assistant_language?: string
           azure_ad_oid?: string | null
           azure_ad_upn?: string | null
           created_at?: string
