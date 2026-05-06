@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles, fetchDepartments } from '@/lib/memo-api';
 import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
+import { verifyOwnPassword, passwordErrorMessage } from '@/lib/verify-password';
 import { saveApprovedMemoToSharePoint } from '@/lib/sharepoint-save';
 import { buildAuthFactors } from '@/lib/audit-auth-factors';
 import alHamraLogo from '@/assets/al-hamra-logo.jpg';
@@ -160,23 +161,18 @@ const PendingApprovals = () => {
 
       const { stepId, memoId, action } = actionDialog;
 
-      // Verify password by re-authenticating against the user's
-      // ACTUAL auth email (not the profiles table — see same fix
-      // in MemoView.tsx for context).
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const verifyEmail = authUser?.email || user.email || '';
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: verifyEmail,
-        password,
-      });
-      if (authError) {
+      // Verify password via the verify-password edge function — same
+      // approach as MemoView. Avoids the rate-limit and session-swap
+      // issues of client-side signInWithPassword.
+      const verifyResult = await verifyOwnPassword(password);
+      if (!verifyResult.ok) {
+        const friendly = passwordErrorMessage(verifyResult);
         console.warn('Approver password verification failed:', {
-          email: verifyEmail,
-          error: authError.message,
-          status: (authError as any).status,
+          category: verifyResult.category,
+          message: verifyResult.message,
         });
-        setPasswordError('Incorrect password. Please try again.');
-        throw new Error('Password verification failed');
+        setPasswordError(friendly);
+        throw new Error(friendly);
       }
       setPasswordError('');
 

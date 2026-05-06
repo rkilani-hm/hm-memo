@@ -9,6 +9,7 @@ import { notifyMemoStatus, notifyApprover } from '@/lib/email-notifications';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 import { generateMemoPdf, prepareMemoData, type PrintPreferences, DEFAULT_PRINT_PREFERENCES } from '@/lib/memo-pdf';
 import { buildAttachmentsBundle, downloadBundleBlob } from '@/lib/attachments-bundle';
+import { verifyOwnPassword, passwordErrorMessage } from '@/lib/verify-password';
 import { buildMemoHtml } from '@/lib/memo-pdf-html';
 import {
   bucketStepsForFinanceGrid,
@@ -293,30 +294,28 @@ const MemoView = () => {
       if (!actionDialog || !user || !id) return;
       const { stepId, action, stepActionType } = actionDialog;
 
-      // Verify password by re-authenticating against the user's
-      // ACTUAL auth email — not the profile table's email, which can
-      // be stale if it diverged from auth.users at any point. The
-      // profiles table is a denormalised cache; auth.users is the
-      // source of truth for the email signInWithPassword validates
-      // against.
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const verifyEmail = authUser?.email || user.email || '';
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: verifyEmail,
-        password,
-      });
-      if (authError) {
-        // Log the actual Supabase error so we can tell apart
-        // "wrong password" from "user not found", "rate limited",
-        // "email not confirmed", etc. The user-facing message is
-        // intentionally generic for security.
+      // Verify password via the verify-password edge function. This
+      // avoids the previous client-side signInWithPassword approach,
+      // which had two failure modes:
+      //   1. Created a fresh session that replaced the user's
+      //      current JWT (could disrupt MFA claims, etc.)
+      //   2. Counted against the user's per-IP/email rate-limit pool
+      //      — approvers signing several memos in a row would trip
+      //      the limit and get "incorrect password" errors with the
+      //      RIGHT password. This was the actual cause of the bug
+      //      that prompted this rewrite.
+      // The edge function does a server-side verification using a
+      // separate rate-limit bucket and discards the temporary
+      // session immediately.
+      const verifyResult = await verifyOwnPassword(password);
+      if (!verifyResult.ok) {
+        const friendly = passwordErrorMessage(verifyResult);
         console.warn('Approver password verification failed:', {
-          email: verifyEmail,
-          error: authError.message,
-          status: (authError as any).status,
+          category: verifyResult.category,
+          message: verifyResult.message,
         });
-        setPasswordError('Incorrect password. Please try again.');
-        throw new Error('Password verification failed');
+        setPasswordError(friendly);
+        throw new Error(friendly);
       }
       setPasswordError('');
 

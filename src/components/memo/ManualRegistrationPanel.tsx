@@ -14,6 +14,7 @@ import { AlertTriangle, FileText, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { collectDeviceInfo, getClientIp, resolveIpGeolocation } from '@/lib/device-info';
 import { buildAuthFactors } from '@/lib/audit-auth-factors';
+import { verifyOwnPassword, passwordErrorMessage } from '@/lib/verify-password';
 
 interface ManualRegistrationPanelProps {
   step: {
@@ -51,15 +52,14 @@ const ManualRegistrationPanel = ({
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
 
-      // Verify delegate's own password
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: currentUser?.email || '',
-        password,
-      });
-      if (authError) {
-        setPasswordError('Incorrect password. Please try again.');
-        throw new Error('Password verification failed');
+      // Verify delegate's own password via the verify-password edge
+      // function (avoids client-side rate-limit / session-swap issues
+      // of signInWithPassword — same fix as in MemoView/PendingApprovals).
+      const verifyResult = await verifyOwnPassword(password);
+      if (!verifyResult.ok) {
+        const friendly = passwordErrorMessage(verifyResult);
+        setPasswordError(friendly);
+        throw new Error(friendly);
       }
       setPasswordError('');
 
