@@ -293,13 +293,28 @@ const MemoView = () => {
       if (!actionDialog || !user || !id) return;
       const { stepId, action, stepActionType } = actionDialog;
 
-      // Verify password
-      const myProfile = getProfile(user.id);
+      // Verify password by re-authenticating against the user's
+      // ACTUAL auth email — not the profile table's email, which can
+      // be stale if it diverged from auth.users at any point. The
+      // profiles table is a denormalised cache; auth.users is the
+      // source of truth for the email signInWithPassword validates
+      // against.
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const verifyEmail = authUser?.email || user.email || '';
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email: myProfile?.email || user.email || '',
+        email: verifyEmail,
         password,
       });
       if (authError) {
+        // Log the actual Supabase error so we can tell apart
+        // "wrong password" from "user not found", "rate limited",
+        // "email not confirmed", etc. The user-facing message is
+        // intentionally generic for security.
+        console.warn('Approver password verification failed:', {
+          email: verifyEmail,
+          error: authError.message,
+          status: (authError as any).status,
+        });
         setPasswordError('Incorrect password. Please try again.');
         throw new Error('Password verification failed');
       }

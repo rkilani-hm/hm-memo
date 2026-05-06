@@ -160,13 +160,21 @@ const PendingApprovals = () => {
 
       const { stepId, memoId, action } = actionDialog;
 
-      // Verify password by re-authenticating
-      const myProfile = getProfile(user.id);
+      // Verify password by re-authenticating against the user's
+      // ACTUAL auth email (not the profiles table — see same fix
+      // in MemoView.tsx for context).
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const verifyEmail = authUser?.email || user.email || '';
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email: myProfile?.email || user.email || '',
+        email: verifyEmail,
         password,
       });
       if (authError) {
+        console.warn('Approver password verification failed:', {
+          email: verifyEmail,
+          error: authError.message,
+          status: (authError as any).status,
+        });
         setPasswordError('Incorrect password. Please try again.');
         throw new Error('Password verification failed');
       }
