@@ -235,8 +235,23 @@ const ResetPassword = () => {
     const errorConfig = {
       expired: {
         icon: <Clock className="h-12 w-12 mx-auto text-warning" />,
-        title: 'Link Expired',
-        message: 'This reset link has expired or was already consumed. Please request a new one.',
+        title: 'Link no longer valid',
+        // Two real causes look identical at this point: (a) the OTP TTL ran
+        // out, (b) something pre-fetched the link before the user clicked it
+        // and consumed the single-use token. Corporate Microsoft 365 tenants
+        // commonly run Safe Links / Defender, which scans inbound URLs and
+        // auto-consumes them. We can't tell the two apart from here, so
+        // explain both possibilities + how to work around (b).
+        message: (
+          <>
+            <p>This reset link is no longer valid. Two common reasons:</p>
+            <ul className="text-left mt-3 space-y-1 list-disc pl-5 text-xs">
+              <li>The link expired (links are valid for a few minutes after sending).</li>
+              <li>Your email security scanner opened the link before you did. Some corporate email systems (Microsoft Safe Links, antivirus, etc.) pre-check URLs, which consumes them.</li>
+            </ul>
+            <p className="mt-3">Request a fresh link below — when the email arrives, click it as quickly as you can, ideally from the same browser you're requesting it in.</p>
+          </>
+        ),
       },
       used: {
         icon: <CheckCircle2 className="h-12 w-12 mx-auto text-muted-foreground" />,
@@ -263,7 +278,7 @@ const ResetPassword = () => {
           <CardContent className="pt-8 text-center space-y-4">
             {config.icon}
             <h2 className="text-lg font-semibold text-foreground">{config.title}</h2>
-            <p className="text-muted-foreground text-sm">{config.message}</p>
+            <div className="text-muted-foreground text-sm">{config.message}</div>
             <div className="flex flex-col gap-2 pt-2">
               <Link to="/forgot-password">
                 <Button className="w-full">Request New Reset Link</Button>
