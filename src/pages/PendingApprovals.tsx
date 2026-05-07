@@ -348,6 +348,7 @@ const PendingApprovals = () => {
         .eq('id', stepId)
         .maybeSingle();
 
+      const myProfile = user ? getProfile(user.id) : null;
       const authFactors = buildAuthFactors({
         signatureApplied: action === 'approved' && !!signatureUrl,
         passwordVerified: true,
