@@ -309,10 +309,11 @@ const MemoView = () => {
       // session immediately.
       const verifyResult = await verifyOwnPassword(password);
       if (!verifyResult.ok) {
-        const friendly = passwordErrorMessage(verifyResult);
+        const failed = verifyResult as Extract<typeof verifyResult, { ok: false }>;
+        const friendly = passwordErrorMessage(failed);
         console.warn('Approver password verification failed:', {
-          category: verifyResult.category,
-          message: verifyResult.message,
+          category: failed.category,
+          message: failed.message,
         });
         setPasswordError(friendly);
         throw new Error(friendly);
