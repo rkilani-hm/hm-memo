@@ -988,6 +988,54 @@ export type Database = {
           },
         ]
       }
+      password_reset_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          ip_address: unknown
+          nonce: string | null
+          nonce_consumed_at: string | null
+          nonce_expires_at: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          ip_address?: unknown
+          nonce?: string | null
+          nonce_consumed_at?: string | null
+          nonce_expires_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          ip_address?: unknown
+          nonce?: string | null
+          nonce_consumed_at?: string | null
+          nonce_expires_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       permission_resources: {
         Row: {
           category: string
@@ -1920,6 +1968,7 @@ export type Database = {
           visible_to_caller: number
         }[]
       }
+      cleanup_password_reset_codes: { Args: never; Returns: undefined }
       effective_finance_dispatcher: { Args: never; Returns: string }
       generate_vendor_reference: { Args: never; Returns: string }
       get_finance_reviewer_pool: {
