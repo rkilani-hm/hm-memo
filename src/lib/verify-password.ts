@@ -48,7 +48,7 @@ export async function verifyOwnPassword(password: string): Promise<VerifyPasswor
 /** User-facing message for each verification failure category. */
 export function passwordErrorMessage(result: VerifyPasswordResult): string {
   if (result.ok) return '';
-  switch (result.category) {
+  switch ((result as Extract<VerifyPasswordResult, { ok: false }>).category) {
     case 'wrong_password':
       return 'Incorrect password. Please try again.';
     case 'rate_limited':
