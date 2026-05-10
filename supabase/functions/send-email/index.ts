@@ -83,7 +83,7 @@ serve(async (req) => {
     // The sender mailbox MUST exist in the Microsoft 365 tenant and
     // the registered Azure AD app must have Mail.Send (application)
     // permission granted on it. Otherwise Graph returns 403.
-    const senderEmail = Deno.env.get("O365_SENDER_EMAIL") || "ememo@alhamra.com.kw";
+    const senderEmail = Deno.env.get("O365_SENDER_EMAIL");
 
     const graphUrl = senderEmail
       ? `https://graph.microsoft.com/v1.0/users/${senderEmail}/sendMail`
