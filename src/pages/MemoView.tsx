@@ -1848,9 +1848,23 @@ const MemoView = () => {
                       onClick={async () => {
                         try {
                           const url = await getAttachmentSignedUrl(att.file_url);
-                          window.open(url, '_blank');
+                          const res = await fetch(url);
+                          if (!res.ok) {
+                            toast({
+                              title: 'You are not authorized to access this document',
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+                          const blob = await res.blob();
+                          const blobUrl = URL.createObjectURL(blob);
+                          window.open(blobUrl, '_blank');
+                          setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
                         } catch (e) {
-                          toast({ title: 'Error opening attachment', variant: 'destructive' });
+                          toast({
+                            title: 'You are not authorized to access this document',
+                            variant: 'destructive',
+                          });
                         }
                       }}
                       className="text-primary underline text-left hover:text-primary/80"
