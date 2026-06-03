@@ -57,7 +57,14 @@ export const uploadAttachment = async (
   return { fileUrl: filePath, fileName: file.name };
 };
 
-/** Generate a signed URL for an attachment stored in the private bucket */
+/**
+ * Generate a short-lived signed URL for an attachment stored in the private
+ * bucket. Storage RLS (migration 20260603120551) already restricts URL
+ * minting to users authorized for the parent memo. The TTL is intentionally
+ * short (60s) so the resulting URL is only useful for the immediate
+ * fetch/render — it cannot be copy-pasted into another browser session and
+ * reused for sustained access.
+ */
 export const getAttachmentSignedUrl = async (fileUrl: string): Promise<string> => {
   // Extract path if it's a full URL, otherwise use as-is
   let path = fileUrl;
@@ -69,7 +76,7 @@ export const getAttachmentSignedUrl = async (fileUrl: string): Promise<string> =
 
   const { data, error } = await supabase.storage
     .from('attachments')
-    .createSignedUrl(path, 3600);
+    .createSignedUrl(path, 60);
 
   if (error) throw error;
   return data.signedUrl;

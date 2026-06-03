@@ -36,7 +36,7 @@ const SignedImage = ({ storagePath, bucket = 'signatures', alt = '', className, 
 
       const { data, error } = await supabase.storage
         .from(bucket)
-        .createSignedUrl(path, 3600);
+        .createSignedUrl(path, 60);
 
       if (!error && data?.signedUrl) {
         setSignedUrl(data.signedUrl);
