@@ -198,8 +198,11 @@ const PendingApprovals = () => {
             .from('signatures')
             .upload(path, blob, { upsert: true, contentType: 'image/png' });
           if (uploadError) throw uploadError;
-          const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(path);
-          signatureUrl = urlData.publicUrl;
+          // Store the storage PATH (not a public URL). The 'signatures' bucket is
+          // private, so a public URL would not resolve. Consumers (SignedImage,
+          // getSignedImageDataUrl) sign the path on read, matching Settings.tsx
+          // and MemoView.tsx which also persist the raw path.
+          signatureUrl = path;
         } else {
           // Saved profile signature URL
           signatureUrl = signatureDataUrl;
